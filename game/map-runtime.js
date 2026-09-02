@@ -1922,10 +1922,11 @@
       // have nowhere real to place a door, which strands the guide in mid-air.
       if (!/\S/u.test(anchor.textContent || "")) continue;
       const target = portalTarget(anchor);
+      const targetPage = target ? pageIdentity(target) : "";
       if (
         !target ||
-        target.pathname === location.pathname ||
-        excludedPaths.has(target.pathname)
+        targetPage === pageIdentity() ||
+        excludedPaths.has(targetPage)
       ) continue;
       const body = portalBodyForAnchor(anchor, bodies);
       if (!body) continue;
@@ -2067,7 +2068,7 @@
     if (forcedMode === "portal" || (!forcedMode && Math.random() < CONFIG.missionPortalChance)) {
       let portalMission = pickPortalMission(bodies, spawnCandidates, minimumTravel, maximumTravel, excludedPaths);
       if (!portalMission && excludedPaths.size > 1) {
-        portalMission = pickPortalMission(bodies, spawnCandidates, minimumTravel, maximumTravel, new Set([location.pathname]));
+        portalMission = pickPortalMission(bodies, spawnCandidates, minimumTravel, maximumTravel, new Set([pageIdentity()]));
       }
       if (portalMission) return portalMission;
     }
@@ -2152,12 +2153,12 @@
     const bodies = navigationBodies();
     const reciprocal = [...document.querySelectorAll("a[href]")]
       .map((anchor) => ({ anchor, target: portalTarget(anchor) }))
-      .filter(({ target }) => target?.pathname === fromPath)
+      .filter(({ target }) => target && pageIdentity(target) === pageIdentity(fromPath))
       .map(({ anchor }) => bodyForPortalAnchor(anchor, bodies))
       .filter(Boolean);
     if (reciprocal.length > 0) return reciprocal[randomIndex(reciprocal.length)];
 
-    const linked = portalMissionCandidates(bodies, new Set([location.pathname])).map((item) => item.body);
+    const linked = portalMissionCandidates(bodies, new Set([pageIdentity()])).map((item) => item.body);
     const candidates = linked.length > 0 ? linked : bodies;
     return candidates.toSorted((a, b) =>
       a.y + Math.abs(bodyCenterX(a) - window.innerWidth * 0.5) * 0.2 -
@@ -2169,7 +2170,7 @@
     if (!spawn) return null;
     const bodies = navigationBodies();
     let portals = portalMissionCandidates(bodies, excludedPaths);
-    if (portals.length === 0) portals = portalMissionCandidates(bodies, new Set([location.pathname]));
+    if (portals.length === 0) portals = portalMissionCandidates(bodies, new Set([pageIdentity()]));
     const reachable = reachableRoutes(spawn, bodies);
     const maximumSegmentDistance = Math.max(5600, window.innerHeight * 8.8);
     const maximumPortalDepth = Math.max(8, Math.floor(CONFIG.missionMaximumSteps * 0.62));
@@ -2508,7 +2509,7 @@
         .split("|")
         .filter((path) => path.startsWith("/"))
     );
-    visitedPaths.add(location.pathname);
+    visitedPaths.add(pageIdentity());
     const forcedMode = routeStage === "continue"
       ? routeParameters.get("eimei-mode") || "any"
       : routeStage === "portal" ? "portal" : null;
@@ -3703,7 +3704,7 @@
         target.searchParams.set("eimei-mode", anchor === mission.portalAnchor ? mission.continuationMode || "any" : "any");
         target.searchParams.set("eimei-run", mission.runId);
         target.searchParams.set("eimei-segment", String(Math.min(CONFIG.missionMaximumSegments - 1, mission.segmentIndex + 1)));
-        target.searchParams.set("eimei-from", location.pathname);
+        target.searchParams.set("eimei-from", pageIdentity());
         target.searchParams.set("eimei-visited", mission.visitedPaths.join("|"));
         const nextHeaderPortalStreak = isGlobalNavigationAnchor(anchor)
           ? Math.min(CONFIG.missionMaximumConsecutiveHeaderPortals, mission.headerPortalStreak + 1)
@@ -3723,7 +3724,7 @@
       } else if (target) {
         target = new URL(target.href);
         target.searchParams.set("eimei-route", "arrival");
-        target.searchParams.set("eimei-from", location.pathname);
+        target.searchParams.set("eimei-from", pageIdentity());
       }
       if (target) {
         const region = anchorRegion(standingBody, anchor);
@@ -6358,7 +6359,7 @@
 
     scanStage(
       destination,
-      location.pathname,
+      pageIdentity(),
       remainingDistance,
       hopsLeft,
       0,
