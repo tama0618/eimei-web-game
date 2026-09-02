@@ -53,8 +53,11 @@ html.eimei-preview-document::-webkit-scrollbar {
   position: fixed;
   inset: 0;
   z-index: 2147483400;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
   box-sizing: border-box;
   padding: clamp(28px, 6vh, 62px) clamp(24px, 8vw, 120px);
   background: rgba(20, 18, 15, 0.34);
@@ -112,8 +115,156 @@ html.eimei-preview-document::-webkit-scrollbar {
   filter: drop-shadow(0 1px 1px rgba(40, 28, 16, 0.35));
 }
 
+.eimei-goal-photo-caption {
+  margin: 0;
+  padding: 8px 24px 9px;
+  border: 1px solid rgba(55, 48, 39, 0.62);
+  border-radius: 2px;
+  color: #201d18;
+  background: #fffdf4;
+  box-shadow: 0 7px 18px rgba(20, 15, 10, 0.25);
+  font: 700 clamp(17px, 2.2vw, 24px)/1.2 system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  transform: rotate(0.25deg);
+}
+
+.eimei-score-pickup {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483450;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  color: #20242a;
+  pointer-events: none;
+  animation: eimei-score-pickup 1.04s cubic-bezier(0.18, 0.82, 0.22, 1) both;
+}
+
+.eimei-score-pickup strong {
+  font: 900 clamp(52px, 10vw, 104px)/1 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.035em;
+  text-shadow: 0 5px 0 #fffdf4, 0 7px 18px rgba(25, 20, 14, 0.34);
+}
+
+.eimei-score-pickup-flag,
+.eimei-score-result-flag {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 55px;
+  border-left: 5px solid #29231d;
+  filter: drop-shadow(0 5px 4px rgba(30, 22, 15, 0.24));
+}
+
+.eimei-score-pickup-flag::after,
+.eimei-score-result-flag::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 0;
+  width: 38px;
+  height: 24px;
+  background: #ef942c;
+  clip-path: polygon(0 0, 100% 20%, 75% 100%, 0 82%);
+}
+
+.eimei-score-result {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483500;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  box-sizing: border-box;
+  background: rgba(18, 21, 27, 0.68);
+  opacity: 0;
+  pointer-events: auto;
+  animation: eimei-score-result-in 0.38s 1.05s ease-out forwards;
+}
+
+.eimei-score-result-card {
+  width: min(440px, calc(100vw - 56px));
+  padding: 34px 34px 30px;
+  box-sizing: border-box;
+  border: 2px solid #29231d;
+  border-radius: 3px;
+  color: #20242a;
+  background: #fffdf4;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.45), inset 0 0 0 7px #efe7d7;
+  text-align: center;
+  transform: rotate(-0.25deg);
+}
+
+.eimei-score-result-heading {
+  margin: 0 0 22px;
+  font: 800 clamp(32px, 6vw, 52px)/1 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.12em;
+}
+
+.eimei-score-result-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-height: 100px;
+  margin: 0 0 28px;
+}
+
+.eimei-score-result-score strong {
+  font: 900 clamp(72px, 15vw, 126px)/0.8 system-ui, sans-serif;
+}
+
+.eimei-score-result-flag {
+  width: 46px;
+  height: 76px;
+  border-left-width: 7px;
+}
+
+.eimei-score-result-flag::after {
+  width: 54px;
+  height: 34px;
+}
+
+.eimei-score-result-next {
+  min-width: 190px;
+  padding: 12px 24px;
+  border: 2px solid #20242a;
+  border-radius: 999px;
+  color: #fffdf4;
+  background: #20242a;
+  font: 700 18px/1.2 system-ui, sans-serif;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.eimei-score-result-next:hover,
+.eimei-score-result-next:focus-visible {
+  color: #20242a;
+  background: #ef942c;
+  outline: 4px solid rgba(239, 148, 44, 0.32);
+  outline-offset: 3px;
+}
+
+@keyframes eimei-score-pickup {
+  0% { opacity: 0; transform: translateY(28px) scale(0.72) rotate(-4deg); }
+  18% { opacity: 1; transform: translateY(0) scale(1.08) rotate(1deg); }
+  62% { opacity: 1; transform: translateY(-4px) scale(1) rotate(-0.4deg); }
+  100% { opacity: 0; transform: translateY(-42px) scale(0.96) rotate(0); }
+}
+
+@keyframes eimei-score-result-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   #eimei-game-canvas {
     scroll-behavior: auto;
+  }
+
+  .eimei-score-result {
+    animation-delay: 0s;
+    animation-duration: 0.01ms;
   }
 }

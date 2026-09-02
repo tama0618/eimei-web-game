@@ -71,9 +71,11 @@
     missionPlanningMinimumAcceptRatio: .55,
     missionStartMaximumAttempts: 3,
     scoreAttackSeconds: 4 * 60,
-    scorePickupPauseSeconds: 0.62,
-    scoreLocalMinimumTravelViewport: 1.25,
-    scoreLocalMaximumTravelViewport: 5.8,
+    scorePickupPauseSeconds: 1.08,
+    scoreLocalMinimumTravelViewport: 2.15,
+    scoreLocalMaximumTravelViewport: 7.4,
+    scoreRecentGoalLimit: 18,
+    scoreRecentPageLimit: 16,
     goalCelebrationSeconds: 3.4,
     goalFreezeSeconds: 1.25,
     dropThroughMaximumThickness: 30,
@@ -419,6 +421,10 @@
     document.documentElement.append(canvas);
   }
   let missionPreviewPhoto = null;
+  let scorePickupOverlay = null;
+  let scorePickupTimer = 0;
+  let scoreResultOverlay = null;
+  let scoreResultFocusTimer = 0;
   let gameResetting = false;
 
   const worldSpacer = document.createElement("div");
@@ -1261,6 +1267,8 @@
   function resetGame() {
     if (gameResetting) return;
     gameResetting = true;
+    clearScorePickupFeedback();
+    clearScoreResult();
     for (const key of Object.keys(input)) {
       if (typeof input[key] === "boolean") input[key] = false;
     }
@@ -2675,8 +2683,82 @@
     web.charges = CONFIG.webMaximumCharges;
   }
 
+  function clearScorePickupFeedback() {
+    if (scorePickupTimer) window.clearTimeout(scorePickupTimer);
+    scorePickupTimer = 0;
+    scorePickupOverlay?.remove();
+    scorePickupOverlay = null;
+  }
+
+  function showScorePickupFeedback() {
+    clearScorePickupFeedback();
+    const root = document.createElement("div");
+    root.className = "eimei-score-pickup";
+    root.dataset.eimeiGame = "score-pickup";
+    root.setAttribute("aria-hidden", "true");
+    const flag = document.createElement("span");
+    flag.className = "eimei-score-pickup-flag";
+    const label = document.createElement("strong");
+    label.textContent = "GET";
+    root.append(flag, label);
+    document.documentElement.append(root);
+    scorePickupOverlay = root;
+    scorePickupTimer = window.setTimeout(() => {
+      if (scorePickupOverlay === root) clearScorePickupFeedback();
+    }, Math.max(360, (CONFIG.scorePickupPauseSeconds - 0.04) * 1000));
+  }
+
+  function clearScoreResult() {
+    if (scoreResultFocusTimer) window.clearTimeout(scoreResultFocusTimer);
+    scoreResultFocusTimer = 0;
+    scoreResultOverlay?.remove();
+    scoreResultOverlay = null;
+  }
+
+  function showScoreResult() {
+    clearScoreResult();
+    const root = document.createElement("div");
+    root.className = "eimei-score-result";
+    root.dataset.eimeiGame = "score-result";
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-label", `リザルト、旗 ${mission.score} 個`);
+    const card = document.createElement("section");
+    card.className = "eimei-score-result-card";
+    const heading = document.createElement("p");
+    heading.className = "eimei-score-result-heading";
+    heading.textContent = "RESULT";
+    const score = document.createElement("p");
+    score.className = "eimei-score-result-score";
+    const flag = document.createElement("span");
+    flag.className = "eimei-score-result-flag";
+    flag.setAttribute("aria-hidden", "true");
+    const value = document.createElement("strong");
+    value.textContent = String(mission.score);
+    score.append(flag, value);
+    const next = document.createElement("button");
+    next.className = "eimei-score-result-next";
+    next.type = "button";
+    next.textContent = "次のゲーム";
+    next.addEventListener("click", resetGame);
+    next.addEventListener("keydown", (event) => {
+      if (event.code !== "Enter" && event.code !== "Space") return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!event.repeat) resetGame();
+    });
+    card.append(heading, score, next);
+    root.append(card);
+    document.documentElement.append(root);
+    scoreResultOverlay = root;
+    scoreResultFocusTimer = window.setTimeout(() => {
+      if (scoreResultOverlay === root) next.focus({ preventScroll: true });
+    }, 1180);
+  }
+
   function scoreTargetKey(page, x, y) {
-    return `${pageIdentity(page)}@${Math.round(x / 80)}@${Math.round(y / 48)}`;
+    // Nearby words count as one area. This stops successive flags from
+    // hopping between two lines that look like the same destination.
+    return `${pageIdentity(page)}@${Math.round(x / 150)}@${Math.round(y / 90)}`;
   }
 
   function parseScoreList(parameters, key, maximum = 12) {
@@ -2692,7 +2774,7 @@
     mission.scoreRecentGoals = [
       ...mission.scoreRecentGoals.filter((item) => item !== key),
       key
-    ].slice(-12);
+    ].slice(-CONFIG.scoreRecentGoalLimit);
   }
 
   function rememberScorePage(page) {
@@ -2700,7 +2782,7 @@
     mission.scoreRecentPages = [
       ...mission.scoreRecentPages.filter((item) => item !== key),
       key
-    ].slice(-10);
+    ].slice(-CONFIG.scoreRecentPageLimit);
   }
 
   function pickScoreLocalMission(spawn, { minimumDistance = null } = {}) {
@@ -2708,7 +2790,7 @@
     const bodies = navigationBodies();
     const reachable = reachableRoutes(spawn, bodies);
     const minimumTravel = minimumDistance ?? Math.max(
-      720,
+      980,
       window.innerHeight * CONFIG.scoreLocalMinimumTravelViewport
     );
     const maximumTravel = Math.max(
@@ -2736,18 +2818,18 @@
     const pool = fresh.length > 0 ? fresh : options;
     const distant = pool.filter((item) =>
       item.distance >= minimumTravel &&
-      item.directDistance >= Math.max(440, window.innerHeight * 0.62)
+      item.directDistance >= Math.max(660, window.innerHeight * 0.9)
     );
     const useful = distant.length > 0
       ? distant
-      : pool.filter((item) => item.distance >= Math.max(360, minimumTravel * 0.46));
+      : pool.filter((item) => item.distance >= Math.max(620, minimumTravel * 0.68));
     const ranked = (useful.length > 0 ? useful : pool).toSorted((a, b) => {
-      const ideal = Math.max(1250, Math.min(maximumTravel * 0.72, window.innerHeight * 3.1));
-      const scoreA = Math.abs(a.distance - ideal) - a.directDistance * 0.18;
-      const scoreB = Math.abs(b.distance - ideal) - b.directDistance * 0.18;
+      const ideal = Math.max(1900, Math.min(maximumTravel * 0.78, window.innerHeight * 4.4));
+      const scoreA = Math.abs(a.distance - ideal) - a.directDistance * 0.28;
+      const scoreB = Math.abs(b.distance - ideal) - b.directDistance * 0.28;
       return scoreA - scoreB;
     });
-    const varied = ranked.slice(0, Math.max(1, Math.min(6, Math.ceil(ranked.length * 0.32))));
+    const varied = ranked.slice(0, Math.max(1, Math.min(10, Math.ceil(ranked.length * 0.45))));
     const selected = varied[randomIndex(varied.length)];
     return selected ? {
       spawn,
@@ -2761,15 +2843,14 @@
   function pickScorePortalMission(spawn) {
     if (!spawn) return null;
     const currentPage = pageIdentity();
-    const recentPages = new Set((mission.scoreRecentPages || []).slice(-8));
+    const recentPages = new Set((mission.scoreRecentPages || []).slice(-CONFIG.scoreRecentPageLimit));
     recentPages.add(currentPage);
-    let options = bridgePortalMissionOptions(spawn, recentPages, "any") || [];
-    if (options.length === 0) options = bridgePortalMissionOptions(spawn, new Set([currentPage]), "any") || [];
+    const options = bridgePortalMissionOptions(spawn, recentPages, "any") || [];
     if (options.length === 0) return null;
 
     const meaningful = options.filter((option) =>
       option.route.length > 1 &&
-      option.routeDistance >= Math.max(360, window.innerHeight * 0.48)
+      option.routeDistance >= Math.max(560, window.innerHeight * 0.75)
     );
     const pool = meaningful.length > 0 ? meaningful : options;
     const ranked = pool.toSorted((a, b) => {
@@ -2854,7 +2935,7 @@
 
   function initialScorePair(spawn = null) {
     if (spawn) return pickScoreLocalMission(spawn, {
-      minimumDistance: Math.max(620, window.innerHeight * 1.05)
+      minimumDistance: Math.max(1250, window.innerHeight * 1.9)
     });
     const bodies = navigationBodies();
     const starts = preferUnusedSpawnAreas(
@@ -2865,7 +2946,7 @@
       .map((item) => item.body);
     for (const candidate of starts.slice(0, 36)) {
       const pair = pickScoreLocalMission(candidate, {
-        minimumDistance: Math.max(620, window.innerHeight * 1.05)
+        minimumDistance: Math.max(1250, window.innerHeight * 1.9)
       });
       if (pair) return pair;
     }
@@ -2891,6 +2972,8 @@
     fixedFinalGoal,
     visitedPaths
   }) {
+    clearScorePickupFeedback();
+    clearScoreResult();
     const continued = routeStage === "continue" && Boolean(requestedRunId);
     mission.scoreAttack = true;
     mission.score = continued
@@ -2907,8 +2990,12 @@
     mission.scoreRoundsOnPage = continued
       ? Math.max(0, Number.parseInt(routeParameters.get("eimei-score-page-rounds") || "0", 10) || 0)
       : 0;
-    mission.scoreRecentGoals = continued ? parseScoreList(routeParameters, "eimei-score-goals", 12) : [];
-    mission.scoreRecentPages = continued ? parseScoreList(routeParameters, "eimei-score-pages", 10) : [];
+    mission.scoreRecentGoals = continued
+      ? parseScoreList(routeParameters, "eimei-score-goals", CONFIG.scoreRecentGoalLimit)
+      : [];
+    mission.scoreRecentPages = continued
+      ? parseScoreList(routeParameters, "eimei-score-pages", CONFIG.scoreRecentPageLimit)
+      : [];
     rememberScorePage(location.href);
     mission.runId = continued && requestedRunId
       ? requestedRunId
@@ -2984,6 +3071,7 @@
 
   function startNextScoreRound() {
     if (!mission.scoreAttack || mission.scoreFinished) return false;
+    clearScorePickupFeedback();
     const support = player.navigationBody || supportingMapBody() || nearestSupportingBody();
     if (!support) return false;
     mission.completed = false;
@@ -2992,7 +3080,7 @@
     const portalPair = pickScorePortalMission(support);
     const shouldUsePortal = Boolean(
       portalPair &&
-      (mission.scoreRoundsOnPage >= 2 || (mission.scoreRoundsOnPage >= 1 && Math.random() < 0.56))
+      mission.scoreRoundsOnPage >= 1
     );
     if (shouldUsePortal && applyScoreMissionPair(portalPair)) {
       mission.finalGoalPage = pageIdentity(portalPair.portalDestination);
@@ -3004,7 +3092,7 @@
       mission.scorePlanningPortal = true;
       rememberScorePage(portalPair.portalDestination);
       planFinalGoal(portalPair.portalDestination, {
-        remainingDistance: Math.max(680, window.innerHeight * 1.08),
+        remainingDistance: Math.max(1200, window.innerHeight * 1.8),
         hopsLeft: 0,
         headerPortalStreak: portalPair.globalNavigation ? 1 : 0,
         headerPortalTotal: portalPair.globalNavigation ? 1 : 0
@@ -3028,9 +3116,12 @@
     mission.wispAnchored = false;
     mission.trail.length = 0;
     mission.previewGuidePending = false;
+    mission.previewStartedAt = -Infinity;
+    mission.previewUntil = -Infinity;
     player.velocityX = 0;
     player.velocityY = 0;
     detachWeb({ force: true });
+    showScorePickupFeedback();
   }
 
   function finishScoreAttack(nowSeconds) {
@@ -3045,9 +3136,14 @@
     mission.wispAnchored = false;
     mission.trail.length = 0;
     mission.previewGuidePending = false;
+    mission.previewStartedAt = -Infinity;
+    mission.previewUntil = -Infinity;
     player.velocityX = 0;
     player.velocityY = 0;
     detachWeb({ force: true });
+    clearScorePickupFeedback();
+    clearMissionPreviewPhoto();
+    showScoreResult();
   }
 
   function updateScoreAttackState(frameSeconds, nowSeconds) {
@@ -5818,7 +5914,10 @@
   }
 
   function updatePhysics(dt, nowSeconds) {
-    if (mission.scoreAttack && mission.scoreFinished) {
+    if (
+      mission.scoreAttack &&
+      (mission.scoreFinished || (mission.completed && nowSeconds < mission.scoreNextRoundAt))
+    ) {
       player.velocityX = 0;
       player.velocityY = 0;
       return;
@@ -7524,18 +7623,21 @@
     iframe.setAttribute("aria-hidden", "true");
     const marker = document.createElement("span");
     marker.className = "eimei-goal-photo-marker";
+    const caption = document.createElement("p");
+    caption.className = "eimei-goal-photo-caption";
+    caption.textContent = "次の目的地";
     mount.append(iframe, marker);
-    root.append(mount);
+    root.append(mount, caption);
     document.documentElement.append(root);
     const availableWidth = Math.min(1080, window.innerWidth * 0.82);
-    const availableHeight = Math.min(590, window.innerHeight * 0.68);
+    const availableHeight = Math.min(540, window.innerHeight * 0.58);
     const photoScale = Math.min(availableWidth / state.viewportWidth, availableHeight / state.viewportHeight);
     mount.style.width = `${state.viewportWidth * photoScale + 26}px`;
     mount.style.height = `${state.viewportHeight * photoScale + 26}px`;
     iframe.style.width = `${state.viewportWidth}px`;
     iframe.style.height = `${state.viewportHeight}px`;
     iframe.style.transform = `scale(${photoScale})`;
-    missionPreviewPhoto = { root, iframe, marker, scale: photoScale, goalX, goalY };
+    missionPreviewPhoto = { root, iframe, marker, caption, scale: photoScale, goalX, goalY };
 
     const previewUrl = new URL(pageUrl, location.href);
     for (const key of [...previewUrl.searchParams.keys()]) {
