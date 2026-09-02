@@ -356,6 +356,7 @@
     previewShownAt: -Infinity,
     previewPhotoLoadedAt: -Infinity,
     previewRenderedImages: 0,
+    previewGuidePending: false,
     startPageRandomized: false,
     startPageKey: null,
     finalGoalPage: null,
@@ -2962,6 +2963,7 @@
     } else {
       mission.previewStartedAt = -Infinity;
       mission.previewUntil = -Infinity;
+      mission.previewGuidePending = false;
     }
     if (mission.scoreTimeRemaining <= 0) finishScoreAttack(performance.now() / 1000);
     cleanScoreRouteUrl();
@@ -2975,6 +2977,7 @@
       mission.completed = true;
       mission.scoreNextRoundAt = performance.now() / 1000 + 0.5;
       mission.previewUntil = -Infinity;
+      mission.previewGuidePending = false;
       return false;
     }
     mission.finalGoalPage = pageIdentity();
@@ -3032,6 +3035,7 @@
     mission.guidePoint = null;
     mission.wispAnchored = false;
     mission.trail.length = 0;
+    mission.previewGuidePending = false;
     player.velocityX = 0;
     player.velocityY = 0;
     detachWeb({ force: true });
@@ -3048,6 +3052,7 @@
     mission.guidePoint = null;
     mission.wispAnchored = false;
     mission.trail.length = 0;
+    mission.previewGuidePending = false;
     player.velocityX = 0;
     player.velocityY = 0;
     detachWeb({ force: true });
@@ -5638,6 +5643,23 @@
     if (!mission.initialized) return;
     const support = player.navigationBody || (player.grounded ? supportingMapBody() : null);
     let guide = mission.guideBody;
+    // Every score round owns exactly one decisive marker. A menu/collision
+    // rebuild can briefly clear that reference after the first pickup; restore
+    // it from the still-valid goal instead of leaving the round playable but
+    // visually unguided.
+    if (
+      mission.scoreAttack &&
+      !mission.scoreFinished &&
+      !mission.scorePlanningPortal &&
+      !mission.completed &&
+      (!guide || !mission.guidePoint) &&
+      mission.goalBody &&
+      mission.goalPoint &&
+      state.bodies.includes(mission.goalBody)
+    ) {
+      setKeypointGuide({ launchFromPlayer: true });
+      guide = mission.guideBody;
+    }
     if (
       mission.goalKind === "portal" &&
       nowSeconds - state.lastPortalInspectionAt >= CONFIG.portalInspectionSeconds
@@ -7232,6 +7254,9 @@
     mission.previewShownAt = mission.previewStartedAt;
     mission.previewPhotoLoadedAt = -Infinity;
     mission.previewRenderedImages = 0;
+    // Relaunch the scout swarm when the photo closes. Otherwise a round made
+    // during the pickup freeze can inherit the previous flag's cleared wisp.
+    mission.previewGuidePending = true;
     mission.previewScrollX = Math.max(0, Math.min(state.documentWidth - window.innerWidth, previewWorldX - window.innerWidth * 0.5));
     mission.previewScrollY = Math.max(0, Math.min(state.documentHeight - window.innerHeight, previewWorldY - window.innerHeight * 0.48));
     showMissionPreviewPhoto({ pageUrl, goalX, goalY });
@@ -7628,6 +7653,16 @@
 
     updateScoreAttackState(frameSeconds, time / 1000);
     const previewActive = missionPreviewActive(time / 1000);
+    if (
+      !previewActive &&
+      mission.previewGuidePending &&
+      mission.scoreAttack &&
+      !mission.scoreFinished &&
+      !mission.completed
+    ) {
+      mission.previewGuidePending = false;
+      if (mission.goalBody && mission.goalPoint) setKeypointGuide({ launchFromPlayer: true });
+    }
     if (previewActive) {
       state.accumulator = 0;
     } else {
