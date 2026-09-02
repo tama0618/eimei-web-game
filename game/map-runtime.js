@@ -91,7 +91,7 @@
     canvasPixelRatioMaximum: 1,
     canvasPixelRatioLowPower: 1,
     physicsStepSeconds: 1 / 60,
-    renderStepSeconds: 1 / 30,
+    renderStepSeconds: isLowPowerDevice() ? 1 / 30 : 1 / 60,
     portalInspectionSeconds: 1 / 12,
     maxFrameSeconds: 1 / 20
   });
@@ -910,6 +910,12 @@
       remapMission(previousGoal, previousRoute, previousGuide);
     }
     refreshHatchCandidate({ force: true });
+    if (!isPlanningDocument && mission.initialized && mission.goalKind === "portal" && mission.portalAnchor) {
+      // Image/layout rebuilds can coincide with opening a guided dropdown.
+      // A full rebuild must hand the proxy marker to the real child row just
+      // like the cheaper hover-only rebuild does.
+      revealGuidedPortalMenu(player.navigationBody || supportingMapBody(), performance.now() / 1000);
+    }
 
     state.needsRebuild = false;
     const rebuildMilliseconds = performance.now() - rebuildStartedAt;
@@ -3861,7 +3867,9 @@
       width: portalRect.width + 14,
       height: portalRect.height + 9
     });
-    const shouldRemain = portal.entering || anchor === portal.anchor || nearPortal || nowSeconds - portal.lastTouched < 0.65;
+    const guidedPortalVisible = portal.anchor === mission.portalAnchor &&
+      portalBodyIsUsable(mission.goalBody, portal.anchor);
+    const shouldRemain = portal.entering || anchor === portal.anchor || nearPortal || guidedPortalVisible || nowSeconds - portal.lastTouched < 0.65;
     portal.progress = Math.max(0, Math.min(1, portal.progress + (shouldRemain ? 1 : -1) * dt / CONFIG.portalGrowSeconds));
 
     if (portal.entering) {
@@ -4586,6 +4594,25 @@
     return true;
   }
 
+  function ensureGuidedPortalDoor(body, nowSeconds) {
+    const anchor = mission.portalAnchor;
+    if (!anchor || !portalBodyIsUsable(body, anchor)) return false;
+    const region = anchorRegion(body, anchor);
+    const desiredCenter = Math.max(
+      region.left,
+      Math.min(mission.goalPoint?.x ?? player.x + player.width * 0.5, region.right)
+    );
+    if (interaction.portal?.anchor === anchor) {
+      interaction.portal.x = desiredCenter - CONFIG.portalWidth * 0.5;
+      interaction.portal.baseY = body.y;
+      interaction.portal.color = getComputedStyle(anchor).color || body.visualColor || "#333333";
+      interaction.portal.lastTouched = nowSeconds;
+      return true;
+    }
+    updatePortal(anchor, body, 0, nowSeconds);
+    return interaction.portal?.anchor === anchor;
+  }
+
   function repairPortalGuideTarget(support, nowSeconds) {
     if (mission.goalKind !== "portal" || !mission.portalAnchor) return false;
     if (portalBodyIsUsable(mission.goalBody)) {
@@ -4712,7 +4739,10 @@
       const alreadySynchronized = mission.goalBody === visiblePortalBody &&
         mission.guideBody === visiblePortalBody &&
         Math.abs((mission.goalPoint?.x ?? portalX) - portalX) <= 0.5;
-      if (alreadySynchronized) return false;
+      if (alreadySynchronized) {
+        ensureGuidedPortalDoor(visiblePortalBody, nowSeconds);
+        return false;
+      }
 
       // Hover collision rebuilding and mission remapping happen on separate
       // frames. A late remap can therefore restore the parent proxy after the
@@ -4741,6 +4771,7 @@
         preserveTarget: false
       });
       mission.nextAdvanceAllowedAt = nowSeconds + CONFIG.navigationAdvanceCooldownSeconds;
+      ensureGuidedPortalDoor(visiblePortalBody, nowSeconds);
       refreshHatchCandidate({ force: true });
       return true;
     }
@@ -4766,12 +4797,12 @@
     // already knows which hidden link it needs, so reaching that proxy may
     // safely reveal the owning menu and let the next hover rebuild re-anchor
     // the goal to the real link row.
-    const openedNow = refreshPlayerHover(hoverTrigger, nowSeconds);
-    if (openedNow && isElementVisible(submenu) && state.baseCharacters.length > 0) {
+    refreshPlayerHover(hoverTrigger, nowSeconds);
+    if (isElementVisible(submenu) && state.baseCharacters.length > 0) {
       // This is a mission-critical menu opening. Waiting for the debounced
-      // hover rebuild leaves the guide on the parent tab for several frames,
-      // and another layout event can cancel that rebuild entirely. Materialize
-      // the real portal row immediately; ordinary hover still stays debounced.
+      // hover rebuild leaves the guide on the parent tab for several frames.
+      // updatePlayerInteractions may have opened it earlier in this same tick,
+      // so do not require this function to be the code that opened it.
       window.clearTimeout(state.rebuildTimer);
       state.rebuildTimer = 0;
       state.needsRebuild = false;
@@ -4793,7 +4824,10 @@
     ) {
       state.lastPortalInspectionAt = nowSeconds;
       repairPortalGuideTarget(support, nowSeconds);
-      if (revealGuidedPortalMenu(support, nowSeconds)) guide = mission.guideBody;
+      revealGuidedPortalMenu(support, nowSeconds);
+      // Either repair call may replace a deleted proxy body. Never continue
+      // this tick using the local reference captured before that replacement.
+      guide = mission.guideBody;
     }
     if (!guide) return;
     updateNavigationWisp(dt);
