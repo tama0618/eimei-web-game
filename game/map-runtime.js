@@ -88,19 +88,31 @@
     ladderThreadSeconds: 0.4,
     ladderTraverseSeconds: 0.18,
     ladderRollSeconds: 0.54,
-    canvasPixelRatioMaximum: 1.5,
-    canvasPixelRatioLowPower: 1.25,
-    physicsStepSeconds: 1 / 120,
+    canvasPixelRatioMaximum: 1,
+    canvasPixelRatioLowPower: 1,
+    physicsStepSeconds: 1 / 60,
+    renderStepSeconds: 1 / 30,
+    portalInspectionSeconds: 1 / 12,
     maxFrameSeconds: 1 / 20
   });
 
   const initialRouteParameters = new URLSearchParams(location.search);
+  function scaleDocumentBody() {
+    if (!document.body) return;
+    if (CSS.supports?.("zoom", "1")) {
+      document.body.style.transform = "none";
+      document.body.style.zoom = String(CONFIG.worldScale);
+      return;
+    }
+    document.body.style.transform = `scale(${CONFIG.worldScale})`;
+    document.body.style.transformOrigin = "0 0";
+  }
+
   if (initialRouteParameters.get("eimei-preview") === "1") {
     const preparePreviewDocument = () => {
       document.documentElement.classList.add("eimei-preview-document");
       if (!document.body) return;
-      document.body.style.transform = `scale(${CONFIG.worldScale})`;
-      document.body.style.transformOrigin = "0 0";
+      scaleDocumentBody();
     };
     preparePreviewDocument();
     if (!document.body) document.addEventListener("DOMContentLoaded", preparePreviewDocument, { once: true });
@@ -157,12 +169,14 @@
     rebuildTimer: 0,
     hoverLayoutChangingUntil: -Infinity,
     lastTime: performance.now(),
+    lastRenderAt: -Infinity,
+    lastPortalInspectionAt: -Infinity,
     accumulator: 0,
     viewportWidth: window.innerWidth,
     viewportHeight: window.innerHeight,
     documentWidth: 0,
     documentHeight: 0,
-    particleDensity: isLowPowerDevice() ? 0.5 : 0.72,
+    particleDensity: isLowPowerDevice() ? 0.28 : 0.4,
     performance: {
       samples: 0,
       averageFrameMs: 16.7,
@@ -387,7 +401,7 @@
   const staticSiteRoot = new URL("../", runtimeUrl);
 
   function prepareWorld() {
-    document.body.style.transform = `scale(${CONFIG.worldScale})`;
+    scaleDocumentBody();
   }
 
   function mirroredHoverCss() {
@@ -542,6 +556,44 @@
     }
 
     return characters;
+  }
+
+  function collectPlanningLineRects(root = document.body) {
+    const lines = [];
+    const walker = createTextWalker(root);
+    let node;
+
+    // Goal planning only needs the page's broad route shape. Measuring every
+    // glyph here repeated thousands of Range/layout queries in each hidden
+    // iframe. One Range rectangle per rendered line preserves links, floors
+    // and vertical spacing while making planning cheap enough for weak CPUs.
+    while ((node = walker.nextNode())) {
+      const style = getComputedStyle(node.parentElement);
+      const fontSize = Number.parseFloat(style.fontSize) || 16;
+      range.selectNodeContents(node);
+      for (const rect of range.getClientRects()) {
+        if (rect.width < 0.25 || rect.height < 0.5) continue;
+        const visualHeight = Math.min(rect.height, fontSize);
+        const verticalInset = Math.max(0, (rect.height - visualHeight) * 0.5);
+        const segmentCount = Math.max(1, Math.min(72, Math.ceil(rect.width / Math.max(9, fontSize * 0.72))));
+        for (let index = 0; index < segmentCount; index += 1) {
+          const left = rect.left + rect.width * (index / segmentCount);
+          const right = rect.left + rect.width * ((index + 1) / segmentCount);
+          lines.push({
+            left: left + window.scrollX,
+            right: right + window.scrollX,
+            top: rect.top + window.scrollY + verticalInset,
+            bottom: rect.bottom + window.scrollY - verticalInset,
+            width: right - left,
+            height: visualHeight,
+            fontSize,
+            element: node.parentElement,
+            character: "line-segment"
+          });
+        }
+      }
+    }
+    return lines;
   }
 
   function rowsForCharacters(characters) {
@@ -790,7 +842,9 @@
       ? mission.route.slice(mission.routeIndex).map(bodyDescriptor)
       : [];
     const hoverOverlays = visibleHoverOverlays();
-    const characters = collectCharacterRects(document.body, hoverOverlays);
+    const characters = isPlanningDocument
+      ? collectPlanningLineRects(document.body)
+      : collectCharacterRects(document.body, hoverOverlays);
     state.textBodies = mergeCharactersIntoBodies(characters);
     const pageLineBodies = collectLineBodies();
     state.lineBodies = [
@@ -944,6 +998,12 @@
     player.navigationBody = supportingMapBody();
     if (mission.initialized) remapMission(previousGoal, previousRoute, previousGuide, { preservePlannedRoute: true });
     refreshHatchCandidate({ force: true });
+    if (mission.initialized && mission.goalKind === "portal" && mission.portalAnchor) {
+      // A dropdown rebuild replaces the parent-tab proxy and its body objects.
+      // Re-anchor in this same task so the guide cannot spend even one frame
+      // pointing at a removed proxy (or disappear there permanently).
+      revealGuidedPortalMenu(player.navigationBody, performance.now() / 1000);
+    }
     state.needsRebuild = false;
     const rebuildMilliseconds = performance.now() - rebuildStartedAt;
     state.performance.hoverRebuilds += 1;
@@ -4725,13 +4785,16 @@
 
   function updateNavigation(dt, nowSeconds) {
     if (!mission.initialized) return;
-    repairPortalGuideTarget(
-      player.navigationBody || (player.grounded ? supportingMapBody() : null),
-      nowSeconds
-    );
-    let guide = mission.guideBody;
     const support = player.navigationBody || (player.grounded ? supportingMapBody() : null);
-    if (revealGuidedPortalMenu(support, nowSeconds)) guide = mission.guideBody;
+    let guide = mission.guideBody;
+    if (
+      mission.goalKind === "portal" &&
+      nowSeconds - state.lastPortalInspectionAt >= CONFIG.portalInspectionSeconds
+    ) {
+      state.lastPortalInspectionAt = nowSeconds;
+      repairPortalGuideTarget(support, nowSeconds);
+      if (revealGuidedPortalMenu(support, nowSeconds)) guide = mission.guideBody;
+    }
     if (!guide) return;
     updateNavigationWisp(dt);
 
@@ -4998,7 +5061,6 @@
   }
 
   function drawLadders(scrollX, scrollY) {
-    const time = performance.now() / 1000;
     for (const ladder of activeLadders()) {
       const centerX = ladder.x - scrollX;
       const topY = ladder.topY - scrollY;
@@ -5030,13 +5092,12 @@
       context.lineTo(right, bottomY);
       context.stroke();
 
-      for (let rungY = firstRungY, index = 0; rungY < bottomY - 4; rungY += rungSpacing, index += 1) {
-        const sway = Math.sin(time * 1.25 + index * 0.8 + ladder.x * 0.01) * 0.32;
+      for (let rungY = firstRungY; rungY < bottomY - 4; rungY += rungSpacing) {
         context.strokeStyle = "#111111";
         context.lineWidth = 2;
         context.beginPath();
-        context.moveTo(left, rungY + sway);
-        context.lineTo(right, rungY - sway);
+        context.moveTo(left, rungY);
+        context.lineTo(right, rungY);
         context.stroke();
       }
 
@@ -5130,7 +5191,7 @@
     const normalX = -directionY;
     const normalY = directionX;
     const finalGoalGuide = mission.goalKind === "text" && mission.guideBody === mission.goalBody;
-    const streamParticleCount = particleCount(finalGoalGuide ? 34 : 17, finalGoalGuide ? 18 : 9);
+    const streamParticleCount = particleCount(finalGoalGuide ? 30 : 14, finalGoalGuide ? 10 : 5);
     const visibleLength = Math.min(
       distance - 8,
       Math.max(210, Math.min(finalGoalGuide ? 540 : 430, window.innerWidth * (finalGoalGuide ? 0.5 : 0.38)))
@@ -5172,7 +5233,7 @@
     const normalY = directionX;
     const edgeX = Math.max(margin, Math.min(targetX, state.viewportWidth - margin));
     const edgeY = Math.max(margin, Math.min(targetY, state.viewportHeight - margin));
-    for (let index = 0; index < particleCount(13, 7); index += 1) {
+    for (let index = 0; index < particleCount(11, 4); index += 1) {
       const tail = (index % 5) * 5.5;
       const spread = (Math.floor(index / 5) - 1) * (4 + index % 4);
       drawScoutParticle(
@@ -5196,7 +5257,7 @@
     const directionY = dy / length;
     const normalX = -directionY;
     const normalY = directionX;
-    const travellingCount = particleCount(22, 11);
+    const travellingCount = particleCount(18, 7);
     for (let index = 0; index < travellingCount; index += 1) {
       const tail = (index / Math.max(1, travellingCount - 1)) * 58;
       const wave = Math.sin(time * 7 + index * 1.81) * (3 + index % 5);
@@ -5217,7 +5278,7 @@
     const visibleWidth = Math.max(0, visibleRight - visibleLeft);
     if (visibleWidth <= 0) return;
     const centerY = body.y - 4;
-    const count = particleCount(Math.max(30, Math.min(64, Math.round(visibleWidth / 15))), 20);
+    const count = particleCount(Math.max(24, Math.min(48, Math.round(visibleWidth / 20))), 10);
     for (let index = 0; index < count; index += 1) {
       const phase = ((index * 0.6180339 + time * (0.018 + (index % 5) * 0.002)) % 1 + 1) % 1;
       const radiusY = 5 + (index % 7) * 1.55;
@@ -5235,7 +5296,7 @@
   function drawFinalGoalSwarm(body, scrollX, scrollY, time) {
     const goalX = mission.goalPoint.x;
     const goalY = body.y - 15;
-    for (let index = 0; index < particleCount(92, 46); index += 1) {
+    for (let index = 0; index < particleCount(72, 24); index += 1) {
       const ring = index % 5;
       const angle = index * 2.39996 + time * (0.86 + ring * 0.09);
       const breathe = 1 + Math.sin(time * 2.1 + ring * 1.4) * 0.14;
@@ -5257,7 +5318,7 @@
     if (!mission.goalBody || !mission.goalPoint) return;
     const centerX = mission.goalPoint.x - scrollX;
     const centerY = mission.goalBody.y - CONFIG.portalHeight * 0.5 - scrollY;
-    const count = particleCount(82, 48);
+    const count = particleCount(64, 24);
     for (let index = 0; index < count; index += 1) {
       const lane = index % 5;
       const angle = index * 2.39996 + time * (0.72 + lane * 0.08);
@@ -5272,7 +5333,7 @@
         0.9
       );
     }
-    for (let index = 0; index < particleCount(24, 16); index += 1) {
+    for (let index = 0; index < particleCount(20, 8); index += 1) {
       const phase = ((time * 0.58 + index / 24) % 1 + 1) % 1;
       drawScoutParticle(
         centerX + Math.sin(time * 4.1 + index * 1.73) * (7 + index % 4 * 2.5),
@@ -5425,11 +5486,13 @@
     context.strokeStyle = "rgba(220, 252, 255, 0.97)";
     context.lineWidth = 1.7;
     context.stroke();
-    context.fillStyle = "#5eeaff";
-    context.shadowColor = "#40dfff";
-    context.shadowBlur = 9;
+    context.fillStyle = "rgba(64, 223, 255, 0.28)";
     context.beginPath();
-    context.arc(endX, endY, 4.2, 0, Math.PI * 2);
+    context.arc(endX, endY, 7.2, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = "#5eeaff";
+    context.beginPath();
+    context.arc(endX, endY, 3.8, 0, Math.PI * 2);
     context.fill();
     context.restore();
   }
@@ -5617,7 +5680,7 @@
     const eased = 1 - Math.pow(1 - progress, 3);
     const centerX = rect.x + rect.width * 0.5 - scrollX;
     const centerY = rect.y + rect.height * 0.52 - scrollY;
-    for (let index = 0; index < particleCount(72, 42); index += 1) {
+    for (let index = 0; index < particleCount(56, 22); index += 1) {
       const angle = index * 2.39996 + time * (0.68 + (index % 6) * 0.035);
       const radiusX = (rect.width * 0.6 + 9 + (index % 6) * 2.4) * eased;
       const radiusY = (rect.height * 0.48 + 7 + (index % 8) * 1.8) * eased;
@@ -5630,7 +5693,7 @@
         0.84 + (index % 4) * 0.04
       );
     }
-    const funnelCount = particleCount(28, 18);
+    const funnelCount = particleCount(22, 8);
     for (let index = 0; index < funnelCount; index += 1) {
       const phase = ((time * 0.64 + index / funnelCount) % 1 + 1) % 1;
       const tighten = 1 - phase * 0.64;
@@ -5991,17 +6054,14 @@
       context.stroke();
     }
 
-    context.shadowColor = "rgba(0, 173, 224, 0.38)";
-    context.shadowBlur = scaled(7);
-    const shell = context.createLinearGradient(centerX - scaled(8), spriteCenterY - scaled(10), centerX + scaled(9), spriteCenterY + scaled(10));
-    shell.addColorStop(0, "#173e70");
-    shell.addColorStop(0.58, "#082447");
-    shell.addColorStop(1, "#04152d");
-    context.fillStyle = shell;
+    context.fillStyle = "rgba(0, 173, 224, 0.2)";
+    context.beginPath();
+    context.arc(centerX, spriteCenterY, spriteRadius + scaled(2.2), 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = "#082447";
     context.beginPath();
     context.arc(centerX, spriteCenterY, spriteRadius, 0, Math.PI * 2);
     context.fill();
-    context.shadowBlur = 0;
     context.strokeStyle = "rgba(255, 255, 255, 0.96)";
     context.lineWidth = scaled(1.7);
     context.stroke();
@@ -6052,16 +6112,18 @@
       // A single bright visor reads better than facial details at Chromebook
       // viewing distance and keeps the design clean.
       const visorX = centerX + facing * scaled(2.3);
-      const visorGradient = context.createLinearGradient(visorX - scaled(6), spriteCenterY - scaled(5), visorX + scaled(6), spriteCenterY + scaled(2));
-      visorGradient.addColorStop(0, "#efffff");
-      visorGradient.addColorStop(0.45, "#63e7ff");
-      visorGradient.addColorStop(1, "#1a91d0");
-      context.fillStyle = visorGradient;
+      context.fillStyle = "#63e7ff";
       context.beginPath();
       context.roundRect(visorX - scaled(6), spriteCenterY - scaled(5.3), scaled(12), scaled(6.4), scaled(3.2));
       context.fill();
       context.strokeStyle = "#ffffff";
       context.lineWidth = scaled(1);
+      context.stroke();
+      context.strokeStyle = "rgba(255, 255, 255, 0.78)";
+      context.lineWidth = scaled(0.8);
+      context.beginPath();
+      context.moveTo(visorX - scaled(3.8), spriteCenterY - scaled(3.6));
+      context.lineTo(visorX + scaled(1.2), spriteCenterY - scaled(3.6));
       context.stroke();
 
       context.fillStyle = "#ff5a26";
@@ -6614,24 +6676,28 @@
       }
     }
 
-    syncMissionPreviewPhoto(time / 1000);
-    updateCamera(time / 1000);
-    const renderStartedAt = performance.now();
-    render();
-    const renderMilliseconds = performance.now() - renderStartedAt;
-    if (!previewActive && frameMilliseconds > 0 && frameMilliseconds < 100) {
-      const metrics = state.performance;
-      const weight = metrics.samples < 30 ? 0.12 : 0.035;
-      metrics.averageFrameMs += (frameMilliseconds - metrics.averageFrameMs) * weight;
-      metrics.averageRenderMs += (renderMilliseconds - metrics.averageRenderMs) * weight;
-      metrics.samples += 1;
-      if (metrics.samples >= 90 && metrics.samples % 30 === 0) {
-        if (metrics.averageFrameMs > 27 || metrics.averageRenderMs > 11) {
-          state.particleDensity = Math.min(state.particleDensity, 0.36);
-          metrics.quality = "performance";
-        } else if (metrics.averageFrameMs > 20.5 || metrics.averageRenderMs > 7.5) {
-          state.particleDensity = Math.min(state.particleDensity, 0.5);
-          if (metrics.quality === "standard") metrics.quality = "balanced";
+    const renderInterval = CONFIG.renderStepSeconds * 1000;
+    if (!Number.isFinite(state.lastRenderAt) || time - state.lastRenderAt >= renderInterval - 0.5) {
+      state.lastRenderAt = time;
+      syncMissionPreviewPhoto(time / 1000);
+      updateCamera(time / 1000);
+      const renderStartedAt = performance.now();
+      render();
+      const renderMilliseconds = performance.now() - renderStartedAt;
+      if (!previewActive && frameMilliseconds > 0 && frameMilliseconds < 100) {
+        const metrics = state.performance;
+        const weight = metrics.samples < 30 ? 0.12 : 0.035;
+        metrics.averageFrameMs += (frameMilliseconds - metrics.averageFrameMs) * weight;
+        metrics.averageRenderMs += (renderMilliseconds - metrics.averageRenderMs) * weight;
+        metrics.samples += 1;
+        if (metrics.samples >= 90 && metrics.samples % 30 === 0) {
+          if (metrics.averageRenderMs > 8) {
+            state.particleDensity = Math.min(state.particleDensity, 0.24);
+            metrics.quality = "performance";
+          } else if (metrics.averageRenderMs > 5) {
+            state.particleDensity = Math.min(state.particleDensity, 0.32);
+            if (metrics.quality === "standard") metrics.quality = "balanced";
+          }
         }
       }
     }
@@ -6783,7 +6849,9 @@
   };
 
   async function start() {
-    if (document.readyState !== "complete") {
+    if (isPlanningDocument && document.readyState === "loading") {
+      await new Promise((resolve) => window.addEventListener("DOMContentLoaded", resolve, { once: true }));
+    } else if (!isPlanningDocument && document.readyState !== "complete") {
       await new Promise((resolve) => window.addEventListener("load", resolve, { once: true }));
     }
     if (redirectToRandomStartPage()) return;
