@@ -1246,22 +1246,14 @@
   }
 
   function redirectToTutorialStart() {
-    if (isPlanningDocument || isTutorialDocument || pageIdentity() !== "/index.html") return false;
+    if (isPlanningDocument || isTutorialDocument) return false;
     const parameters = new URLSearchParams(location.search);
-    if (parameters.get("eimei-tutorial") === "done") {
-      try {
-        sessionStorage.setItem("eimei-tutorial-complete", "1");
-      } catch {
-        // The completion query is enough when storage is unavailable.
-      }
-      return false;
-    }
+    // The final tutorial door and every in-progress page transition carry a
+    // route parameter. A clean load has no run context, so it is always a new
+    // entrance—even if the address happens to be a deep mirrored page left
+    // over from the previous game.
+    if (parameters.get("eimei-tutorial") === "done") return false;
     if (parameters.has("eimei-route")) return false;
-    try {
-      if (sessionStorage.getItem("eimei-tutorial-complete") === "1") return false;
-    } catch {
-      // Start the tutorial when a private context blocks session storage.
-    }
     location.replace(new URL("tutorial/index.html", staticSiteRoot).href);
     return true;
   }
