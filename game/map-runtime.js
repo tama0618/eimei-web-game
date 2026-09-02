@@ -58,7 +58,8 @@
     missionMaximumSteps: 42,
     missionMinimumTravelViewport: 5.4,
     missionMaximumTravelViewport: 10.8,
-    missionMinimumDirectViewport: 1.5,
+    missionMinimumDirectViewport: 2.4,
+    missionFinalMinimumDirectViewport: 2.2,
     missionMaximumSegments: 12,
     missionPortalChance: 0.58,
     missionTargetMinimumViewport: 18,
@@ -66,6 +67,8 @@
     missionPlanningMaximumPortals: 10,
     missionMaximumConsecutiveHeaderPortals: 2,
     missionPlanningCompletionRatio: .9,
+    missionPlanningMinimumAcceptRatio: .55,
+    missionStartMaximumAttempts: 3,
     goalCelebrationSeconds: 3.4,
     goalFreezeSeconds: 1.25,
     dropThroughMaximumThickness: 30,
@@ -1067,49 +1070,36 @@
     return [...unique.entries()].map(([key, target]) => ({ key, target }));
   }
 
-  function randomStartPagePriority(path) {
-    if (path === "/openschool/top.html" || path === "/information/course.html") return 4;
-    if (
-      /^\/information\/c-[^/]+\.html$/.test(path) ||
-      path === "/information/i-event.html" ||
-      path === "/career/top.html" ||
-      path === "/entrance/recruit.html"
-    ) return 3;
-    if (path.startsWith("/news/") || path === "/club/top.html" || path === "/payment/top.html") return 2;
-    return 1;
-  }
-
-  function redirectToRandomStartPage({ force = false } = {}) {
+  function redirectToRandomStartPage({ force = false, startAttempt = null, triedPageKeys = [] } = {}) {
     const parameters = new URLSearchParams(location.search);
     if (parameters.has("eimei-route") && !force) return false;
 
     const currentPage = pageIdentity();
-    const triedPages = new Set((parameters.get("eimei-start-tried") || "").split("|").filter(Boolean));
+    const triedPages = new Set([
+      ...(parameters.get("eimei-start-tried") || "").split("|").filter(Boolean),
+      ...triedPageKeys
+    ]);
     triedPages.add(currentPage);
     const allAlternatives = startPageCandidates().filter((candidate) => candidate.key !== currentPage);
     const untriedAlternatives = allAlternatives.filter((candidate) => !triedPages.has(candidate.key));
     const alternatives = untriedAlternatives.length > 0 ? untriedAlternatives : allAlternatives;
     if (alternatives.length === 0) return false;
 
-    // Priority is a capability floor, not an instruction to rotate between the
-    // same two or three showcase pages forever. Keep every proven game page in
-    // the pool and use the longer history to favour pages not seen recently.
-    // Every mirrored HTML destination is eligible. Priority only changes its
-    // weight; it no longer acts as a hidden allow-list that collapses 23 links
-    // back to roughly the same few pages. Pages without a viable route already
-    // use the bounded retry below.
+    // Every mirrored navigation destination gets the same draw weight. Route
+    // quality is checked after the page loads, so favouring showcase pages here
+    // only made otherwise-random runs begin in the same kinds of layout.
     const capableAlternatives = alternatives;
     const recentPages = new Set(allRecentSpawnRecords().slice(0, 24).map(spawnRecordPage));
     const unused = capableAlternatives.filter((candidate) => !recentPages.has(candidate.key));
     const pool = unused.length > 0 ? unused : capableAlternatives;
-    const weightedPool = pool.flatMap((candidate) =>
-      Array.from({ length: Math.max(1, randomStartPagePriority(candidate.key) - 1) }, () => candidate)
-    );
-    const selected = weightedPool[randomIndex(weightedPool.length)];
+    const selected = pool[randomIndex(pool.length)];
     const target = new URL(selected.target.href);
     target.hash = "";
     target.searchParams.set("eimei-route", "start");
-    target.searchParams.set("eimei-start-attempt", String((Number.parseInt(parameters.get("eimei-start-attempt") || "0", 10) || 0) + 1));
+    const previousAttempt = Number.isFinite(startAttempt)
+      ? startAttempt
+      : Number.parseInt(parameters.get("eimei-start-attempt") || "0", 10) || 0;
+    target.searchParams.set("eimei-start-attempt", String(previousAttempt + 1));
     target.searchParams.set("eimei-start-tried", [...triedPages, selected.key].join("|"));
     location.replace(target.href);
     return true;
@@ -2067,9 +2057,6 @@
     const minimumDirect = limits.minimumDirect ?? Math.max(720, window.innerHeight * CONFIG.missionMinimumDirectViewport);
     if (forcedMode === "portal" || (!forcedMode && Math.random() < CONFIG.missionPortalChance)) {
       let portalMission = pickPortalMission(bodies, spawnCandidates, minimumTravel, maximumTravel, excludedPaths);
-      if (!portalMission && excludedPaths.size > 1) {
-        portalMission = pickPortalMission(bodies, spawnCandidates, minimumTravel, maximumTravel, new Set([pageIdentity()]));
-      }
       if (portalMission) return portalMission;
     }
 
@@ -2156,7 +2143,14 @@
       .filter(({ target }) => target && pageIdentity(target) === pageIdentity(fromPath))
       .map(({ anchor }) => bodyForPortalAnchor(anchor, bodies))
       .filter(Boolean);
-    if (reciprocal.length > 0) return reciprocal[randomIndex(reciprocal.length)];
+    // The planner iframe and the real arrival must choose the same reciprocal
+    // foothold. Random selection here could make a distant planned goal appear
+    // right beside the player after the actual page transition.
+    if (reciprocal.length > 0) {
+      return reciprocal.toSorted((a, b) =>
+        a.y - b.y || bodyCenterX(a) - bodyCenterX(b)
+      )[0];
+    }
 
     const linked = portalMissionCandidates(bodies, new Set([pageIdentity()])).map((item) => item.body);
     const candidates = linked.length > 0 ? linked : bodies;
@@ -2169,8 +2163,7 @@
   function bridgePortalMissionOptions(spawn, excludedPaths, continuationMode) {
     if (!spawn) return null;
     const bodies = navigationBodies();
-    let portals = portalMissionCandidates(bodies, excludedPaths);
-    if (portals.length === 0) portals = portalMissionCandidates(bodies, new Set([pageIdentity()]));
+    const portals = portalMissionCandidates(bodies, excludedPaths);
     const reachable = reachableRoutes(spawn, bodies);
     const maximumSegmentDistance = Math.max(5600, window.innerHeight * 8.8);
     const maximumPortalDepth = Math.max(8, Math.floor(CONFIG.missionMaximumSteps * 0.62));
@@ -2256,19 +2249,27 @@
       .filter((goal) => goal !== spawn && isContentGoalBody(goal))
       .map((goal) => {
         const route = reconstructRoute(reachable.parent, goal);
-        return { goal, route, distance: routeTravelDistance(route) };
+        return {
+          goal,
+          route,
+          distance: routeTravelDistance(route),
+          directDistance: directBodyDistance(spawn, goal)
+        };
       })
       .filter((item) => item.route.length > 1)
       .toSorted((a, b) => b.distance - a.distance);
-    const longRoutes = allOptions.filter((item) => item.route.length >= 4);
+    const minimumDirect = Math.max(1100, window.innerHeight * CONFIG.missionFinalMinimumDirectViewport);
+    const visiblyDistant = allOptions.filter((item) => item.directDistance >= minimumDirect);
+    const goalOptions = visiblyDistant.length > 0 ? visiblyDistant : allOptions;
+    const longRoutes = goalOptions.filter((item) => item.route.length >= 4);
     const useful = longRoutes.filter((item) => item.distance >= Math.max(900, window.innerHeight * 1.8));
     const requiredDistance = Math.max(minimumDistance, Math.max(900, window.innerHeight * 1.8));
-    const distanceQualified = allOptions
+    const distanceQualified = goalOptions
       .filter((item) => item.distance >= requiredDistance)
       .toSorted((a, b) => a.distance - b.distance);
     const ranked = distanceQualified.length > 0
       ? distanceQualified
-      : useful.length > 0 ? useful : longRoutes.length > 0 ? longRoutes : allOptions;
+      : useful.length > 0 ? useful : longRoutes.length > 0 ? longRoutes : goalOptions;
     const pool = ranked.slice(0, Math.max(1, Math.ceil(ranked.length * 0.35)));
     const selected = pool[randomIndex(pool.length)];
     if (!selected) return null;
@@ -2449,6 +2450,10 @@
   function startMission() {
     const routeParameters = new URLSearchParams(location.search);
     const requestedRouteStage = routeParameters.get("eimei-route");
+    const requestedStartAttempt = Number.parseInt(routeParameters.get("eimei-start-attempt") || "0", 10) || 0;
+    const requestedStartTriedPages = (routeParameters.get("eimei-start-tried") || "")
+      .split("|")
+      .filter((path) => path.startsWith("/"));
     const requestedRunId = routeParameters.get("eimei-run");
     const requestedSegment = Number.parseInt(routeParameters.get("eimei-segment") || "0", 10) || 0;
     const planningMode = requestedRouteStage === "plan";
@@ -2568,14 +2573,21 @@
       : planningBridgeOptions;
     const planningBridgeScore = (candidate) =>
       candidate.routeDistance +
-      planningDestinationPriority(candidate.portalDestination) * 180 +
+      planningDestinationPriority(candidate.portalDestination) * 60 +
       (candidate.globalNavigation ? 0 : 720);
     const rankedPlanningBridges = planningBridgePool.toSorted((a, b) =>
       planningBridgeScore(b) - planningBridgeScore(a)
     );
-    // Planning must be stable: intentionally choosing a slightly weaker
-    // near-tie made otherwise identical runs acquire needless extra pages.
-    const planningBridge = rankedPlanningBridges[0] || null;
+    // Branch among genuinely strong options instead of always following the
+    // same high-priority page chain. The quality floor keeps variety from
+    // turning into needless extra transitions, and visited pages stay banned.
+    const bestPlanningScore = rankedPlanningBridges[0]
+      ? planningBridgeScore(rankedPlanningBridges[0])
+      : -Infinity;
+    const variedPlanningBridges = rankedPlanningBridges
+      .filter((candidate) => planningBridgeScore(candidate) >= bestPlanningScore - 360)
+      .slice(0, 3);
+    const planningBridge = variedPlanningBridges[randomIndex(variedPlanningBridges.length)] || null;
     // Compare only a few strong branches. Loading every menu link would turn
     // route generation into its own (very slow) game.
     const planningBridges = planningBridge
@@ -2631,8 +2643,11 @@
           ok: false
         }, "*");
       }
-      const startAttempts = Number.parseInt(routeParameters.get("eimei-start-attempt") || "0", 10) || 0;
-      if (routeStage === "start" && startAttempts < 5 && redirectToRandomStartPage({ force: true })) return;
+      if (routeStage === "start" && requestedStartAttempt < CONFIG.missionStartMaximumAttempts && redirectToRandomStartPage({
+        force: true,
+        startAttempt: requestedStartAttempt,
+        triedPageKeys: requestedStartTriedPages
+      })) return;
       placeAtSpawn();
       mission.initialized = false;
       return;
@@ -2703,6 +2718,8 @@
         : [];
     mission.planningTrace = [];
     mission.recoveringFromDetour = Boolean(offRouteRecoveryPair && pair === offRouteRecoveryPair);
+    mission.startAttempt = requestedStartAttempt;
+    mission.startTriedPages = requestedStartTriedPages;
     mission.targetRouteDistance = targetRouteDistance || planningDistance;
     mission.plannedRouteDistance = pair.routeDistance || 0;
     setKeypointGuide();
@@ -6228,12 +6245,31 @@
     };
     const finish = (data) => {
       if (settled) return;
-      settled = true;
-      clearActiveStage();
       if (!data?.ok || !Number.isFinite(data.x + data.y) || typeof data.page !== "string") {
+        settled = true;
+        clearActiveStage();
         mission.previewUntil = -Infinity;
         return;
       }
+      const plannedDistance = mission.routeDistance + Math.max(0, data.plannedDistance || 0);
+      const minimumAcceptedDistance = mission.targetRouteDistance * CONFIG.missionPlanningMinimumAcceptRatio;
+      if (
+        mission.segmentIndex === 0 &&
+        mission.targetRouteDistance > 0 &&
+        plannedDistance < minimumAcceptedDistance &&
+        mission.startAttempt < CONFIG.missionStartMaximumAttempts &&
+        redirectToRandomStartPage({
+          force: true,
+          startAttempt: mission.startAttempt,
+          triedPageKeys: mission.startTriedPages
+        })
+      ) {
+        settled = true;
+        clearActiveStage();
+        return;
+      }
+      settled = true;
+      clearActiveStage();
       mission.finalGoalPage = data.page;
       mission.finalGoalX = data.x;
       mission.finalGoalY = data.y;
@@ -6243,7 +6279,7 @@
         ...(Array.isArray(data.portalPages) ? data.portalPages : [])
       ].filter((path, index, pages) => pages.indexOf(path) === index);
       mission.plannedPortalTransitions = mission.plannedPortalPages.length;
-      mission.plannedRouteDistance = mission.routeDistance + Math.max(0, data.plannedDistance || 0);
+      mission.plannedRouteDistance = plannedDistance;
       const finalPageUrl = new URL(data.page.replace(/^\//, ""), staticSiteRoot);
       beginMissionPreview({ pageUrl: finalPageUrl.href, goalX: data.x, goalY: data.y });
     };
