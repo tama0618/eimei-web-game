@@ -1,0 +1,378 @@
+@charset "UTF-8";
+
+/* =====================
+   共通 header
+===================== */
+
+header{
+	width:100%;
+	top:0;
+	left:0;
+	right:0;
+	background-color:#ffffff;
+	z-index:9999;
+	box-sizing:border-box;
+}
+
+
+/* =====================
+   印刷
+===================== */
+
+@media print{
+    @page {
+        margin: 10mm;
+    }
+
+header{
+	position:static !important;
+	height:auto !important;
+    padding-left:0 !important;
+    padding-right:0 !important;
+}
+.all{
+	padding-top:0 !important;
+	margin-top:0 !important;
+}
+
+footer{
+	display:none !important;
+}
+}
+
+
+/* =====================
+   PC表示
+===================== */
+
+@media print, screen and (min-width:769px){	/* ウィンドウ幅が601px以上の時 */
+
+header{
+	width:100%;
+	margin-left:auto;
+	margin-right:auto;
+	position:fixed;
+	top:0;
+	left:0;
+	right:0;
+	padding-left:30px;
+	padding-right:30px;
+	height:125px;
+	display:flex;
+}
+
+header img{
+	display:block;
+}
+
+
+/* =====================
+   メニュー
+===================== */
+
+#main-nav ul{
+	list-style-type:none;
+	text-align:left;
+	float:left;
+	margin-top:0;
+	margin-left:0;
+	padding:0;
+	z-index:9998;
+	max-width:100%;
+}
+
+#main-nav li{
+	position:relative;
+	height:50px;
+	width:clamp(100px, 10vw, 150px);
+	font-size:clamp(11px, 0.9vw, 14px);
+	float:left;
+	color:#000;
+	text-align:center;
+	letter-spacing:2px;
+	background-color:#fff;
+	line-height:50px;
+}
+#main-nav li:not(:last-child)::after{
+	content:"";
+	position:absolute;
+	right:0;
+	top:50%;
+	transform:translateY(-50%);
+	width:1px;
+	height:1em;
+	background:#999;
+}
+#main-nav li::before{
+	content:"";
+	position:absolute;
+	left:10%;
+	bottom:10px;
+	width:0;
+	border-bottom:1px solid #08084D;
+	transition:0.5s;
+}
+
+#main-nav li:hover::before{
+	width:80%;
+}
+
+#main-nav li:hover{
+	color:#08084D;
+	background-color:#B3B3FF;
+	transition:all 0.3s;
+}
+
+#main-nav a{
+	color:#000;
+	text-decoration:none;
+	display:block;
+}
+
+#main-nav a:hover{
+	background-color:#E6E6FF;
+	transition:all 0.3s;
+}
+
+#main-nav li ul li{
+	background-color:#B3B3FF;
+}
+
+
+/* ドロップダウン */
+
+.menu{
+	list-style-type:none;
+}
+
+.menu > li{
+	display:inline-block;
+	position:relative;
+	background-color:#cff;
+}
+
+.menu > li > ul{
+	display:none;
+}
+
+.menu > li:hover ul{
+	display:block;
+	position:absolute;
+	padding:0;
+	margin:0;
+	top:50px;
+	left:0;
+	list-style-type:none;
+}
+
+.input-hidden{
+	display:none !important;
+}
+
+}
+
+
+/* =====================
+   スマホ表示
+===================== */
+
+@media screen and (max-width:768px){
+
+header{
+	position:fixed;
+	margin:auto;
+	height:5rem;
+	background-color:#eeeeee;
+}
+
+header img{
+	height:auto;
+	max-width:80%;
+	margin-top:5px;
+}
+
+
+/* =====================
+   メニュー
+===================== */
+
+#main-nav *{
+	font-size:14px;
+}
+
+#main-nav li{
+	font-size:14px;
+}
+
+.input-hidden{
+	display:none !important;
+}
+
+
+/* =====================
+   ハンバーガーメニュー
+===================== */
+
+.menu-switch{
+	cursor:pointer;
+	position:fixed;
+	right:3%;
+	top:20px;
+	z-index:9998;
+	width:4em;
+	height:4em;
+}
+
+#navi-menu2:checked ~ .menu-switch{
+	position:fixed;
+}
+
+#navi-menu2:checked ~ .navi-menu-cover{
+	cursor:pointer;
+	position:fixed;
+	width:100%;
+	height:100%;
+	top:0;
+	left:0;
+	z-index:9996;
+	background:rgba(3,3,3,.5);
+	display:block;
+}
+
+
+/* =====================
+   アイコン
+===================== */
+
+.menu-icon:before{
+	content:"";
+	position:absolute;
+	width:3.5em;
+	height:3.5em;
+	background:#cc6666;
+	border-radius:10%;
+	top:50%;
+	left:50%;
+	transform:translate(-50%,-70%);
+}
+
+.menu-icon:after{
+	content:"";
+	position:absolute;
+	width:2em;
+	height:3.5px;
+	background:#fff;
+	border-radius:10%;
+	top:13%;
+	left:25%;
+	transition:.3s;
+}
+
+.menu-icon2:after{
+	content:"";
+	position:absolute;
+	width:2em;
+	height:3.5px;
+	background:#fff;
+	border-radius:10%;
+	top:30%;
+	left:25%;
+	transition:.3s;
+}
+
+.menu-switch2:before{
+	content:"MENU";
+	position:absolute;
+	font-size:11px;
+	top:45%;
+	left:18%;
+	font-weight:600;
+	color:#ffffff;
+	z-index:9999;
+}
+
+
+/* CLOSE */
+
+#navi-menu2:checked ~ .menu-switch2 .menu-icon:before{
+	background:#6666cc;
+}
+
+#navi-menu2:checked ~ .menu-switch2 .menu-icon:after{
+	transform:rotate(-320deg);
+	width:1.5em;
+	height:3px;
+	top:22%;
+	left:30%;
+}
+
+#navi-menu2:checked ~ .menu-switch2 .menu-icon2:after{
+	transform:rotate(140deg);
+	width:1.5em;
+	height:3px;
+	top:22%;
+	left:30%;
+}
+
+#navi-menu2:checked ~ .menu-switch2:before{
+	content:"CLOSE";
+	left:15%;
+}
+
+
+/* =====================
+   メニュー本体
+===================== */
+
+.navi-menu-wrap{
+	position:fixed;
+	height:90%;
+	background:#fafafa;
+	padding:5em 3% 2em;
+	z-index:9997;
+	transition:.3s;
+	overflow-y:scroll;
+	-webkit-overflow-scrolling: touch;
+	top:0;
+	left:100%;
+	width:70%;
+}
+
+.menulist{
+	margin-right:3%;
+	padding-left:5% !important;
+	list-style:none;
+}
+
+.menulist li a{
+	text-decoration:none;
+	color:#333;
+	display:block;
+	padding:.5em 0;
+}
+
+.menu{
+	list-style-type:none;
+}
+
+.menu > li{
+	border-bottom:1px solid #ddd;
+	position:relative;
+}
+
+.menu > li > ul{
+	list-style-type:none;
+	border-bottom:1px solid #ddd;
+	position:relative;
+}
+
+
+/* =====================
+   メニューアニメーション
+===================== */
+
+#navi-menu2:checked ~ .navi-menu-wrap{
+	left:30%;
+}
+
+}

@@ -1,0 +1,570 @@
+@charset "UTF-8";
+html {
+    font-size: 14px;
+
+}
+body, html {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+body{
+	font-family: "ヒラギノ角ゴ Pro W3", "Hiragino Kaku Gothic Pro", "メイリオ", Meiryo, Osaka, "ＭＳ Ｐゴシック", "MS PGothic", sans-serif;
+	-webkit-text-size-adjust: 100%;
+	position: relative;
+	top: 0;
+	bottom: 0;
+	right: 0;
+	left: 0;
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	overflow-x: hidden;
+}
+select {	/* プルダウンメニュー　*/
+	font-size: 14px;
+}
+
+
+
+/* 全ページ共通
+------------------------------------------*/
+#all p {
+	line-height: 1.6rem;
+	letter-spacing: 1.5px;
+	margin-bottom: 10px;
+}
+#all a {
+	line-height: 1.6rem;
+	letter-spacing: 1.5px;
+	text-underline-offset: 0.1ex;
+}
+
+.noborder-left {
+	border-left: none; !important
+}
+.noborder-right {
+	border-right: none; !important
+}
+.noborder-top {
+	border-top: none; !important
+}
+.noborder-bottom {
+	border-bottom: none; !important
+}
+
+.all::after {
+	content: "";
+	display: block;
+	clear: both;
+}
+
+strong {
+	font-weight: bold;
+}
+
+
+/* index背景
+------------------------------------------*/
+.top-movie {
+	position: fixed;
+	object-fit: cover;
+	height: 100%;
+	width: 100%;
+	z-index: -2;
+}
+/*　重たい動画使うときは外す
+.top-movie::after {
+	content: "";
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-image: radial-gradient(#CCCCCC 10%, transparent 20%), radial-gradient(#FFFFFF 10%, transparent 20%);
+	background-size: 6px 6px;
+	background-position: 0 0, 3px 3px;
+}
+*/
+
+
+.big-bg {
+	background-size: cover;
+	background-position: center top;
+	background-attachment: fixed;
+	background-repeat: no-repeat;
+}
+#home .page-title {
+	text-transform: none;
+}
+#home img {
+	max-width: 100%;
+	position: relative;
+}
+
+
+
+article {
+	width: 100%;
+}
+
+
+
+/* リンクの下線取る
+------------------------------------------*/
+#decoration-none a {
+	text-decoration: none !important;
+	font-size: 1rem;
+	letter-spacing: 1.5px;
+}
+
+
+
+
+/* 速報
+------------------------------------------*/
+
+.area {
+	width: 100%;
+	overflow: hidden;
+	color: #111;
+	background-color: #FF0;
+}
+.marquee {
+	width: 100%;
+	white-space: nowrap;
+	animation-name: marquee;
+	animation-duration: 20s;
+	animation-timing-function: linear;
+	animation-iteration-count: infinite;
+}
+@keyframes marquee {
+	0% {
+		transform: translate(0%);
+	}
+	5% {
+		transform: translate(0%);
+	}
+	100% {
+		transform: translate(-100%);
+	}
+}
+
+
+
+
+
+@media print {
+body{
+	margin-left: auto;
+	margin-right: auto;
+	padding: 0px;
+	zoom: 0.95;
+}
+.top-pic{
+	position: static !important;
+	height: auto !important;
+	width: 100% !important;
+}
+.full_img{
+	width: 100% !important;
+	margin-left: 0 !important;
+}
+article{
+	margin-top: 0 !important;
+}
+
+aside{
+	position: static !important;
+	width: 180px !important;
+	float: right;
+}
+}
+
+
+
+
+
+@media screen and (min-width: 769px){ 	/* ウィンドウ幅が601px以上の時 */
+.all {
+	padding-top: 125px;
+}
+.top-movie {
+	padding-top: 125px;
+}
+section {
+	position: fixed;
+	top: 15px;
+	left: 600px;
+	right: 0;
+}
+footer {
+	position: fixed;
+	bottom: 0;
+}
+}
+
+@media print, screen and (min-width: 769px){ 	/* ウィンドウ幅が601px以上の時 */
+
+#home {
+	width: 100%;
+	height: auto;
+	left: 0;
+	right: 0;
+	margin: auto;
+}
+footer {
+	width: 100%;
+	text-align: center;
+	padding: 1px;
+	font-size: 0.8rem;
+	background-color: #FFF;
+	z-index: 9900;
+}
+.all {
+	width: 100%;
+	height: auto;
+	left: 0;
+	right: 0;
+	margin: 0 auto;
+	margin-top: -10px;
+	padding-bottom: 55px;
+	/* background-color: #FF1A1A;	ブロック視覚化用色つけ＜赤＞ */
+}
+.pc-hidden{		/* pcのみ非表示 */
+	display: none !important;
+}
+a.link {
+	display: block;
+    height: 1px;
+	padding-top: 150px;
+	margin-top: -150px;
+}
+
+/*　トップ画像
+------------------------------------------*/
+.top-pic{
+	position:fixed;
+	top:125px;
+	left:0;
+	width:100%;
+	height:calc(100vh - 125px);
+	z-index:-2;
+}
+
+.top-pic img{
+	width:100%;
+	height:100%;
+	object-fit:cover;
+}
+.full_img{
+    display: block;
+    width: 100%;
+	margin-left:0;
+}
+.full_img img{
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: cover;     /* はみ出す部分をトリミング */
+    object-position: center; /* 中央基準 */
+}
+
+
+/*　バナー用のセクション
+------------------------------------------*/
+section {
+	width: 300px;
+	height: 70px;
+	text-align: right;
+	margin: 0 auto;
+	z-index: 9999;
+}
+section img{
+	width: 160px;
+	height: auto;
+	margin-bottom: -30px;
+}
+
+
+
+
+
+/* index 
+------------------------------------------*/
+.switching {
+	height: 400px;
+}
+article h3 { 
+	margin-bottom: -10px;
+}
+
+article {
+	margin-top: 520px;
+	background-color: rgba(255,255,255,0.75);	/* 背景半透明 */
+	overflow: auto;
+}
+article ul {
+	display: block;
+	height: auto;
+	width: 680px;
+	list-style-type: none;
+	text-align: left;
+	margin-left: 100px;
+	float: left;
+}
+article ul li {
+	width: 100%;
+	font-size: 1rem;
+	text-align: left;
+	letter-spacing: 1.5px;
+	line-height: 2em;
+	visibility: visible;
+	padding: 10px 5px 10px 10px;
+	border-right-style: none;
+	border-bottom-style: dotted;
+	border-bottom-width: thin;
+	margin-left: -20px;
+	display: table;
+	vertical-align: middle;
+}
+article ul li a {
+	font-size: 1rem;
+	color: #000;
+	letter-spacing: 1.5px;
+}
+article ul li a:hover{
+	background-color:#ffff99;
+}
+article ul li a img {
+	height: 100px;
+	width: 150px;
+	float: left;
+	padding-right: 20px;
+	display: inline-block;
+	vertical-align: bottom;
+}
+
+aside {
+	height: auto;
+	width: 300px;
+	right: 0;
+	position: fixed;
+	z-index: 9990;
+	/* background-color: #0F0;	ブロック視覚化用色つけ＜黄緑＞ */
+}
+aside img {	/* indexバナー */
+	float: right;
+	margin-top: 20px;
+}
+#aside li{      /* 左サイドのボックスリスト */
+	height: 60px;
+	width: 215px;
+	font-size: 14px;
+	letter-spacing: 2px;
+	border-right-style: none;
+	border-right-color: #FFF;
+	visibility: visible;
+	background-color: #5ae;
+	float: left;
+	line-height: 60px; 		/*縦中揃え*/
+}
+#aside ul{
+	list-style-type: none;
+	float: right;
+	padding: 0px;
+}
+#aside a{
+	text-align: center;
+	color: #fff;
+	font-weight: bold;
+	text-decoration: none;
+	display: block;
+}
+#aside a:hover {
+	background-color: #7cf;
+	transition: all 0.5s;
+}
+
+
+
+
+
+}
+
+
+@media screen and (max-width: 768px){ 	/* ウィンドウ幅が600px以下の時 */
+	
+.all {
+	position:absolute;
+	width: 100%;
+	padding-top: 5rem;
+	padding-bottom: 5rem;
+	margin: 0;
+}
+footer {
+	position: fixed;
+	bottom: 0;
+	height: 5rem;
+	width: 100%;
+	text-align: center;
+	padding: 1px;
+	font-size: 0.8rem;
+	background-color:#FFF;
+	z-index: 9900;
+}
+
+.top-movie{
+	top: 4rem;
+}
+.top-pic {
+	position:fixed;
+	top:4rem;
+	right:0;
+	bottom:0;
+	left:0;
+	z-index:-2;
+}
+.top-pic img{
+	width:100%;
+	height:auto;
+}
+.mv-hidden{		/* pcのみ非表示 */
+	display: none !important;
+}
+.mv-1c tr{
+	display: block;
+}
+a.link {
+	display: block;
+    height: 1px;
+	padding-top: 5em;
+	margin-top: -5em;
+}
+.table-wide {
+	width: 100%;
+	overflow: auto;	/*　はみ出した要素を隠す　*/
+	white-space: nowrap;	/*　折り返しなし　*/
+}
+
+/* セクション　バナー用
+------------------------------------------*/
+section {
+	margin: 0 auto;
+	text-align: right;
+	position: fixed;
+	right: 0;
+	bottom: 60px;
+	z-index: 9990;
+}
+section img{
+	display: block;
+	width: 120px;
+	height: auto;
+}
+
+
+
+
+/* 画像用の処理
+------------------------------------------*/
+#all img {
+	width: 100vw;
+	height: auto;
+}
+
+/* index 
+------------------------------------------*/
+.switching {
+	height: 200px;
+}
+article ul {
+	width: 95%;
+	margin: 0;
+	padding: 10px;
+	list-style: none;
+	background-color: rgba(255,255,255,.75);
+}
+
+article ul li {
+	width: 100%;
+	font-size: 1rem;
+	letter-spacing: 1.5px;
+	line-height: 2;
+	border-bottom: thin dotted;
+}
+
+article ul li a {
+	color: #000;
+}
+
+article ul li a:hover {
+	background-color: #ffff99;
+}
+
+article ul li a img {
+	display: none;
+}
+	
+	
+aside  {	/* indexバナー */
+	text-align: center;
+	width: 100%;
+	margin: 0 auto;
+	justify-content: center;
+}
+#aside img {	/* indexバナー */
+	margin-bottom: 1px;
+	display: block;
+	object-fit: cover;
+	width: 100%;
+	height: auto;
+	text-align:center;
+}
+#aside a{
+	display:inline-block;
+	width:49%;
+}
+#aside li{      /* 左サイドのボックスリスト */
+	width: 48%;
+    margin: 1%;
+	height: auto;
+	font-size: 14px;
+	letter-spacing: 2px;
+	visibility: visible;
+	background-color: #5ae;
+	line-height: 50px; 		/*縦中揃え*/
+}
+#aside ul{
+	list-style-type: none;
+	padding: 0px;
+}
+#aside li a{
+	text-align: center;
+	color: #fff;
+	font-weight: bold;
+	text-decoration: none;
+	display: block;
+}
+
+
+
+
+}
+
+
+
+
+
+
+/* メモ
+------------------------------------------
+
+  #87cefa ←  薄い青色(部活動ページ）
+
+ 文字装飾：シャドウ
+ text-shadow: 2px 2px 1px #fff, -2px 2px 1px #fff, 2px -2px 1px #fff, -2px -2px 1px #fff,
+	          2px 0px 1px #fff,  0px 2px 1px #fff, -2px 0px 1px #fff,  0px -2px 1px #fff;*/
+
+<html lang="ja">
+

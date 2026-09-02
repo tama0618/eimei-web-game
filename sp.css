@@ -1,0 +1,36 @@
+.fullwidth{
+    position: relative;
+    padding: 4rem 0;
+    z-index: 1;
+}
+.fullwidth::before{
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+
+    /* 背景だけ全幅 */
+    left: calc(50% - 50vw);
+    width: 100vw;
+
+   background-color: #cce8f9;  /* 画像がない部分の色 */
+   background: url(openschool/2026/a2.jpg) center / cover no-repeat;
+
+    z-index: -1;
+}
+@media screen and (min-width: 769px){ 	/* ウィンドウ幅が601px以上の時 */
+	
+@media print {
+.fullwidth::before{
+	background-image: none;
+	background-color: #cce8f9;
+	left: 0;
+	width: 100%; !important;
+}
+
+@media print, screen and (min-width: 769px){ 	/* ウィンドウ幅が601px以上の時 */
+
+@media screen and (max-width: 768px){ 	/* ウィンドウ幅が600px以下の時 */
+.fullwidth::before{
+	background-image: none;
+}

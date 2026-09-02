@@ -1,0 +1,59 @@
+/* Generated from every mirrored :hover rule. Do not edit by hand. */
+
+/* style-format.css */
+.img_shadow.eimei-player-hover { filter: brightness(70%); }
+.img_circle.eimei-player-hover { border-radius: 50%; }
+.img_overlap100x300_tri a.eimei-player-hover img { filter: brightness(70%); }
+.img_overlap100x300_sq a.eimei-player-hover img { filter: brightness(70%); }
+
+/* style-index.css */
+article ul li a.eimei-player-hover { background-color:#ffff99; }
+#aside a.eimei-player-hover { background-color: #7cf;
+	transition: all 0.5s; }
+article ul li a.eimei-player-hover { background-color: #ffff99; }
+
+/* style-menu.css */
+#main-nav li.eimei-player-hover::before { width:80%; }
+#main-nav li.eimei-player-hover { color:#08084D;
+	background-color:#B3B3FF;
+	transition:all 0.3s; }
+#main-nav a.eimei-player-hover { background-color:#E6E6FF;
+	transition:all 0.3s; }
+.menu > li.eimei-player-hover ul { display:block;
+	position:absolute;
+	padding:0;
+	margin:0;
+	top:50px;
+	left:0;
+	list-style-type:none; }
+
+/* style.css */
+summary.eimei-player-hover { background: #dcffff; }
+#sub-nav .eimei-player-hover { transition: all 0.5s; }
+#sub-nav a.eimei-player-hover { color: ;
+	background-color: #E7F0F9;
+	transition: all 0.5s;
+	display: block; }
+#scontents a.eimei-player-hover { text-decoration: none;
+	font-weight: bold;
+	color: #00F;
+	cursor: pointer; }
+#largedata table tr.eimei-player-hover { background-color: #CCE6FF; }
+#largedata-2c table tr.eimei-player-hover { background-color: #CCE6FF; }
+#contents ul li a.eimei-player-hover { background-color:#ffff99; }
+.photo-track img.eimei-player-hover,
+.photo-track img:active { transform: translateY(-25px);
+    transition: transform .25s cubic-bezier(.34,1.56,.64,1); }
+#club a.eimei-player-hover { background-color:#B3B3FF; }
+#multi a.eimei-player-hover { text-decoration: none;
+	color: #0CF; }
+#side ul li a.eimei-player-hover { background-color: #FFDACC;
+	color: #FF401A; }
+#side-wide ul li a.eimei-player-hover { background-color: #FFDACC;
+	color: #FF401A; }
+#aside a.eimei-player-hover { background-color: #7cf;
+	transition: all 0.5s; }
+#thismonth ul li a.eimei-player-hover { color: #ccc; }
+#side ul li a.eimei-player-hover { color: #FFDACC; }
+#side-wide ul li a.eimei-player-hover { color: #FFDACC; }
+#thismonth ul li a.eimei-player-hover { color: #ccc; }

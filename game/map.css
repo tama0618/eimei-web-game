@@ -1,0 +1,116 @@
+#eimei-game-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  touch-action: none;
+}
+
+html.eimei-game-active,
+html.eimei-game-active body {
+  overscroll-behavior: none;
+}
+
+html.eimei-game-active body {
+  transform-origin: 0 0;
+}
+
+/* Fixed headers are useful on a website but become moving geometry in a
+   platformer. Keep their initial appearance and make them part of the world. */
+html.eimei-game-active header {
+  position: absolute !important;
+}
+
+/* A transformed body turns fixed footers into floating mid-page overlays.
+   Pin them to the actual end of the world so they remain visible geometry. */
+html.eimei-game-active footer {
+  position: absolute !important;
+  top: auto !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+}
+
+.eimei-player-hover {
+  cursor: default !important;
+}
+
+html.eimei-preview-document {
+  scrollbar-width: none;
+}
+
+html.eimei-preview-document::-webkit-scrollbar {
+  display: none;
+}
+
+.eimei-goal-photo {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483400;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: clamp(28px, 6vh, 62px) clamp(24px, 8vw, 120px);
+  background: rgba(20, 18, 15, 0.34);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.eimei-goal-photo-mount {
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 13px solid #fffdf4;
+  outline: 1px solid rgba(55, 48, 39, 0.62);
+  background: #f4f1e8;
+  box-shadow: 0 15px 38px rgba(20, 15, 10, 0.44), inset 0 0 0 1px rgba(60, 50, 40, 0.35);
+  transform: rotate(-0.35deg) scale(0.965);
+  transition: transform 180ms ease-out;
+}
+
+.eimei-goal-photo.is-loaded .eimei-goal-photo-mount {
+  transform: rotate(-0.35deg) scale(1);
+}
+
+.eimei-goal-photo-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  transform-origin: 0 0;
+  border: 0;
+  background: #fff;
+  pointer-events: none;
+}
+
+.eimei-goal-photo-marker {
+  position: absolute;
+  z-index: 2;
+  width: 3px;
+  height: 31px;
+  border-radius: 2px;
+  background: #201d18;
+  box-shadow: 0 1px 4px rgba(255, 255, 255, 0.9);
+  transform: translate(-1px, -29px);
+}
+
+.eimei-goal-photo-marker::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 3px;
+  width: 20px;
+  height: 13px;
+  background: #f09a2a;
+  clip-path: polygon(0 0, 100% 24%, 72% 100%, 0 80%);
+  filter: drop-shadow(0 1px 1px rgba(40, 28, 16, 0.35));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #eimei-game-canvas {
+    scroll-behavior: auto;
+  }
+}

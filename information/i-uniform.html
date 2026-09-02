@@ -1,0 +1,391 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html lang="ja" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, maximum-scale=2.0, minimum-scale=0.25, user-scalable=yes">
+<title>制服‐英明高等学校</title>
+<style>
+.top-pic{
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	z-index: -2;
+	overflow: hidden;
+	transform:translateZ(0);
+}
+
+.top-pic picture{
+	display:block;
+	width:100%;
+	height:100%;
+}
+
+.top-pic img{
+	width:100% !important;
+	height:100% !important;
+	object-fit:cover;
+	display:block;
+	pointer-events:none;
+}
+.container img{
+	filter: none;
+	box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+	border-radius: 2px;
+	background: rgba(255,255,255,0.05);
+	display: block;
+}
+.uniform-photo{
+	position:relative;
+	display:inline-block;
+	transition:transform .25s cubic-bezier(.34,1.56,.64,1);
+}
+.uniform-photo:hover,
+.uniform-photo:active{
+	transform:translateY(-10px);
+}
+.uniform-photo img{
+	display:block;
+	width:100%;
+	overflow:hidden;
+}
+.img-main{
+	transition:opacity .35s ease;
+}
+
+.uniform-photo:hover .img-main,
+.uniform-photo:active .img-main{
+	opacity:0;
+}
+.img-sub{
+	position:absolute;
+	inset:0;
+	opacity:0;
+	transition:opacity .35s ease;
+}
+.uniform-photo:hover .img-sub,
+.uniform-photo:active .img-sub{
+	opacity:1;
+}
+</style>
+<link rel="icon" type="image/svg+xml" href="../images/kosyo-sq.svg" />
+<link rel="stylesheet" type="text/css" href="../style.css?20260706">
+<link rel="stylesheet" type="text/css" href="../style-menu.css?20260706">
+<link rel="stylesheet" type="text/css" href="../style-format.css?20260706">
+<script src="SpryAssets/SpryCollapsiblePanel.js" type="text/javascript"></script>
+<script type="text/javascript">
+</script>
+<link rel="stylesheet" href="../game/map.css" data-eimei-game="map">
+<link rel="stylesheet" href="../game/hover.css" data-eimei-game="hover">
+</head>
+
+<body>
+
+<div id="home" class="big-bg">
+
+  <header><div class="inner header-menu">
+    <a href="../index.html"><img src="../images/gakkousyokai_07.png" width="auto" height="70" alt="英明高等学校" /></a>
+
+
+	<div id="main-nav" ontouchstart="">
+		<input id="navi-menu2" type="checkbox" class="input-hidden"> <!-- スマホ版でハンバーガーメニューを表示 -->
+		<label for="navi-menu2" class="menu-switch  menu-switch2">
+			<span class="menu-icon"></span>	
+			<span class="menu-icon2"></span>	
+		</label>
+		<div class="navi-menu-wrap">
+	<ul class="menulist menu">
+    <li class="pc-hidden"><a href="../index.html">トップページ</a></li>
+    <li>学校案内
+      <ul>
+        <li><a href="../information/top.html">理事長・校長挨拶</a></li>
+        <li><a href="../information/i-motto.html">校訓・教育方針</a></li>
+        <li><a href="../information/i-policy.html">スクールポリシー</a></li>
+        <li><a href="../information/i-histry.html">沿革</a></li>
+        <li><a href="../information/course.html">コース紹介</a></li>
+        <li><a href="../evaluation/new.pdf" target="_blank" onclick="return confirm('PDFファイルが開きます');">学校評価(PDF)</a></li>
+        <li><a href="../image/bullying_prevention.pdf" target="_blank" onclick="return confirm('PDFファイルが開きます');">いじめ防止対策方針</a></li>
+        <li><a href="../recruit.html">採用情報</a></li>
+      </ul>
+    </li>
+    <li>学校生活
+      <ul>
+        <li><a href="../news/new.html">過去のニュース</a></li>
+        <li><a href="../club/top.html">部活動</a></li>
+        <li><a href="../restaurant/top.html">英明レストラン</a></li>
+        <li><a href="../information/i-uniform.html">制服</a></li>
+        <li><a href="../information/i-event.html">学校行事</a></li>
+        <li><a href="../information/i-excursion.html">修学旅行</a></li>
+        <li><a href="../information/i-facility.html">施設</a></li>
+      </ul>
+    </li>
+    <li>入試案内
+      <ul>
+        <li><a href="../entrance/recruit.html" target="_blank" onclick="return confirm('ファイルサイズの大きいページが開きます');">募集要項</a></li>
+        <li><a href="../openschool/top.html">オープンスクール</a></li>
+        <li><a href="../entrance/pamphlet.html" target="_blank" onclick="return confirm('ファイルサイズの大きいページが開きます');">学校案内</a></li>
+      </ul>
+    </li>
+    <li>進路指導
+      <ul>
+    	<li><a href="../career/top.html">進路状況</a></li>
+      </ul>
+    </li>
+    <li>在校生向け情報
+      <ul>
+        <li><a href="../schedule/main.html">行事予定</a></li>
+        <li><a href="../payment/top.html">学納金情報</a></li>
+        <li><a href="../proxy/student.html">証明書発行</a></li>
+      </ul>
+    </li>
+    <li>卒業生向け情報
+      <ul>
+        <li><a href="../meiyu/top.html">明友クラブ</a></li>
+        <li><a href="../proxy/graduate.html">証明書発行</a></li>
+      </ul>
+    </li>
+    <li><a href="../information/access.html">アクセス</a></li>
+    <li><a href="../correspondencecourse/index.html" target="_parent">通信制課程</a></li>
+	</ul>
+		</div> <!-- navi-menu-wrap -->
+		<label for="navi-menu2" class="navi-menu-cover"></label>
+	</div>	<!-- main-navi -->
+  </div></header>
+
+
+  <div class="all" id="all">
+	  
+
+  <div class="top-pic">
+	  <picture class="full_img">
+		  <source media="(max-width: 768px)" srcset="i-uniform/wall-mv.jpg">
+		  <img src="i-uniform/wall-pc.jpg" alt="">
+	  </picture>
+  </div>
+
+
+
+	  
+	  <div id="muilti" class="font-white outline-black">
+		  
+		  
+		  <div class="side-stripe">
+			  <span class="size12">UNIFORM STYLE</span><br />
+			  <span class="size2x">制服</span>
+			  <p>「多くの選択肢の中から自ら選ぶ力を身につけてほしい」<br />
+				  英明高校の制服は1,500通り以上の組み合わせが可能。<br />
+				  センスよく自分なりの着こなしを楽みましょう。</p>
+		  </div>
+		  
+		  <br /><br /><br />
+		  
+
+		  <span class="size2x" style="font-weight: bold;">最先端の素材・シルエットを取り入れた英明高校の正装スタイル</span>
+		  
+		  
+		  <div class="container" style="align-items:center !important;">
+			  <div class="column30">
+				  <p align="center"><img src="i-uniform/2026_01.png" width="80%" /></p>
+			  </div>	<!-- column -->
+			  <div class="column60">
+				  <span class="ribbon-rightcut-title size18 bg-pink">ブレザー</span><br />
+				  トレンドの二つボタンで胸元の窮屈感を軽減<br />
+				  斜め腰ポケットでスリム見え<br />
+				  <br />
+				  ウルトラストレッチで快適な着心地！<br />
+				  ウールの上質な風合いを保ちながら19%ウルトラストレッチ。<br />
+				  業界最先端の素材を使用した制服です。<br />
+				  <br />
+				  水・汚れを弾く加工でいつも清潔に！<br />
+				  雨水や泥を生地表面で弾くので汚れが浸透しません。<br />
+				  家庭洗濯も可能です。※洗濯表示をよくご確認ください。<br />
+				  <br />
+				  <span class="ribbon-rightcut-title size18 bg-pink">ネクタイ</span><br />
+				  同系色のライン・変化織でシャープなストライプ を表現した新正装ネクタイ。<br />
+				  受け継いだ「英明らしさ」を保ちつつ令和の「今っぽさ」も追加した、知的で爽やかなアイテムです。<br />
+				  <br />
+				  <span class="ribbon-rightcut-title size18 bg-pink">ボトム</span><br />
+				  シンプル × スタイリッシュなデザインです。<br />
+				  ネクタイと合わせたサックスのラインがアクセント。<br />
+			  </div>	<!-- column -->
+		  </div>	<!-- container --> 
+		  
+		  
+		  <br /><br /><br />
+		  
+
+		  <span class="size2x" style="font-weight: bold;">「自分らしさ」を発揮できるバリエーション豊富なオプションスタイル</span>
+		  
+		  <br /><br />
+		  
+		  <!--<div class="photo-marquee">
+			  <div class="photo-track">
+				  <img src="i-uniform/260610_260610eimei0509.jpg">
+				  <img src="i-uniform/260610_260610eimei0603.jpg">
+				  <img src="i-uniform/260610_260610eimei0723.jpg">
+				  <img src="i-uniform/260610_260610eimei0926.jpg">
+				  <img src="i-uniform/260610_260610eimei1114.jpg">
+				  <img src="i-uniform/260610_260610eimei1147.jpg">
+				  <img src="i-uniform/260610_260610eimei1326.jpg">
+				  <img src="i-uniform/260610_260610eimei1401.jpg">
+				  <img src="i-uniform/202501.jpg">
+				  <img src="i-uniform/202502.jpg">
+				  <img src="i-uniform/202503.jpg">
+				  <img src="i-uniform/202504.jpg">
+
+				  <img src="i-uniform/260610_260610eimei0509.jpg">
+				  <img src="i-uniform/260610_260610eimei0603.jpg">
+				  <img src="i-uniform/260610_260610eimei0723.jpg">
+				  <img src="i-uniform/260610_260610eimei0926.jpg">
+				  <img src="i-uniform/260610_260610eimei1114.jpg">
+				  <img src="i-uniform/260610_260610eimei1147.jpg">
+				  <img src="i-uniform/260610_260610eimei1326.jpg">
+				  <img src="i-uniform/260610_260610eimei1401.jpg">
+				  <img src="i-uniform/202501.jpg">
+				  <img src="i-uniform/202502.jpg">
+				  <img src="i-uniform/202503.jpg">
+				  <img src="i-uniform/202504.jpg">
+			  </div>
+		  </div>
+		  <br /><br />-->
+		  
+		  
+		  <div class="photo-marquee" width="overflow-x:hidden;">
+			  <div class="photo-track">
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/202502.png" alt="">
+					  <img class="img-sub"  src="i-uniform/202502-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei0509.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei0509-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei0603.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei0603-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei1114.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei1114-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei1147.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei1147-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/202501.png" alt="">
+					  <img class="img-sub"  src="i-uniform/202501-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei0723.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei0723-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei0926.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei0926-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei1326.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei1326-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei1401.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei1401-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/202503.png" alt="">
+					  <img class="img-sub"  src="i-uniform/202503-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/202504.png" alt="">
+					  <img class="img-sub"  src="i-uniform/202504-c.jpg" alt="">
+				  </div>
+
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/202502.png" alt="">
+					  <img class="img-sub"  src="i-uniform/202502-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei0509.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei0509-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei0603.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei0603-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei1114.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei1114-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei1147.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei1147-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/202501.png" alt="">
+					  <img class="img-sub"  src="i-uniform/202501-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei0723.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei0723-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei0926.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei0926-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei1326.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei1326-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/260610_260610eimei1401.png" alt="">
+					  <img class="img-sub"  src="i-uniform/260610_260610eimei1401-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/202503.png" alt="">
+					  <img class="img-sub"  src="i-uniform/202503-c.jpg" alt="">
+				  </div>
+				  <div class="uniform-photo">
+					  <img class="img-main" src="i-uniform/202504.png" alt="">
+					  <img class="img-sub"  src="i-uniform/202504-c.jpg" alt="">
+				  </div>
+			  </div>
+		  </div>
+		  
+  		  
+		  <br /><br /><br />
+		  
+
+		  <span class="size2x" style="font-weight: bold;">ラインナップ</span>
+		  
+		  <br /><br />
+		  
+		  <p align="center"><img src="i-uniform/uniform1.png" alt="正装"></p>
+		  <p align="center"><img src="i-uniform/uniform2.png" alt="オプション"></p>
+		  <p align="center"><img src="i-uniform/uniform3.png" alt="体操服・鞄"></p>
+		      
+
+
+
+
+</div>	<!-- all -->
+</div>	<!-- home -->
+
+	<footer>
+    <p align="center"><small>Copyright　Eimei. all right reserved. </small>　
+    <a href="#home">ページトップへ</a>　　
+    
+    <a href="https://www.instagram.com/eimei_hs_sns/"><img src="../image/sozai/sns-ig2.png" width="25" height="25" /></a>　
+    <a href="https://twitter.com/eimei_hs_sns"><img src="../image/sozai/sns-tw2.png" width="25" height="25" /></a></p>
+    </footer>
+
+<script type="text/javascript"></script>
+    
+	<!--<section>
+    <a href="../openschool/openschool2022.html"><img src="../image/2022/bana01.jpg" width="215" alt="オープンスクール" /></a>
+    </section>-->
+<script defer src="../game/map-runtime.js" data-eimei-game="map"></script>
+</body>
+</html>

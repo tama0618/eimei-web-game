@@ -1,0 +1,1467 @@
+@charset "UTF-8";
+html {
+    font-size: 14px;
+
+}
+header {
+	background-color: #ffffff;
+	z-index: 9999;
+}
+
+/* box計算を安定させる */ 
+*, 
+*::before, 
+*::after{ 
+	box-sizing:border-box; 
+}
+
+body{
+	font-family: "ヒラギノ角ゴ Pro W3", "Hiragino Kaku Gothic Pro", "メイリオ", Meiryo, Osaka, "ＭＳ Ｐゴシック", "MS PGothic", sans-serif;
+	-webkit-text-size-adjust: 100%;
+	position: relative;
+	top: 0;
+	bottom: 0;
+	right: 0;
+	left: 0;
+	width: 100%;
+	max-width: 1024px;
+	margin-left: auto;
+	margin-right: auto;
+	/*background-color:#0FF; ブロック視覚化用色つけ＜シアン＞ */
+}
+.num{
+    font-family: monospace;
+    font-size: 1.1em;
+    white-space: pre;
+}
+select {	/* プルダウンメニュー　*/
+	font-size: 14px;
+}
+.wrapper {
+	min-height: 100vh;
+	position: relative;
+	padding-bottom: 120px;
+}
+.full_img{
+    display: block;
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+}
+.full_img img{
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: cover;     /* はみ出す部分をトリミング */
+    object-position: center; /* 中央基準 */
+}
+
+
+/* 全ページ共通
+------------------------------------------*/
+#all p {
+	line-height: 1.6rem;
+	letter-spacing: 1.5px;
+	margin-bottom: 10px;
+}
+#all a {
+	line-height: 1.6rem;
+	letter-spacing: 1.5px;
+	text-underline-offset: 0.1ex;
+}
+
+#all h3 { /* 黒大文字・青下線 */
+	font-size:1.5rem;
+	color: #333;
+	border-bottom: solid 4px #B3B3FF;
+	position: relative;
+	font-weight: normal;
+	font-style: normal;
+	letter-spacing: 4px;
+	text-align: left;
+	margin-left: 1em;
+}
+#all h3:after {
+	position: absolute;
+	content: '';
+	display: block;
+	border-bottom: solid 4px #1A1AFF;
+	bottom: -4px;
+	left: -1em;
+	width: 25%;
+}
+#all h4 { /* 黒大文字・緑三角 */
+	font-size:1.2rem;
+	display: inline-block;
+	color: #333;
+	position: relative;
+	font-weight: normal;
+	font-style: normal;
+	letter-spacing: 4px;
+	text-align: left;
+	text-indent: 1em;
+	padding: 0.5rem 1rem;
+	text-shadow: 1px 1px 0 #FFF, -1px -1px 0#FFF, -1px 1px 0 #FFF, 1px -1px 0 #FFF, 0px 1px 0 #FFF, 0px -1px 0 #FFF, 1px 0px 0 #FFF, -1px 0px 0 #FFF;}
+#all h4:after {
+	position: absolute;
+	bottom: 10px;
+	left: 0;
+	width: 0;
+	height: 0;
+	content: '';
+	border-style: solid;
+	border-width: 50px 30px 0 0;
+	border-color: #1AFF1A transparent transparent transparent;
+	z-index: -1;
+}
+#all h5 { /* 黒大文字・青かぎかっこ */
+	font-size:1.2rem;
+	display: inline-block;
+	color: #333;
+	position: relative;
+	font-weight: normal;
+	font-style: normal;
+	letter-spacing: 4px;
+	text-align: left;
+	padding: 1rem 2rem;
+}
+#all h5:before, h5:after {
+	position: absolute;
+	width: 2rem;
+	height: 2rem;
+	content: '';
+}
+#all h5:before {
+	border-left: solid 2px #1A1AFF;
+	border-top: solid 2px #1A1AFF;
+	left: 0;
+	top: 0;
+}
+#all h5:after {
+	border-right: solid 2px #1A1AFF;
+	border-bottom: solid 2px #1A1AFF;
+	right: 0;
+	bottom: 0;
+}
+
+#all h6 { /* 黒大文字・青下線 */
+	font-size:24px;
+	color: #333;
+	padding: 10px;
+	border-image: linear-gradient(to right, #9FF, #2c6dc2, #9FC) 1/0 0 8px;
+	letter-spacing: 5px;
+}
+
+#all h7 { /* 黒字・青背景・中央揃え */
+	font-size: 24px;
+	color: #333;
+	background-color: #87cefa;
+	font-weight: lighter;
+	font-style: normal;
+	letter-spacing: 5px;
+	text-indent: 10px;
+	text-align: center;
+}
+#all h8 {  /* 黒小文字・右寄せ（進路速報・過年度生） */
+	font-size: 14px;
+	line-height: 20px;
+	padding-left: 12px;
+	text-indent: 12px;
+	font-weight: lighter;
+}
+
+#all hr.wave-b {
+	background-image: url(images/wave-b.jpg);
+	height:auto;
+}
+
+#all table {
+	-moz-box-sizing: border-box;
+	box-sizing: border-box;
+	border-collapse: collapse;
+	border: solid 1px;
+	border-color: #333333;
+	letter-spacing: 1px;
+	margin: 1px;
+}
+#all table td{
+	padding: 4px 10px;
+	font-weight: normal;
+}
+#all table th {
+	padding: 4px 10px;
+	font-weight: normal;
+	text-align: center;
+}
+.noborder-left {
+	border-left: none !important;
+}
+.noborder-right {
+	border-right: none !important;
+}
+.noborder-top {
+	border-top: none !important;
+}
+.noborder-bottom {
+	border-bottom: none !important;
+}
+
+.all::after {
+	content: "";
+	display: block;
+	clear: both;
+}
+
+strong {
+	font-weight: bold;
+}
+
+
+/* index背景
+------------------------------------------*/
+.big-bg {
+	background-size: cover;
+	background-position: center top;
+	background-attachment: fixed;
+	background-repeat: no-repeat;
+}
+#home {
+	background-image: /* url(image/background.jpg),*/ 
+	                  /*linear-gradient(#a9effc, #fff);
+	background-blend-mode: lighten;
+	min-height: 100vh;*/
+	background-color: #FF1A1A;
+}
+#home .page-title {
+	text-transform: none;
+}
+#home img {
+	max-width: 100%;
+}
+
+/* 画像の切り替えフェードアニメーション
+------------------------------------------*/
+
+.switching {
+	position: relative;
+	max-width: 1024px;
+	z-index: -1;
+}
+.image {
+	position: absolute; /* 画像を重ねるため */
+	width: 100%;
+	opacity: 0;
+	animation: change-img-anim 50s infinite;	/* @keyframesアニメーション */
+}
+.image:nth-of-type(1) {
+	animation-delay: 0s;
+}
+.image:nth-of-type(2) {
+	animation-delay: 10s;
+}
+.image:nth-of-type(3) {
+	animation-delay: 20s;
+}
+.image:nth-of-type(4) {
+	animation-delay: 30s;
+}
+.image:nth-of-type(5) {
+	animation-delay: 40s;
+}
+@keyframes change-img-anim {
+	0%{ opacity: 0;}
+	15%{ opacity: 1;}
+	20%{ opacity: 1;}
+	30%{ opacity: 0;}
+	100%{ opacity: 0;}
+}
+
+
+/* Youtubeレスポンシヴ
+------------------------------------------*/
+.movie-wrap {
+     padding-bottom: 56.25%; /*アスペクト比 16:9の場合の縦幅*/
+     height: 0;
+     overflow: hidden;
+}
+.movie-wrap iframe {
+     top: 0;
+     left: 0;
+     width: 100%;
+     height: 100%;
+}
+.youtube {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+.youtube iframe {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+
+/* リンクの下線取る
+------------------------------------------*/
+#decoration-none a {
+	text-decoration: none !important;
+	font-size: 1rem;
+	letter-spacing: 1.5px;
+}
+
+
+
+
+/* アコーディオンメニュー設定
+------------------------------------------*/
+
+summary {
+	cursor: pointer;
+}
+summary:hover {
+/*details[open] {
+	border: 1px thin #666;*/
+	background: #dcffff;
+}
+
+
+
+
+
+
+/* 速報
+------------------------------------------*/
+
+.area {
+	width: 100%;
+	overflow: hidden;
+	color: #111;
+	background-color: #FF0;
+}
+.marquee {
+	width: 100%;
+	white-space: nowrap;
+	animation-name: marquee;
+	animation-duration: 30s;
+	animation-timing-function: linear;
+	animation-iteration-count: infinite;
+}
+@keyframes marquee {
+	0% {
+		transform: translate(0%);
+	}
+	10% {
+		transform: translate(0%);
+	}
+	100% {
+		transform: translate(-100%);
+	}
+}
+
+
+#sub-nav li{      /* 各階層共通 */
+	height: 32px;
+	width: 100%;
+	float: left;
+	color: #666;
+	font-size: 16px;
+	text-align: center;
+	display: table;
+	letter-spacing: 5px;
+	visibility: visible;
+	line-height: 32px; 		/*縦中揃え*/
+}
+#sub-nav :hover {
+	transition: all 0.5s;
+}
+#sub-nav a{
+	color: #08084D;
+	background-color: #FF3;/*#ACC6F1*/
+	text-decoration: none;
+	display: block;
+}
+#sub-nav a:hover {
+	color: ;
+	background-color: #E7F0F9;
+	transition: all 0.5s;
+	display: block;
+}
+#sub-nav a img {
+	width: 100%;
+	height: auto;
+}
+
+
+
+
+/* 行事予定
+------------------------------------------*/
+#thismonth caption {
+	font-size: 18px;
+	text-align: center;
+}
+.container{ 
+	display:flex; 
+	flex-wrap:wrap; 
+	justify-content:center; 
+	gap:0; 
+}
+.container-left {
+	display:flex; 
+	flex-wrap:wrap; 
+	justify-content:left; 
+	gap:0; 
+}
+
+/* サイドバー付ページ
+ （部活動・進路情報・入学案内）
+------------------------------------------*/
+#scontents p {
+	padding: 0 1rem;
+}
+#scontents a {
+	text-decoration: none;
+	font-weight: normal;
+	color: #00F;
+	cursor: pointer;
+}
+#scontents a:hover {
+	text-decoration: none;
+	font-weight: bold;
+	color: #00F;
+	cursor: pointer;
+}
+#scontents table tr td a {
+	color: #03F;
+	text-decoration: none;
+}
+
+
+
+/* ホバーで色変する表
+------------------------------------------*/
+
+#largedata table tr:hover {
+	background-color: #CCE6FF;
+}
+#largedata-2c table tr:hover {
+	background-color: #CCE6FF;
+}
+
+
+
+
+
+#contents ul {
+	width: 600px;
+	list-style-type: none;
+	text-align: left;
+	margin-left: 0px;
+	float: left;
+}
+#contents ul li {
+	font-size: 14px;
+	line-height: 30px;
+	text-align: left;
+	letter-spacing: 3px;
+	visibility: visible;
+	padding: 5px;
+	border-right-style: none;
+	border-right-color: #FFF;
+}
+#contents ul li a {
+	font-size: 14px;
+	color: #000;
+	letter-spacing: 1px;
+
+}
+#contents ul li a:hover{
+	background-color:#ffff99;
+}
+.contents {
+	height: auto;
+	width: 650px;
+	float: left;
+}
+
+/* 写真回転寿司
+------------------------------------------*/
+.photo-marquee{
+	width:100vw;
+	margin-left:calc(50% - 50vw);
+	padding-top:30px;
+	overflow:hidden;
+}
+
+.photo-track{
+	display:flex;
+	gap:1rem;
+	width:max-content;
+
+	animation:scroll 60s linear infinite;
+}
+
+.photo-track img{
+	width:250px;
+	aspect-ratio:3/4;
+	object-fit:cover;
+	flex-shrink:0;
+
+	box-shadow:0 12px 40px rgba(0,0,0,.45);
+	border-radius:2px;
+	background:rgba(255,255,255,.05);
+	transition:
+		transform .25s ease,
+		box-shadow .25s ease;
+}
+.photo-track img:hover,
+.photo-track img:active {
+    transform: translateY(-25px);
+    transition: transform .25s cubic-bezier(.34,1.56,.64,1);
+}
+
+@keyframes scroll{
+	from{
+		transform:translateX(0);
+	}
+	to{
+		transform:translateX(calc(-50% - 0.5rem));
+	}
+}
+/* 部活動紹介ページ用
+------------------------------------------*/
+#club a:hover{
+	background-color:#B3B3FF;
+}
+#club a {
+	text-decoration: none;
+	display:inline-block;
+	width: 155px;
+	font-size: 11px;
+	color: #000;
+	background-color: #E6E6FF;
+	margin: 3px;
+	padding: 3px;
+	text-indent: 1rem;
+}
+
+
+
+/* 特別ページ用
+------------------------------------------*/
+#multi {
+	-moz-box-sizing: border-box;
+	box-sizing: border-box;
+	float: left;
+	padding: 5px;
+}
+
+#multi li {
+	line-height: 2rem;
+	padding-right: 5px;
+	letter-spacing: 2px;
+	text-indent: 1em;
+}
+
+p.multi_leftline {
+	line-height: 22px;
+    border-left: 6px solid #87cefa;    /* 左サイドにストライプ入る */
+    padding: 10px;
+	padding-right: 5px;
+}
+#multi a {
+	width: 200px;
+	letter-spacing: 2px;
+}
+#multi a:hover{
+	text-decoration: none;
+	color: #0CF;
+}
+
+
+
+
+
+
+
+/* 過去のニュース
+------------------------------------------*/
+
+.grid {
+	display: grid;	/* タイル型に並べる */
+	gap: 26px;
+	grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));	/* 横幅の指定・画面幅に合わせて要素（最小100px）が伸縮する設定 */
+	margin-top: 6%;
+	margin-bottom: 50px;
+}
+
+#grid a {
+	font-size: 14px;
+	color: #000;
+	background-color: #FFFFFF;
+	letter-spacing: 3px;
+    text-decoration: none;
+}
+
+
+
+
+
+
+
+
+/* ニュース本文
+------------------------------------------*/
+#event_contents p {
+	font-weight: lighter;
+	float: left;
+	text-indent: 1rem;
+	line-height: 30px;
+}
+
+#event_contents a {
+	color: #09F;
+	text-decoration: none;
+	width: 120px;
+}
+
+
+@media screen and (min-width: 769px){ 	/* ウィンドウ幅が601px以上の時 */
+section {
+	position: fixed;
+	top: 15px;
+	left: 600px;
+	right: 0;
+}
+.fixbana {
+	position: fixed;
+}
+footer {
+	position: fixed;
+	bottom: 0;
+}
+}
+
+@media print {
+.wrapper {	/* 高さを強制してるやつを殺す */
+   min-height: auto !important;
+   padding-bottom: 0 !important;
+   position: static !important;
+}
+.your-elementnt {
+	print-color-adjust: exact;
+	-webkit-print-color-adjust: exact;
+}
+body{
+	margin: 0;
+	max-width:none;
+	padding: 50px;
+	zoom: 0.9;
+}
+footer,
+section {
+	position: static !important;
+}
+* {
+    height: auto !important;
+    min-height: 0 !important;
+}
+}
+
+
+@media print, screen and (min-width: 769px){ 	/* ウィンドウ幅が601px以上の時 */
+
+#home {
+	width: 1024px;
+	height: auto;
+	left: 0;
+	right: 0;
+	margin: auto;
+}
+footer{
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    text-align: center;
+    padding: 1px;
+    font-size: 0.8rem;
+    background: #fff;
+    z-index: 9900;
+}
+.all {
+	width: 100%;
+	height: auto;
+	left: 0;
+	right: 0;
+	margin: 0 auto;
+	margin-top: -10px;
+	padding-top: 140px;
+	padding-bottom: 55px;
+	/* background-color: #FF1A1A;	ブロック視覚化用色つけ＜赤＞ */
+}
+.pc-hidden{		/* pcのみ非表示 */
+	display: none !important;
+}
+a.link {
+	display: block;
+    height: 1px;
+	padding-top: 150px;
+	margin-top: -150px;
+}
+
+/*　バナー用のセクション
+------------------------------------------*/
+section {
+	width: 300px;
+	height: 70px;
+	text-align: right;
+	margin: 0 auto;
+	z-index: 9999;
+}
+section img{
+	width: 160px;
+	height: auto;
+	margin-bottom: -30px;
+}
+/*　チンアナゴスタイルのセクション（文字用）
+section a {	
+	text-decoration: none;
+	color: #FF0;
+	font-weight: bold;
+	font-size: 14px;
+	background-color: #08084D;
+	float: right;
+	padding: 10px;
+	line-height: 30px;
+	border-radius: 5px;
+}
+section a:hover {
+	color: #DDD;
+}
+------------------------------------------*/
+
+
+/* 書式
+------------------------------------------*/
+#all h1 { /* 黒大文字・グラデ背景 */
+	font-size:24px;
+	color: #777;
+	background: url("images/wave-b.jpg") no-repeat 0px 6px ;
+	font-weight: lighter;
+	font-style: normal;
+	letter-spacing: 5px;
+	text-align: left;
+	padding-bottom: 15px;
+}
+#all h2 { /* 白抜き・赤背景 */
+	font-size: 22px;
+	border-bottom-style: none;
+	border-bottom-width: 2px;
+	color: #FFF;
+	background-color: #F33;
+	font-weight: normal;
+	margin-left: 5px;
+}
+
+
+
+
+
+
+
+/* サイドメニューボックス
+------------------------------------------*/
+#side {
+	width: 180px;
+	float: left;
+	position: fixed;
+}
+#side ul {
+	width: 100%;
+	list-style-type: none;
+	background-color: #FF401A;
+	margin: 0;
+	padding: 0;
+}
+#side ul li a {
+	display: block;
+	text-decoration: none;
+	font-size: 12px;
+	font-weight: bold;
+	letter-spacing: 2px;
+	color: #FFF;
+	padding: 1rem 1.5rem;
+}
+#side ul li a:hover{
+	background-color: #FFDACC;
+	color: #FF401A;
+}
+#side a img {
+	height: auto;
+	width: 100%;
+}
+
+/* サイドメニューボックス  -　モバイルで100%表示
+------------------------------------------*/
+#side-wide {
+	width: 250px;
+	margin-left: -50px;
+	float: left;
+	position: fixed;
+}
+#side-wide ul {
+	width: 100%;
+	list-style-type: none;
+	background-color: #FF401A;
+	margin: 0;
+	padding: 0;
+}
+#side-wide ul li a {
+	display: block;
+	text-decoration: none;
+	font-size: 12px;
+	font-weight: bold;
+	letter-spacing: 2px;
+	color: #FFF;
+	padding: 1rem 1.5rem;
+}
+#side-wide ul li a:hover{
+	background-color: #FFDACC;
+	color: #FF401A;
+}
+#side-wide a img {
+	height: auto;
+	width: 100%;
+}
+
+
+/* サブナビ
+------------------------------------------*/
+#tabbed {
+	display: block;
+	width: 204px;
+	float: right;
+	position: fixed;
+	font-weight: bold;
+}
+#tabbed a {
+	text-decoration: none;
+	color: #FFFFFF;
+}
+
+.list-1 {
+	display: block;
+	width: 100%;
+	float: right;
+	letter-spacing: 2px;
+	margin-top: 2px;
+	margin-bottom: 2px;
+	border-bottom: solid 2px #08084D;
+	color: #08084D;
+}
+.list-2  {
+	display: block;
+	width: 170px;
+	float: right;
+	text-decoration: none;
+	letter-spacing: 2px;
+	color: #FFF;
+	padding: 5px;
+	margin-top: 2px;
+}
+
+
+
+
+
+
+/* index 
+------------------------------------------*/
+.switching {
+	height: 400px;
+}
+article h3 { 
+	margin-bottom: -10px;
+}
+
+article {
+	height: auto;
+	width: 720px;
+	float: left;
+	/*margin-top: -50px;*/
+	background-color: rgba(255,255,255,0.75);	/* 背景半透明 */
+	/*background-color: #00F;	 ブロック視覚化用色つけ＜青＞ */
+}
+article ul {
+	width: 680px;
+	height: 100%;
+	list-style-type: none;
+	text-align: left;
+	margin-left: 0px;
+	float: left;
+}
+article ul li a img {
+	height: 100px;
+	width: 150px;
+	float: left;
+	padding-right: 20px;
+	display: inline-block;
+	vertical-align: bottom;
+}
+
+aside {
+	height: auto;
+	width: 300px;
+	float: right;
+	/* background-color: #0F0;	ブロック視覚化用色つけ＜黄緑＞ */
+}
+aside img {	/* indexバナー */
+	float: right;
+	margin-top: 10px;
+}
+#aside li{      /* 左サイドのボックスリスト */
+	height: 60px;
+	width: 215px;
+	font-size: 14px;
+	letter-spacing: 2px;
+	border-right-style: none;
+	border-right-color: #FFF;
+	visibility: visible;
+	background-color: #5ae;
+	float: left;
+	line-height: 60px; 		/*縦中揃え*/
+}
+#aside ul{
+	list-style-type: none;
+	float: right;
+	padding: 0px;
+}
+#aside a{
+	text-align: center;
+	color: #fff;
+	font-weight: bold;
+	text-decoration: none;
+	display: block;
+}
+#aside a:hover {
+	background-color: #7cf;
+	transition: all 0.5s;
+}
+
+
+
+/* ニュースページ全体
+------------------------------------------*/
+#event_body {
+	height: 100%;
+	width: 1024px;
+	float: left;
+}
+#event_body p img {
+	display: block;
+	margin: 0 0 10px auto; /* 右寄せ＋縦余白 */
+	width: 300px;
+	height: auto;
+
+}
+
+/* ニュース本文
+------------------------------------------*/
+#event_contents {
+	min-height: 680px;
+	width: 670px;
+	float: left;
+}
+
+/* サイドバーつきのページ
+ （部活動・学校概要・進路情報・入学案内）
+------------------------------------------*/
+#scontents {
+	width: 800px;
+	height: auto;
+	float: right;
+}
+#scontents p img {
+	max-width: 100%;
+	height: auto;
+}
+#scontents img {
+	max-width: 100%;
+	height: auto;
+}
+
+/* 行事予定
+------------------------------------------*/
+
+#thismonth {
+	width: 1024px;
+	float: left;
+}
+#thismonth ul {	/* 月選択 */
+	width: 100%;
+	display: table;
+	margin: 0;
+	padding: 0;
+	font-size: 15px;
+	list-style: none;
+}
+#thismonth li {
+	display: table-cell;
+	width: 8.3%;
+	height: 30px;
+	text-indent: 8px;
+	text-align: center;
+	letter-spacing: 3px;
+	background-color: #a9effc;
+	color: #444;
+	vertical-align: middle;
+}
+#thismonth li a {
+	text-decoration: none;
+	color: #22F;
+}
+#thismonth ul li a:hover{
+	color: #ccc;
+}
+
+/* PC2列・MV1列表示
+------------------------------------------*/
+.column10{ width:10%; } 
+.column20{ width:20%; }
+.column25{ width:25%; }
+.column30{ width:30%; }
+.column40{ width:40%; }	
+.column40{ width:40%; }
+.column50{ width:48%; } 
+.column60{ width:60%; } 
+.column70{ width:70%; }
+	
+	
+/* 部活動紹介ページ用
+------------------------------------------*/
+#club {
+	float: right;	
+	margin-left: auto;
+	padding-bottom: 100px;
+	height: auto;
+	width: 780px;
+}
+#club p img {
+	float: right;
+	height: auto;
+	margin-bottom: 10px;
+}
+#clubtext {
+	width: 560px;
+	height: auto;
+	float: left;
+}
+
+
+
+/* 特別ページ用
+------------------------------------------*/
+#multi {
+	width: 1024px;
+}
+#multi p img {
+	max-width: 1024px;
+	height: auto;
+	margin-bottom: 10px;
+	align: right;
+}
+
+/* ホバーで色変する表
+------------------------------------------*/
+#largedata table {
+	width: 750px;
+}
+#largedata-2c table {	/* 進路速報 */
+	width: 365px;
+}
+
+
+}
+
+
+@media screen and (max-width: 768px){ 	/* ウィンドウ幅が600px以下の時 */
+	
+header {
+	width: 100%;
+	height: 5rem;
+	top: 0;
+	left: 0;
+	right: 0;
+	margin: auto;
+	background-color: #eeeeee;
+	position:fixed;
+}
+header img {      /* homeロゴ */
+	height: auto;
+	max-width: 80%;
+	margin-top: 5px;
+	position: fixed;
+}
+body {
+    margin: 0;
+	padding: 0 8px;
+}
+.all {
+	width: auto;
+	padding-top: 5rem;
+	padding-bottom: 5rem;
+	margin-right: auto;
+	margin-left: auto;
+}
+footer {
+	position: fixed;
+	bottom: 0;
+	height: 5rem;
+	width: 100%;
+	text-align: center;
+	padding: 1px;
+	font-size: 0.8rem;
+	background-color:#FFF;
+	z-index: 9900;
+}
+
+.mv-hidden{		/* pcのみ非表示 */
+	display: none !important;
+}
+.mv-1c tr{
+	display: block;
+}
+a.link {
+	display: block;
+    height: 1px;
+	padding-top: 5em;
+	margin-top: -5em;
+}
+.table-wide {
+	width: 100%;
+	overflow: auto;	/*　はみ出した要素を隠す　*/
+	white-space: nowrap;	/*　折り返しなし　*/
+}
+
+/* セクション　バナー用
+------------------------------------------*/
+section {
+	margin: 0 auto;
+	text-align: right;
+	position: fixed;
+	right: 0;
+	bottom: 60px;
+	z-index: 9990;
+}
+section img{
+	display: block;
+	width: 120px;
+	height: auto;
+}
+
+
+/* 書式
+------------------------------------------*/
+#all h1 { /* 黒大文字・青下線 */
+	font-size:20px;
+	color: #333;
+	border-bottom: solid 3px #87cefa;
+	font-weight: lighter;
+	font-style: normal;
+	letter-spacing: 5px;
+	text-align: left;
+}
+#all h2 { /* 白抜き・赤背景 */
+	font-size: 20px;
+	border-bottom-style: none;
+	border-bottom-width: 2px;
+	color: #FFF;
+	background-color: #F33;
+	font-weight: normal;
+	text-indent: 5px;
+}
+
+
+
+/* 画像用の処理
+------------------------------------------*/
+#all img {
+	max-width: 100%;
+	height: auto;
+}
+
+
+/* サイドメニューボックス
+------------------------------------------*/
+#side{
+	width: 100%;
+}
+#side ul {
+	display: flex;
+	margin: 0;
+	padding: 0;
+	flex-wrap: wrap;
+	list-style: none;
+	background-color: #FF4A01;
+	position: relative;
+}
+#side li {
+	display: block;
+	width: 48%;
+	font-size: 14px;
+	text-decoration: none;
+	padding: 1px, 1%, 1px, 1%;
+}
+#side li a {
+	display: block;
+	text-decoration: none;
+	color: #FFFFFF;
+	padding: 8px 1.5rem;
+}
+
+#side ul li a:hover{
+	color: #FFDACC;
+}
+
+/* サイドメニューボックス
+------------------------------------------*/
+#side-wide {
+	width: 100%;
+}
+#side-wide ul {
+	display: flex;
+	margin: 0;
+	padding: 0;
+	flex-wrap: wrap;
+	list-style: none;
+	background-color: #FF4A01;
+	position: relative;
+}
+#side-wide li {
+	display: block;
+	width: 98%;
+	font-size: 14px;
+	text-decoration: none;
+	padding: 1px, 1%, 1px, 1%;
+}
+#side-wide  li a {
+	display: block;
+	text-decoration: none;
+	color: #FFFFFF;
+	padding: 8px 1.5rem;
+}
+
+#side-wide ul li a:hover{
+	color: #FFDACC;
+}
+
+/* index 
+------------------------------------------*/
+.switching {
+	height: 200px;
+}
+
+aside  {	/* indexバナー */
+	text-align: center;
+	background-color: #FFF;
+	margin-top: -20px;
+}
+#aside img {	/* indexバナー */
+	margin-bottom: 1px;
+	text-align: center;
+	width: 48%;
+	max-width: 250px;
+	height: auto;
+}
+#aside li{      /* 左サイドのボックスリスト */
+	width: 49%;
+	height: auto;
+	font-size: 14px;
+	letter-spacing: 2px;
+	visibility: visible;
+	background-color: #5ae;
+	line-height: 50px; 		/*縦中揃え*/
+}
+#aside ul{
+	list-style-type: none;
+	padding: 0px;
+}
+#aside li a{
+	text-align: center;
+	color: #fff;
+	font-weight: bold;
+	text-decoration: none;
+	display: block;
+}
+
+
+/* ニュースページ全体
+------------------------------------------*/
+#event_body {
+	height: auto;
+	width: 100%;
+}
+#event_body p img {
+	width: 47%;
+	height: auto;
+	margin-left: 5px;
+	margin-bottom: 10px;
+}
+#event p img {
+	width: 47%;
+	height: auto;
+	margin-left: 5px;
+	margin-bottom: 10px;
+}
+#event_pic  {	
+	text-align: center;
+}
+#event_pic img {	
+	margin-top: 5px;
+	text-align: center;
+	max-width: 45%;
+	height: auto;
+}
+
+/* ニュース本文
+------------------------------------------*/
+#event_contents {
+	height: auto;
+	width: 100%;
+}
+
+/* サイドバー付ページ（画像を画面いっぱい表示するときは_w100）
+ （部活動・進路情報・入学案内）
+------------------------------------------*/
+#scontents {
+	float: right;
+	height: auto;
+	width: 100%;
+}
+#scontents img {
+	max-width: 100%;
+	height: auto;
+}
+#scontents p img {
+	max-width: 100%;
+	height: auto;
+	margin: 2px;
+}
+
+/* 行事予定
+------------------------------------------*/
+
+#thismonth {
+	-moz-box-sizing: border-box;
+	box-sizing: border-box;
+	width: 100%;
+}
+#thismonth ul {	/* 月選択 */
+	width: 98%;
+	display: flex;
+	justify-content: center;
+	flex-wrap: wrap;
+	font-size: 14px;
+	list-style: none;
+}
+#thismonth li {
+	display: inline-block;
+	width: 16.4%;
+	height: 20px;
+	padding-top: 2px;
+	padding-bottom: 2px;
+	margin-left: -40px;
+	margin-right: 40px;
+	margin-bottom: 2px;
+	text-indent: 8px;
+	text-align: center;
+	letter-spacing: 3px;
+	background-color: #a9effc;
+	color: #444;
+}
+#thismonth li a {
+	text-decoration: none;
+	color: #22F;
+}
+#thismonth ul li a:hover{
+	color: #ccc;
+}
+#thismonth table {
+	width: 90%;
+}
+.column10, 
+.column20, 
+.column25, 
+.column30, 
+.column40, 
+.column50, 
+.column60, 
+.column70{ 
+	width:100%; margin:0; }
+
+	
+/* 部活動紹介ページ用
+------------------------------------------*/
+#club p img {
+	width: 45%;
+	height: auto;
+	margin-left: 10px;
+	margin-bottom: 10px;
+	float: left;
+}
+#clubtext {
+	width: 100%;
+}
+
+
+
+
+/* 特別ページ用
+------------------------------------------*/
+#multi {
+	width: 100%;
+}
+#multi p img {
+	max-width: 100%;
+	height: auto;
+	margin-bottom: 10px;
+	align: right;
+}
+
+/* PC2列・MV1列の表
+------------------------------------------*/
+#double table {
+	width: 95%;
+}
+#double table tr th {
+	display: block;
+	font-size: 13px;
+	background: #87cefa;
+	text-align: left;
+	padding: 5px;
+}
+#double table tr td {
+	display: block;
+	font-size: 12px;
+	padding: 1em;
+	
+}
+
+
+
+}
+
+
+
+
+
+/* メモ
+------------------------------------------
+
+  #87cefa ←  薄い青色(部活動ページ）
+
+ 文字装飾：シャドウ
+ text-shadow: 2px 2px 1px #fff, -2px 2px 1px #fff, 2px -2px 1px #fff, -2px -2px 1px #fff,
+	          2px 0px 1px #fff,  0px 2px 1px #fff, -2px 0px 1px #fff,  0px -2px 1px #fff;*/
+
+
+
