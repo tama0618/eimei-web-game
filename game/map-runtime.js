@@ -70,6 +70,10 @@
     missionPlanningCompletionRatio: .9,
     missionPlanningMinimumAcceptRatio: .55,
     missionStartMaximumAttempts: 3,
+    scoreAttackSeconds: 4 * 60,
+    scorePickupPauseSeconds: 0.62,
+    scoreLocalMinimumTravelViewport: 1.25,
+    scoreLocalMaximumTravelViewport: 5.8,
     goalCelebrationSeconds: 3.4,
     goalFreezeSeconds: 1.25,
     dropThroughMaximumThickness: 30,
@@ -119,6 +123,7 @@
     return;
   }
   const isPlanningDocument = initialRouteParameters.get("eimei-route") === "plan";
+  const isTutorialDocument = document.documentElement.hasAttribute("data-eimei-tutorial");
 
   const ignoredTags = new Set([
     "SCRIPT",
@@ -366,7 +371,42 @@
     targetRouteDistance: 0,
     plannedRouteDistance: 0,
     plannerFrame: null,
-    plannerToken: null
+    plannerToken: null,
+    scoreAttack: false,
+    score: 0,
+    scoreTimeRemaining: 4 * 60,
+    scoreClockStarted: false,
+    scoreFinished: false,
+    scoreRound: 0,
+    scoreRoundsOnPage: 0,
+    scoreNextRoundAt: -Infinity,
+    scoreRecentGoals: [],
+    scoreRecentPages: [],
+    scoreTargetKey: null,
+    scorePlanningPortal: false,
+    scorePickupAt: -Infinity
+  };
+
+  const tutorial = {
+    active: isTutorialDocument,
+    step: 0,
+    transitioning: false,
+    actions: {
+      left: false,
+      right: false,
+      jump: false,
+      doubleJump: false,
+      swing: false,
+      reel: false,
+      ladderClimb: false,
+      ladderDismount: false,
+      drop: false
+    },
+    reelDistance: 0,
+    lastWebLength: 0,
+    webStartX: null,
+    ladderStartY: null,
+    completedSteps: []
   };
 
   const canvas = document.createElement("canvas");
@@ -848,7 +888,7 @@
     state.textBodies = mergeCharactersIntoBodies(characters);
     const pageLineBodies = collectLineBodies();
     state.lineBodies = [
-      ...pageLineBodies,
+      ...lineSegmentsOutsideOverlays(pageLineBodies, hoverOverlays),
       ...collectMenuLedges(hoverOverlays, state.textBodies)
     ];
     if (hoverOverlays.length === 0) {
@@ -945,6 +985,33 @@
     });
   }
 
+  function lineSegmentsOutsideOverlays(lines, overlays) {
+    let segments = lines.map((line) => ({ ...line }));
+    for (const overlay of overlays) {
+      const left = overlay.rect.left + window.scrollX;
+      const right = overlay.rect.right + window.scrollX;
+      const top = overlay.rect.top + window.scrollY;
+      const bottom = overlay.rect.bottom + window.scrollY;
+      segments = segments.flatMap((line) => {
+        if (
+          overlay.element.contains(line.sourceElement) ||
+          line.y + line.height <= top ||
+          line.y >= bottom ||
+          line.x + line.width <= left ||
+          line.x >= right
+        ) return [line];
+        const pieces = [];
+        const leftWidth = Math.max(0, left - line.x);
+        const rightStart = Math.max(line.x, right);
+        const rightWidth = Math.max(0, line.x + line.width - rightStart);
+        if (leftWidth >= 1) pieces.push({ ...line, id: `${line.id}-left`, width: leftWidth });
+        if (rightWidth >= 1) pieces.push({ ...line, id: `${line.id}-right`, x: rightStart, width: rightWidth });
+        return pieces;
+      });
+    }
+    return segments;
+  }
+
   function rebuildHoverCollisionMap() {
     if (state.baseCharacters.length === 0) {
       buildCollisionMap({ preservePlayer: true });
@@ -977,7 +1044,7 @@
     }
     state.textBodies = mergeCharactersIntoBodies(characters);
     state.lineBodies = [
-      ...state.baseLineBodies,
+      ...lineSegmentsOutsideOverlays(state.baseLineBodies, overlays),
       ...collectMenuLedges(overlays, state.textBodies)
     ];
     state.bodies = [...state.textBodies, ...state.lineBodies];
@@ -1177,6 +1244,27 @@
     return true;
   }
 
+  function redirectToTutorialStart() {
+    if (isPlanningDocument || isTutorialDocument || pageIdentity() !== "/index.html") return false;
+    const parameters = new URLSearchParams(location.search);
+    if (parameters.get("eimei-tutorial") === "done") {
+      try {
+        sessionStorage.setItem("eimei-tutorial-complete", "1");
+      } catch {
+        // The completion query is enough when storage is unavailable.
+      }
+      return false;
+    }
+    if (parameters.has("eimei-route")) return false;
+    try {
+      if (sessionStorage.getItem("eimei-tutorial-complete") === "1") return false;
+    } catch {
+      // Start the tutorial when a private context blocks session storage.
+    }
+    location.replace(new URL("tutorial/index.html", staticSiteRoot).href);
+    return true;
+  }
+
   function resetGame() {
     if (gameResetting) return;
     gameResetting = true;
@@ -1187,6 +1275,10 @@
       sessionStorage.removeItem("eimei-pending-transition");
     } catch {
       // Query parameters still start a clean run when storage is unavailable.
+    }
+    if (tutorial.active) {
+      location.replace(new URL("tutorial/index.html", staticSiteRoot).href);
+      return;
     }
     if (redirectToRandomStartPage({ force: true })) return;
     const target = new URL(location.href);
@@ -1309,7 +1401,52 @@
     });
   }
 
+  function tutorialBodyForElement(element) {
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + window.scrollX + rect.width * 0.5;
+    const centerY = rect.top + window.scrollY + rect.height * 0.5;
+    return state.textBodies
+      .filter((body) => body.sourceRegions?.some((region) =>
+        region.element === element || element.contains(region.element)
+      ))
+      .toSorted((a, b) =>
+        Math.abs(bodyCenterX(a) - centerX) + Math.abs(a.y - centerY) * 3 -
+        (Math.abs(bodyCenterX(b) - centerX) + Math.abs(b.y - centerY) * 3)
+      )[0] || null;
+  }
+
+  function collectTutorialLadders() {
+    return [...document.querySelectorAll("[data-eimei-tutorial-ladder]")]
+      .map((element, index) => {
+        const upperElement = document.getElementById(element.dataset.upper || "");
+        const lowerElement = document.getElementById(element.dataset.lower || "");
+        const upperBody = tutorialBodyForElement(upperElement);
+        const lowerBody = tutorialBodyForElement(lowerElement);
+        if (!upperBody || !lowerBody || upperBody.y >= lowerBody.y) return null;
+        const rect = element.getBoundingClientRect();
+        const x = rect.left + window.scrollX + rect.width * 0.5;
+        return {
+          id: `tutorial-ladder-${index}`,
+          x,
+          width: Math.max(18, rect.width),
+          topY: upperBody.y,
+          bottomY: lowerBody.y,
+          height: lowerBody.y - upperBody.y,
+          playerX: x - player.width * 0.5,
+          lowerBody,
+          upperBody,
+          directAccess: true,
+          rescue: false,
+          tutorial: true,
+          visualColor: "#111111"
+        };
+      })
+      .filter(Boolean);
+  }
+
   function collectLadders() {
+    if (isTutorialDocument) return collectTutorialLadders();
     const bodies = state.bodies.filter((body) =>
       body.navigationXs?.length > 0 &&
       body.y >= 36 &&
@@ -1777,6 +1914,32 @@
     const nowSeconds = performance.now() / 1000;
     const support = player.navigationBody || supportingMapBody();
     if (!support) return state.hatchCandidate;
+    const tutorialCheckpoint = tutorialCurrentCheckpoint();
+    if (tutorial.active && tutorialCheckpoint?.dataset.require === "reel") {
+      const authoredSurface = tutorialCheckpoint.closest("[data-eimei-tutorial-stage]")
+        ?.querySelector("[data-eimei-tutorial-hatch]");
+      const hatchBody = tutorialBodyForElement(authoredSurface);
+      if (hatchBody) {
+        const preferredCenterX = Math.max(
+          hatchBody.x + player.width * 0.5 + 1,
+          Math.min(player.x + player.width * 0.5, hatchBody.x + hatchBody.width - player.width * 0.5 - 1)
+        );
+        const exitX = hatchExitPlayerX(hatchBody, preferredCenterX);
+        if (Number.isFinite(exitX)) {
+          const previousBody = state.hatchCandidate?.body;
+          state.hatchCandidate = {
+            body: hatchBody,
+            fromBody: support,
+            centerX: exitX + player.width * 0.5,
+            width: Math.max(player.width, Math.min(38, hatchBody.width - 2))
+          };
+          state.hatchSupportBody = support;
+          state.hatchCandidateCheckedAt = nowSeconds;
+          if (!bodiesDescribeSamePlatform(previousBody, hatchBody)) state.hatchCandidateSetAt = nowSeconds;
+          return state.hatchCandidate;
+        }
+      }
+    }
     if (
       !force &&
       bodiesDescribeSamePlatform(support, state.hatchSupportBody) &&
@@ -2519,7 +2682,569 @@
     web.charges = CONFIG.webMaximumCharges;
   }
 
+  function scoreTargetKey(page, x, y) {
+    return `${pageIdentity(page)}@${Math.round(x / 80)}@${Math.round(y / 48)}`;
+  }
+
+  function parseScoreList(parameters, key, maximum = 12) {
+    return (parameters.get(key) || "")
+      .split("|")
+      .filter(Boolean)
+      .slice(-maximum);
+  }
+
+  function rememberScoreTarget(page, x, y) {
+    const key = scoreTargetKey(page, x, y);
+    mission.scoreTargetKey = key;
+    mission.scoreRecentGoals = [
+      ...mission.scoreRecentGoals.filter((item) => item !== key),
+      key
+    ].slice(-12);
+  }
+
+  function rememberScorePage(page) {
+    const key = pageIdentity(page);
+    mission.scoreRecentPages = [
+      ...mission.scoreRecentPages.filter((item) => item !== key),
+      key
+    ].slice(-10);
+  }
+
+  function pickScoreLocalMission(spawn, { minimumDistance = null } = {}) {
+    if (!spawn) return null;
+    const bodies = navigationBodies();
+    const reachable = reachableRoutes(spawn, bodies);
+    const minimumTravel = minimumDistance ?? Math.max(
+      720,
+      window.innerHeight * CONFIG.scoreLocalMinimumTravelViewport
+    );
+    const maximumTravel = Math.max(
+      minimumTravel + 900,
+      window.innerHeight * CONFIG.scoreLocalMaximumTravelViewport
+    );
+    const recent = new Set(mission.scoreRecentGoals || []);
+    const options = reachable.queue
+      .filter((goal) => goal !== spawn && isContentGoalBody(goal))
+      .map((goal) => {
+        const route = reconstructRoute(reachable.parent, goal);
+        const distance = routeTravelDistance(route);
+        const directDistance = directBodyDistance(spawn, goal);
+        const key = scoreTargetKey(pageIdentity(), bodyCenterX(goal), goal.y);
+        return { goal, route, distance, directDistance, key };
+      })
+      .filter((item) =>
+        item.route.length > 1 &&
+        item.route.length <= Math.min(34, CONFIG.missionMaximumSteps) &&
+        item.distance <= maximumTravel
+      );
+    if (options.length === 0) return null;
+
+    const fresh = options.filter((item) => !recent.has(item.key));
+    const pool = fresh.length > 0 ? fresh : options;
+    const distant = pool.filter((item) =>
+      item.distance >= minimumTravel &&
+      item.directDistance >= Math.max(440, window.innerHeight * 0.62)
+    );
+    const useful = distant.length > 0
+      ? distant
+      : pool.filter((item) => item.distance >= Math.max(360, minimumTravel * 0.46));
+    const ranked = (useful.length > 0 ? useful : pool).toSorted((a, b) => {
+      const ideal = Math.max(1250, Math.min(maximumTravel * 0.72, window.innerHeight * 3.1));
+      const scoreA = Math.abs(a.distance - ideal) - a.directDistance * 0.18;
+      const scoreB = Math.abs(b.distance - ideal) - b.directDistance * 0.18;
+      return scoreA - scoreB;
+    });
+    const varied = ranked.slice(0, Math.max(1, Math.min(6, Math.ceil(ranked.length * 0.32))));
+    const selected = varied[randomIndex(varied.length)];
+    return selected ? {
+      spawn,
+      goal: selected.goal,
+      route: selected.route,
+      routeDistance: selected.distance,
+      goalKind: "text"
+    } : null;
+  }
+
+  function pickScorePortalMission(spawn) {
+    if (!spawn) return null;
+    const currentPage = pageIdentity();
+    const recentPages = new Set((mission.scoreRecentPages || []).slice(-8));
+    recentPages.add(currentPage);
+    let options = bridgePortalMissionOptions(spawn, recentPages, "any") || [];
+    if (options.length === 0) options = bridgePortalMissionOptions(spawn, new Set([currentPage]), "any") || [];
+    if (options.length === 0) return null;
+
+    const meaningful = options.filter((option) =>
+      option.route.length > 1 &&
+      option.routeDistance >= Math.max(360, window.innerHeight * 0.48)
+    );
+    const pool = meaningful.length > 0 ? meaningful : options;
+    const ranked = pool.toSorted((a, b) => {
+      const pageA = pageIdentity(a.portalDestination);
+      const pageB = pageIdentity(b.portalDestination);
+      const scoreA = Math.min(a.routeDistance, 2600) +
+        (a.globalNavigation ? 0 : 950) +
+        (pageA.startsWith("/news/") ? 380 : 0);
+      const scoreB = Math.min(b.routeDistance, 2600) +
+        (b.globalNavigation ? 0 : 950) +
+        (pageB.startsWith("/news/") ? 380 : 0);
+      return scoreB - scoreA;
+    });
+    const varied = ranked.slice(0, Math.max(1, Math.min(5, Math.ceil(ranked.length * 0.38))));
+    return varied[randomIndex(varied.length)] || null;
+  }
+
+  function scorePairGoalPoint(pair, fixedGoal = null) {
+    if (pair.goalKind === "portal" && pair.portalAnchor) {
+      const region = anchorRegion(pair.goal, pair.portalAnchor);
+      const matchingXs = pair.goal.navigationXs.filter((x) => {
+        const center = x + player.width * 0.5;
+        return center >= region.left && center <= region.right;
+      });
+      const positions = matchingXs.length > 0 ? matchingXs : pair.goal.navigationXs;
+      const nearest = positions.toSorted((a, b) =>
+        Math.abs(a + player.width * 0.5 - (player.x + player.width * 0.5)) -
+        Math.abs(b + player.width * 0.5 - (player.x + player.width * 0.5))
+      )[0];
+      return { x: nearest + player.width * 0.5, y: pair.goal.y };
+    }
+    const positions = pair.goal.navigationXs || [];
+    const targetX = fixedGoal?.x ?? bodyCenterX(pair.goal);
+    const selected = positions.toSorted((a, b) =>
+      Math.abs(a + player.width * 0.5 - targetX) - Math.abs(b + player.width * 0.5 - targetX)
+    )[0];
+    return { x: Number.isFinite(selected) ? selected + player.width * 0.5 : bodyCenterX(pair.goal), y: pair.goal.y };
+  }
+
+  function applyScoreMissionPair(pair, { placePlayer = false, randomizeSpawn = false, fixedGoal = null } = {}) {
+    if (!pair?.spawn || !pair?.goal) return false;
+    if (placePlayer) {
+      placePlayerOnBody(pair.spawn, {
+        randomizeX: randomizeSpawn,
+        recentSpawns: recentSpawnRecords()
+      });
+      if (randomizeSpawn) rememberSpawnPoint();
+    }
+    const point = scorePairGoalPoint(pair, fixedGoal);
+    mission.initialized = true;
+    mission.spawnBody = mission.spawnBody || pair.spawn;
+    mission.goalBody = pair.goal;
+    mission.goalElement = pair.portalAnchor || sourceElementAt(pair.goal, point.x);
+    mission.goalPoint = point;
+    mission.goalKind = pair.goalKind || "text";
+    mission.portalAnchor = pair.portalAnchor || null;
+    mission.portalDestination = pair.portalDestination || null;
+    mission.continuationMode = "score";
+    mission.routeDistance = pair.routeDistance || routeTravelDistance(pair.route);
+    mission.route = pair.route;
+    mission.routePhysicalAtPlan = routeIsPhysicallyConnected(pair.route);
+    mission.routeIndex = Math.max(0, pair.route.length - 1);
+    mission.guideBody = null;
+    mission.guidePoint = null;
+    mission.completed = false;
+    mission.completedAt = -Infinity;
+    mission.scoreNextRoundAt = -Infinity;
+    mission.needsReplan = false;
+    mission.lostGuideSince = -Infinity;
+    mission.overtookGuideSince = -Infinity;
+    mission.nextAdvanceAllowedAt = -Infinity;
+    mission.guideNearSince = -Infinity;
+    mission.lastAdvanceX = -Infinity;
+    mission.lastAdvanceY = -Infinity;
+    mission.lastStandingBody = pair.spawn;
+    mission.scorePlanningPortal = false;
+    interaction.portal = null;
+    setKeypointGuide();
+    refreshHatchCandidate({ force: true });
+    return true;
+  }
+
+  function initialScorePair(spawn = null) {
+    if (spawn) return pickScoreLocalMission(spawn, {
+      minimumDistance: Math.max(620, window.innerHeight * 1.05)
+    });
+    const bodies = navigationBodies();
+    const starts = preferUnusedSpawnAreas(
+      bodies.filter((body) => body.width >= Math.max(70, player.width * 3)),
+      recentSpawnRecords()
+    ).map((body) => ({ body, order: Math.random() }))
+      .toSorted((a, b) => a.order - b.order)
+      .map((item) => item.body);
+    for (const candidate of starts.slice(0, 36)) {
+      const pair = pickScoreLocalMission(candidate, {
+        minimumDistance: Math.max(620, window.innerHeight * 1.05)
+      });
+      if (pair) return pair;
+    }
+    return null;
+  }
+
+  function cleanScoreRouteUrl() {
+    const cleanUrl = new URL(location.href);
+    for (const key of [...cleanUrl.searchParams.keys()]) {
+      if (key.startsWith("eimei-")) cleanUrl.searchParams.delete(key);
+    }
+    history.replaceState(history.state, "", cleanUrl.href);
+  }
+
+  function startScoreAttackMission({
+    routeParameters,
+    routeStage,
+    requestedRouteStage,
+    requestedRunId,
+    requestedSegment,
+    fromPath,
+    arrivalSpawn,
+    fixedFinalGoal,
+    visitedPaths
+  }) {
+    const continued = routeStage === "continue" && Boolean(requestedRunId);
+    mission.scoreAttack = true;
+    mission.score = continued
+      ? Math.max(0, Number.parseInt(routeParameters.get("eimei-score") || "0", 10) || 0)
+      : 0;
+    mission.scoreTimeRemaining = continued
+      ? Math.max(0, Math.min(CONFIG.scoreAttackSeconds, Number.parseFloat(routeParameters.get("eimei-score-time") || String(CONFIG.scoreAttackSeconds))))
+      : CONFIG.scoreAttackSeconds;
+    mission.scoreClockStarted = continued;
+    mission.scoreFinished = false;
+    mission.scoreRound = continued
+      ? Math.max(0, Number.parseInt(routeParameters.get("eimei-score-round") || "0", 10) || 0)
+      : 0;
+    mission.scoreRoundsOnPage = continued
+      ? Math.max(0, Number.parseInt(routeParameters.get("eimei-score-page-rounds") || "0", 10) || 0)
+      : 0;
+    mission.scoreRecentGoals = continued ? parseScoreList(routeParameters, "eimei-score-goals", 12) : [];
+    mission.scoreRecentPages = continued ? parseScoreList(routeParameters, "eimei-score-pages", 10) : [];
+    rememberScorePage(location.href);
+    mission.runId = continued && requestedRunId
+      ? requestedRunId
+      : `${Date.now().toString(36)}-${randomIndex(0x100000).toString(36)}`;
+    mission.segmentIndex = continued ? Math.max(0, requestedSegment) : 0;
+    mission.visitedPaths = [...visitedPaths].slice(-CONFIG.missionMaximumSegments);
+    mission.headerPortalStreak = 0;
+    mission.headerPortalTotal = 0;
+    mission.plannedPortalTransitions = 0;
+    mission.plannedPortalPages = [];
+    mission.planningTrace = [];
+    mission.recoveringFromDetour = false;
+    mission.targetRouteDistance = 0;
+    mission.plannedRouteDistance = 0;
+    mission.startPageRandomized = requestedRouteStage === "start";
+    mission.startPageKey = pageIdentity();
+
+    const fixedHere = continued && fixedFinalGoal?.page === pageIdentity();
+    let pair = fixedHere ? routePairToFixedGoal(arrivalSpawn, fixedFinalGoal) : null;
+    if (!pair) pair = initialScorePair(arrivalSpawn);
+    if (!pair) {
+      placeAtSpawn();
+      mission.initialized = false;
+      cleanScoreRouteUrl();
+      return;
+    }
+    applyScoreMissionPair(pair, {
+      placePlayer: true,
+      randomizeSpawn: !arrivalSpawn,
+      fixedGoal: fixedHere ? fixedFinalGoal : null
+    });
+    mission.finalGoalPage = pageIdentity();
+    mission.finalGoalX = mission.goalPoint.x;
+    mission.finalGoalY = mission.goalBody.y;
+    mission.finalGoalReady = true;
+    rememberScoreTarget(mission.finalGoalPage, mission.finalGoalX, mission.finalGoalY);
+
+    if (!fixedHere) {
+      beginMissionPreview({
+        pageUrl: location.href,
+        goalX: mission.finalGoalX,
+        goalY: mission.finalGoalY
+      });
+    } else {
+      mission.previewStartedAt = -Infinity;
+      mission.previewUntil = -Infinity;
+    }
+    if (mission.scoreTimeRemaining <= 0) finishScoreAttack(performance.now() / 1000);
+    cleanScoreRouteUrl();
+  }
+
+  function fallbackToLocalScoreRound() {
+    const support = player.navigationBody || supportingMapBody() || nearestSupportingBody();
+    const pair = initialScorePair(support);
+    mission.scorePlanningPortal = false;
+    if (!pair || !applyScoreMissionPair(pair)) {
+      mission.completed = true;
+      mission.scoreNextRoundAt = performance.now() / 1000 + 0.5;
+      mission.previewUntil = -Infinity;
+      return false;
+    }
+    mission.finalGoalPage = pageIdentity();
+    mission.finalGoalX = mission.goalPoint.x;
+    mission.finalGoalY = mission.goalBody.y;
+    mission.finalGoalReady = true;
+    mission.plannedPortalPages = [];
+    rememberScoreTarget(mission.finalGoalPage, mission.finalGoalX, mission.finalGoalY);
+    beginMissionPreview({ pageUrl: location.href, goalX: mission.finalGoalX, goalY: mission.finalGoalY });
+    return true;
+  }
+
+  function startNextScoreRound() {
+    if (!mission.scoreAttack || mission.scoreFinished) return false;
+    const support = player.navigationBody || supportingMapBody() || nearestSupportingBody();
+    if (!support) return false;
+    mission.completed = false;
+    mission.completedAt = -Infinity;
+    mission.scoreNextRoundAt = -Infinity;
+    const portalPair = pickScorePortalMission(support);
+    const shouldUsePortal = Boolean(
+      portalPair &&
+      (mission.scoreRoundsOnPage >= 2 || (mission.scoreRoundsOnPage >= 1 && Math.random() < 0.56))
+    );
+    if (shouldUsePortal && applyScoreMissionPair(portalPair)) {
+      mission.finalGoalPage = pageIdentity(portalPair.portalDestination);
+      mission.finalGoalX = null;
+      mission.finalGoalY = null;
+      mission.finalGoalReady = false;
+      mission.plannedPortalTransitions = 1;
+      mission.plannedPortalPages = [mission.finalGoalPage];
+      mission.scorePlanningPortal = true;
+      rememberScorePage(portalPair.portalDestination);
+      planFinalGoal(portalPair.portalDestination, {
+        remainingDistance: Math.max(680, window.innerHeight * 1.08),
+        hopsLeft: 0,
+        headerPortalStreak: portalPair.globalNavigation ? 1 : 0,
+        headerPortalTotal: portalPair.globalNavigation ? 1 : 0
+      });
+      return true;
+    }
+    return fallbackToLocalScoreRound();
+  }
+
+  function collectScoreFlag(nowSeconds) {
+    if (!mission.scoreAttack || mission.scoreFinished || mission.completed) return;
+    mission.score += 1;
+    mission.scoreRound += 1;
+    mission.scoreRoundsOnPage += 1;
+    mission.scorePickupAt = nowSeconds;
+    mission.completed = true;
+    mission.completedAt = nowSeconds;
+    mission.scoreNextRoundAt = nowSeconds + CONFIG.scorePickupPauseSeconds;
+    mission.guideBody = null;
+    mission.guidePoint = null;
+    mission.wispAnchored = false;
+    mission.trail.length = 0;
+    player.velocityX = 0;
+    player.velocityY = 0;
+    detachWeb({ force: true });
+  }
+
+  function finishScoreAttack(nowSeconds) {
+    if (mission.scoreFinished) return;
+    mission.scoreTimeRemaining = 0;
+    mission.scoreFinished = true;
+    mission.completed = true;
+    mission.completedAt = nowSeconds;
+    mission.scoreNextRoundAt = Infinity;
+    mission.guideBody = null;
+    mission.guidePoint = null;
+    mission.wispAnchored = false;
+    mission.trail.length = 0;
+    player.velocityX = 0;
+    player.velocityY = 0;
+    detachWeb({ force: true });
+  }
+
+  function updateScoreAttackState(frameSeconds, nowSeconds) {
+    if (!mission.scoreAttack || !mission.initialized || mission.scoreFinished) return;
+    if (mission.completed) {
+      if (nowSeconds >= mission.scoreNextRoundAt) startNextScoreRound();
+      return;
+    }
+    if (missionPreviewActive(nowSeconds) || mission.scorePlanningPortal) return;
+    if (!mission.scoreClockStarted) {
+      mission.scoreClockStarted = true;
+      return;
+    }
+    mission.scoreTimeRemaining = Math.max(0, mission.scoreTimeRemaining - frameSeconds);
+    if (mission.scoreTimeRemaining <= 0) finishScoreAttack(nowSeconds);
+  }
+
+  function syncScoreAttackPortalTarget(portal) {
+    if (!mission.scoreAttack || !portal?.target) return;
+    const target = portal.target;
+    const followsGuide = portal.anchor === mission.portalAnchor && mission.finalGoalReady;
+    target.searchParams.set("eimei-mode", "score");
+    target.searchParams.set("eimei-score", String(mission.score));
+    target.searchParams.set("eimei-score-time", mission.scoreTimeRemaining.toFixed(3));
+    target.searchParams.set("eimei-score-round", String(mission.scoreRound));
+    target.searchParams.set("eimei-score-page-rounds", "0");
+    target.searchParams.set("eimei-score-goals", mission.scoreRecentGoals.join("|"));
+    target.searchParams.set("eimei-score-pages", mission.scoreRecentPages.join("|"));
+    target.searchParams.delete("eimei-route-pages");
+    if (followsGuide) {
+      target.searchParams.set("eimei-final-page", mission.finalGoalPage);
+      target.searchParams.set("eimei-final-x", String(mission.finalGoalX));
+      target.searchParams.set("eimei-final-y", String(mission.finalGoalY));
+    } else {
+      target.searchParams.delete("eimei-final-page");
+      target.searchParams.delete("eimei-final-x");
+      target.searchParams.delete("eimei-final-y");
+    }
+  }
+
+  function tutorialCheckpoints() {
+    return [...document.querySelectorAll("[data-eimei-tutorial-checkpoint]")];
+  }
+
+  function tutorialCurrentCheckpoint() {
+    return tutorialCheckpoints()[tutorial.step] || null;
+  }
+
+  function resetTutorialActions() {
+    for (const key of Object.keys(tutorial.actions)) tutorial.actions[key] = false;
+    tutorial.reelDistance = 0;
+    tutorial.lastWebLength = web.length;
+    tutorial.webStartX = null;
+    tutorial.ladderStartY = null;
+  }
+
+  function tutorialGoalPoint(body, element) {
+    const regions = body.sourceRegions?.filter((region) =>
+      region.element === element || element.contains(region.element)
+    ) || [];
+    const left = regions.length > 0 ? Math.min(...regions.map((region) => region.left)) : body.x;
+    const right = regions.length > 0 ? Math.max(...regions.map((region) => region.right)) : body.x + body.width;
+    const preferred = (left + right) * 0.5;
+    const centers = (body.navigationXs || [])
+      .map((x) => x + player.width * 0.5)
+      .filter((x) => x >= left && x <= right);
+    const x = (centers.length > 0 ? centers : (body.navigationXs || []).map((item) => item + player.width * 0.5))
+      .toSorted((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred))[0];
+    return { x: Number.isFinite(x) ? x : preferred, y: body.y };
+  }
+
+  function setTutorialStep(index, { launchFromPlayer = true } = {}) {
+    const checkpoints = tutorialCheckpoints();
+    const checkpoint = checkpoints[index];
+    if (!checkpoint) return false;
+    const goalBody = tutorialBodyForElement(checkpoint);
+    if (!goalBody) return false;
+
+    tutorial.step = index;
+    tutorial.transitioning = false;
+    resetTutorialActions();
+    for (const element of checkpoints) element.classList.remove("is-current");
+    checkpoint.classList.add("is-current");
+
+    const anchor = checkpoint.closest("a[href]");
+    const support = player.navigationBody || supportingMapBody() || mission.spawnBody || goalBody;
+    const route = support === goalBody ? [goalBody] : [support, goalBody].filter(Boolean);
+    const point = tutorialGoalPoint(goalBody, checkpoint);
+    mission.initialized = true;
+    mission.scoreAttack = false;
+    mission.scoreFinished = false;
+    mission.goalBody = goalBody;
+    mission.goalElement = anchor || checkpoint;
+    mission.goalPoint = point;
+    mission.goalKind = anchor ? "portal" : "text";
+    mission.portalAnchor = anchor || null;
+    mission.portalDestination = anchor ? portalTarget(anchor) : null;
+    mission.continuationMode = "tutorial";
+    mission.runId = "tutorial";
+    mission.route = route;
+    mission.routeDistance = routeTravelDistance(route);
+    mission.routePhysicalAtPlan = false;
+    mission.routeIndex = Math.max(0, route.length - 1);
+    mission.guideBody = null;
+    mission.guidePoint = null;
+    mission.completed = false;
+    mission.completedAt = -Infinity;
+    mission.needsReplan = false;
+    mission.lostGuideSince = -Infinity;
+    mission.overtookGuideSince = -Infinity;
+    mission.nextAdvanceAllowedAt = -Infinity;
+    mission.guideNearSince = -Infinity;
+    mission.lastAdvanceX = -Infinity;
+    mission.lastAdvanceY = -Infinity;
+    mission.finalGoalPage = anchor ? pageIdentity(mission.portalDestination) : pageIdentity();
+    mission.finalGoalX = point.x;
+    mission.finalGoalY = point.y;
+    mission.finalGoalReady = true;
+    interaction.portal = null;
+    setKeypointGuide({ launchFromPlayer });
+    refreshHatchCandidate({ force: true });
+    document.documentElement.dataset.eimeiTutorialStep = String(index);
+    window.dispatchEvent(new CustomEvent("eimei-tutorial-step", {
+      detail: { index, requirement: checkpoint.dataset.require || "reach" }
+    }));
+    return true;
+  }
+
+  function tutorialRequirementMet(checkpoint = tutorialCurrentCheckpoint()) {
+    switch (checkpoint?.dataset.require || "reach") {
+      case "move": return tutorial.actions.left && tutorial.actions.right;
+      case "jump": return tutorial.actions.jump;
+      case "double": return tutorial.actions.doubleJump;
+      case "swing": return tutorial.actions.swing;
+      case "reel": return tutorial.actions.reel && web.hatchesCompleted > 0;
+      case "ladder": return tutorial.actions.ladderClimb && tutorial.actions.ladderDismount;
+      case "drop": return tutorial.actions.drop;
+      case "follow":
+      case "flag":
+      case "reach": return true;
+      default: return false;
+    }
+  }
+
+  function completeTutorialStep(nowSeconds = performance.now() / 1000) {
+    const checkpoint = tutorialCurrentCheckpoint();
+    if (!checkpoint || tutorial.transitioning || !tutorialRequirementMet(checkpoint)) return false;
+    const completedIndex = tutorial.step;
+    tutorial.transitioning = true;
+    tutorial.completedSteps.push(checkpoint.dataset.require || "reach");
+    checkpoint.classList.remove("is-current");
+    checkpoint.classList.add("is-complete");
+    const release = document.querySelector(`[data-eimei-tutorial-release="${completedIndex}"]`);
+    if (release) {
+      release.hidden = true;
+      release.setAttribute("aria-hidden", "true");
+    }
+    clearHatchCandidate();
+    player.spawnX = player.x;
+    player.spawnY = player.y;
+    // Select the next visible checkpoint before rebuilding. Waiting for a
+    // resize/rebuild callback left a tiny but real state where no destination
+    // existed; on slow devices that state could persist for seconds.
+    setTutorialStep(completedIndex + 1, { launchFromPlayer: true });
+    scheduleRebuild();
+    window.dispatchEvent(new CustomEvent("eimei-tutorial-complete", {
+      detail: { index: completedIndex, completedAt: nowSeconds }
+    }));
+    return true;
+  }
+
+  function startTutorialMission() {
+    const spawnElement = document.querySelector("[data-eimei-tutorial-spawn]");
+    const spawnBody = tutorialBodyForElement(spawnElement) || pickSpawnBody();
+    if (!spawnBody || tutorialCheckpoints().length === 0) {
+      placeAtSpawn();
+      mission.initialized = false;
+      return;
+    }
+    tutorial.active = true;
+    tutorial.step = 0;
+    tutorial.transitioning = false;
+    tutorial.completedSteps.length = 0;
+    mission.spawnBody = spawnBody;
+    mission.visitedPaths = [pageIdentity()];
+    placePlayerOnBody(spawnBody, { randomizeX: false });
+    setTutorialStep(0, { launchFromPlayer: true });
+  }
+
   function startMission() {
+    if (isTutorialDocument) {
+      startTutorialMission();
+      return;
+    }
     const routeParameters = new URLSearchParams(location.search);
     const requestedRouteStage = routeParameters.get("eimei-route");
     const requestedStartAttempt = Number.parseInt(routeParameters.get("eimei-start-attempt") || "0", 10) || 0;
@@ -2608,6 +3333,20 @@
     } : { recentSpawns: recentSpawnRecords() };
     let fixedFinalGoal = finalGoalSpecFromParameters(routeParameters);
     const currentPage = pageIdentity();
+    if (!planningMode) {
+      startScoreAttackMission({
+        routeParameters,
+        routeStage,
+        requestedRouteStage,
+        requestedRunId,
+        requestedSegment,
+        fromPath,
+        arrivalSpawn,
+        fixedFinalGoal,
+        visitedPaths
+      });
+      return;
+    }
     const plannedArrivalIndex = requestedPortalPages.indexOf(currentPage);
     const arrivedOffPlan = routeStage === "continue" &&
       Boolean(fixedFinalGoal) &&
@@ -3249,6 +3988,7 @@
     ) return false;
     const support = player.navigationBody || supportingMapBody();
     if (!isThinPlatform(support)) return false;
+    if (tutorial.active && support.sourceElement?.matches?.("[data-eimei-tutorial-release]")) return false;
     input.downPressedAt = -Infinity;
     player.dropThroughBody = support;
     player.dropThroughSurfaceY = support.y;
@@ -3279,6 +4019,7 @@
     dropHatch.traverseDuration = Math.min(0.04, Math.max(0.016, support.height * 0.0014));
     dropHatch.visualY = player.y;
     dropHatch.started += 1;
+    if (tutorial.active) tutorial.actions.drop = true;
     player.velocityX = 0;
     player.velocityY = 0;
     return true;
@@ -3480,6 +4221,7 @@
     ladderTraversal.climbCycle = 0;
     ladderTraversal.sideDismountArmed = !input.left && !input.right;
     ladderTraversal.started += 1;
+    if (tutorial.active) tutorial.ladderStartY = player.y;
     input.jump = false;
     input.jumpPressedAt = -Infinity;
     player.velocityX = 0;
@@ -3523,6 +4265,11 @@
 
     if (ladderTraversal.phase === "climbing") {
       player.x = approach(player.x, ladder.playerX, 760 * dt);
+      if (
+        tutorial.active &&
+        Number.isFinite(tutorial.ladderStartY) &&
+        Math.abs(player.y - tutorial.ladderStartY) >= 64
+      ) tutorial.actions.ladderClimb = true;
       if (input.space) {
         const jumpDirection = Number(input.right) - Number(input.left) || player.facing || 1;
         cancelLadderTraversal();
@@ -3552,6 +4299,7 @@
           player.standingBody = landing.body.kind === "text" ? landing.body : null;
           player.navigationBody = landing.body;
           ladderTraversal.graceUntil = nowSeconds + 0.28;
+          if (tutorial.active) tutorial.actions.ladderDismount = true;
           cancelLadderTraversal();
           return true;
         }
@@ -3571,6 +4319,7 @@
         player.velocityY = 0;
         player.facing = horizontalDirection;
         ladderTraversal.graceUntil = nowSeconds + 0.18;
+        if (tutorial.active) tutorial.actions.ladderDismount = true;
         cancelLadderTraversal();
         return true;
       }
@@ -3803,7 +4552,11 @@
     const anchor = sourceElement?.closest?.("a[href]") || null;
     if (anchor && standingBody && interaction.portal?.anchor !== anchor) {
       let target = portalTarget(anchor);
-      if (target && mission.initialized && mission.runId && !mission.completed) {
+      if (target && tutorial.active) {
+        // The final tutorial door owns its destination. Do not rewrite it as a
+        // normal inter-page mission continuation or it loops back into lessons.
+        target = new URL(target.href);
+      } else if (target && mission.initialized && mission.runId && !mission.completed) {
         target = new URL(target.href);
         target.searchParams.set("eimei-route", "continue");
         target.searchParams.set("eimei-mode", anchor === mission.portalAnchor ? mission.continuationMode || "any" : "any");
@@ -3847,6 +4600,7 @@
           enterProgress: 0,
           lastTouched: nowSeconds
         };
+        syncScoreAttackPortalTarget(interaction.portal);
       }
     }
     if (anchor && interaction.portal?.anchor === anchor) {
@@ -3900,6 +4654,7 @@
       nearPortal
     ) {
       input.downPressedAt = -Infinity;
+      syncScoreAttackPortalTarget(portal);
       portal.entering = true;
       portal.enterProgress = 0;
       return;
@@ -3921,24 +4676,38 @@
       kind: "hatch-seam",
       hatchSeam: true
     } : null;
+    const tutorialAnchorElement = tutorial.active
+      ? tutorialCurrentCheckpoint()?.closest("[data-eimei-tutorial-stage]")
+        ?.querySelector("[data-eimei-tutorial-web-anchor]")
+      : null;
+    const tutorialAnchorBody = tutorialBodyForElement(tutorialAnchorElement);
+    const tutorialPoint = tutorialAnchorBody ? {
+      x: bodyCenterX(tutorialAnchorBody),
+      y: tutorialAnchorBody.y,
+      kind: "tutorial-anchor",
+      tutorialAnchor: true
+    } : null;
 
-    for (const point of hatchPoint ? [hatchPoint, ...state.webPoints] : state.webPoints) {
+    const preferredPoints = [hatchPoint, tutorialPoint].filter(Boolean);
+    for (const point of [...preferredPoints, ...state.webPoints]) {
       const dx = point.x - centerX;
       const dy = point.y - centerY;
       const distance = Math.hypot(dx, dy);
       if (distance > CONFIG.webRange) continue;
       // The hatch seam is an intentional route tool. Bind it to its planned
       // ceiling directly so nearby glyphs cannot steal the auto-aim.
-      const anchorBody = point.hatchSeam ? state.hatchCandidate?.body : webBodyAtPoint(point);
+      const anchorBody = point.hatchSeam
+        ? state.hatchCandidate?.body
+        : point.tutorialAnchor ? tutorialAnchorBody : webBodyAtPoint(point);
       const regularAnchor = dy <= -CONFIG.webMinimumRise && distance >= CONFIG.webMinimumLength;
       const shortHatchAnchor = isNearbyHatchAnchor(anchorBody, centerX, centerY, point.x, point.y);
       if (!regularAnchor && !shortHatchAnchor) continue;
       if (!anchorBody || !webLineIsClear(centerX, centerY, point.x, point.y, anchorBody)) continue;
-      const behindPenalty = !point.hatchSeam && dx * desiredDirection < -18 ? 115 : 0;
+      const behindPenalty = !point.hatchSeam && !point.tutorialAnchor && dx * desiredDirection < -18 ? 115 : 0;
       const kindPenalty = point.kind === "image" ? 28 : point.kind === "line" ? 8 : 0;
       const score = distance * (point.hatchSeam ? 0.42 : 1) + behindPenalty + kindPenalty +
         Math.abs(dx) * (point.hatchSeam ? 0.012 : 0.04) -
-        (shortHatchAnchor ? 24 : 0) - (point.hatchSeam ? 190 : 0);
+        (shortHatchAnchor ? 24 : 0) - (point.hatchSeam ? 190 : 0) - (point.tutorialAnchor ? 240 : 0);
       if (score < bestScore) {
         best = shortHatchAnchor ? { ...point, shortHatchAnchor: true } : point;
         bestScore = score;
@@ -4003,6 +4772,18 @@
   function webLineIsClear(startX, startY, endX, endY, anchorBody) {
     return !state.bodies.some((body) => {
       if (body === anchorBody || (body.kind !== "text" && body.kind !== "line")) return false;
+      // Tutorial checkpoints use a full-width bottom border as a physical
+      // lock.  The reel lesson's intended hatch text lives in that same DOM
+      // element, so its own border must not intercept the web just before the
+      // seam. Other checkpoint locks remain solid.
+      if (
+        tutorial.active &&
+        body.kind === "line" &&
+        body.sourceElement?.matches?.("[data-eimei-tutorial-hatch]") &&
+        anchorBody?.sourceRegions?.some((region) =>
+          region.element === body.sourceElement || body.sourceElement.contains(region.element)
+        )
+      ) return false;
       const entry = segmentEntryTime(startX, startY, endX, endY, body);
       return Number.isFinite(entry) && entry > 0.001 && entry < 0.985;
     });
@@ -4030,6 +4811,11 @@
     web.hatchPhase = "none";
     web.hatchTime = 0;
     web.charges -= 1;
+    if (tutorial.active) {
+      tutorial.webStartX = player.x;
+      tutorial.lastWebLength = web.length;
+      tutorial.reelDistance = 0;
+    }
   }
 
   function detachWeb({ releaseBoost = false, force = false } = {}) {
@@ -4331,7 +5117,12 @@
       ? Math.max(26, Math.min(46, web.anchorBody.height + player.height * 0.45 + 3))
       : CONFIG.webMinimumLength;
     if (input.up) {
+      const previousLength = web.length;
       web.length = Math.max(reelMinimumLength, web.length - CONFIG.webReelSpeed * dt);
+      if (tutorial.active) {
+        tutorial.reelDistance += Math.max(0, previousLength - web.length);
+        if (tutorial.reelDistance >= 54) tutorial.actions.reel = true;
+      }
     }
     const centerX = player.x + player.width * 0.5;
     const centerY = player.y + player.height * 0.45;
@@ -4360,6 +5151,12 @@
       player.velocityX += tangentX * tangentDirection * CONFIG.webPumpAcceleration * dt;
       player.velocityY += tangentY * tangentDirection * CONFIG.webPumpAcceleration * dt;
     }
+    if (
+      tutorial.active &&
+      Number.isFinite(tutorial.webStartX) &&
+      Math.abs(player.x - tutorial.webStartX) >= 72 &&
+      Math.abs(player.velocityX) >= 90
+    ) tutorial.actions.swing = true;
 
     const hatchBody = web.anchorBody;
     // A short hatch web stops with the player's rope attachment point at the
@@ -4438,6 +5235,17 @@
   function advanceNavigationFrom(body, nowSeconds) {
     if (!body || mission.completed) return;
     const centerX = player.x + player.width * 0.5;
+    if (tutorial.active && body === mission.goalBody) {
+      if (mission.goalKind === "portal") {
+        mission.guideBody = body;
+        mission.guidePoint = { x: mission.goalPoint.x, y: body.y - 9 };
+        return;
+      }
+      if (Math.abs(centerX - mission.goalPoint.x) <= Math.max(24, player.width * 1.5)) {
+        completeTutorialStep(nowSeconds);
+      }
+      return;
+    }
     if (body === mission.goalBody && mission.goalKind === "portal") {
       mission.guideBody = body;
       mission.guidePoint = { x: mission.goalPoint.x, y: body.y - 9 };
@@ -4448,6 +5256,10 @@
       mission.goalKind === "text" &&
       Math.abs(centerX - mission.goalPoint.x) <= Math.max(24, player.width * 1.5)
     ) {
+      if (mission.scoreAttack) {
+        collectScoreFlag(nowSeconds);
+        return;
+      }
       mission.completed = true;
       mission.completedAt = nowSeconds;
       player.velocityX = 0;
@@ -4537,6 +5349,14 @@
       Math.abs(feet - body.y) <= 7 && centerX >= body.x - 3 && centerX <= body.x + body.width + 3
     );
     return sameSurface && Math.abs(centerX - mission.goalPoint.x) <= Math.max(24, player.width * 1.5);
+  }
+
+  function isPlayerOnTutorialRelease(support) {
+    if (!tutorial.active || !support || !player.grounded || mission.goalKind !== "text") return false;
+    const release = document.querySelector(`[data-eimei-tutorial-release="${tutorial.step}"]`);
+    if (!release || support.sourceElement !== release) return false;
+    const centerX = player.x + player.width * 0.5;
+    return Math.abs(centerX - mission.goalPoint.x) <= Math.max(52, player.width * 3.2);
   }
 
   function portalBodyIsUsable(body, anchor = mission.portalAnchor) {
@@ -4832,6 +5652,12 @@
     if (!guide) return;
     updateNavigationWisp(dt);
 
+    if (isPlayerOnTutorialRelease(support)) {
+      completeTutorialStep(nowSeconds);
+      mission.lastStandingBody = support;
+      return;
+    }
+
     // Intermediate markers are areas, not pixel-perfect landing tests. Passing
     // close to the marked surface is enough to release the swarm to the next
     // step, including while the player is still in the air.
@@ -4863,6 +5689,9 @@
       mission.lastStandingBody = support;
       return;
     }
+    // Tutorial checkpoints deliberately stay fixed until the named action is
+    // performed. Route recovery would turn a lesson into a moving target.
+    if (tutorial.active) return;
 
     const feet = player.y + player.height;
     const beganLevelWithOrBelowGuide = Number.isFinite(mission.guideOriginY) &&
@@ -4975,6 +5804,11 @@
   }
 
   function updatePhysics(dt, nowSeconds) {
+    if (mission.scoreAttack && mission.scoreFinished) {
+      player.velocityX = 0;
+      player.velocityY = 0;
+      return;
+    }
     if (mission.completed && nowSeconds - mission.completedAt < CONFIG.goalFreezeSeconds) {
       player.velocityX = 0;
       player.velocityY = 0;
@@ -5027,6 +5861,7 @@
       player.grounded = false;
       player.groundedAt = -Infinity;
       input.jumpPressedAt = -Infinity;
+      if (tutorial.active) tutorial.actions.jump = true;
     } else if (
       bufferedJump &&
       !player.grounded &&
@@ -5037,6 +5872,7 @@
       player.airJumpsRemaining -= 1;
       player.airJumpAt = nowSeconds;
       input.jumpPressedAt = -Infinity;
+      if (tutorial.active) tutorial.actions.doubleJump = true;
     }
 
     if (!input.jump && player.velocityY < -CONFIG.jumpSpeed * 0.42) {
@@ -5500,6 +6336,77 @@
         context.fill();
       }
     }
+    context.restore();
+  }
+
+  function drawScoreHud() {
+    if (!mission.scoreAttack || !mission.initialized) return;
+    const width = state.viewportWidth;
+    const height = state.viewportHeight;
+    const gaugeTop = Math.max(76, height * 0.12);
+    const gaugeBottom = Math.min(height - 58, height * 0.9);
+    const gaugeHeight = Math.max(120, gaugeBottom - gaugeTop);
+    const gaugeX = width - 16;
+    const ratio = Math.max(0, Math.min(1, mission.scoreTimeRemaining / CONFIG.scoreAttackSeconds));
+    const urgency = 1 - ratio;
+    const pickupAge = performance.now() / 1000 - mission.scorePickupAt;
+    const scorePop = pickupAge >= 0 && pickupAge < 0.5
+      ? Math.sin(pickupAge / 0.5 * Math.PI) * 0.18
+      : 0;
+
+    context.save();
+    context.lineCap = "round";
+    context.strokeStyle = "rgba(26, 30, 36, 0.42)";
+    context.lineWidth = 10;
+    context.beginPath();
+    context.moveTo(gaugeX, gaugeTop);
+    context.lineTo(gaugeX, gaugeBottom);
+    context.stroke();
+    const red = Math.round(226 + urgency * 18);
+    const green = Math.round(155 - urgency * 94);
+    context.strokeStyle = `rgb(${red}, ${green}, 42)`;
+    context.lineWidth = 6;
+    context.beginPath();
+    context.moveTo(gaugeX, gaugeBottom);
+    context.lineTo(gaugeX, gaugeBottom - gaugeHeight * ratio);
+    context.stroke();
+    context.lineWidth = 1.4;
+    context.strokeStyle = "rgba(255, 255, 255, 0.74)";
+    for (let index = 1; index < 4; index += 1) {
+      const y = gaugeTop + gaugeHeight * index / 4;
+      context.beginPath();
+      context.moveTo(gaugeX - 6, y);
+      context.lineTo(gaugeX + 5, y);
+      context.stroke();
+    }
+
+    context.translate(width - 54, 36);
+    context.scale(1 + scorePop, 1 + scorePop);
+    context.fillStyle = "rgba(255, 253, 246, 0.92)";
+    context.strokeStyle = "rgba(34, 38, 44, 0.72)";
+    context.lineWidth = 1.5;
+    context.beginPath();
+    context.roundRect(-39, -21, 67, 42, 17);
+    context.fill();
+    context.stroke();
+    context.strokeStyle = "#3f3428";
+    context.lineWidth = 1.8;
+    context.beginPath();
+    context.moveTo(-25, 11);
+    context.lineTo(-25, -11);
+    context.stroke();
+    context.fillStyle = "#d87832";
+    context.beginPath();
+    context.moveTo(-24, -11);
+    context.lineTo(-8, -7);
+    context.lineTo(-24, -1);
+    context.closePath();
+    context.fill();
+    context.fillStyle = "#20242a";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.font = "700 20px system-ui, sans-serif";
+    context.fillText(String(mission.score), 10, 1);
     context.restore();
   }
 
@@ -6200,6 +7107,9 @@
   }
 
   function goalCelebrationActive(nowSeconds = performance.now() / 1000) {
+    if (mission.scoreAttack) {
+      return mission.scoreFinished && nowSeconds - mission.completedAt < CONFIG.goalCelebrationSeconds;
+    }
     return mission.completed && nowSeconds - mission.completedAt < CONFIG.goalCelebrationSeconds;
   }
 
@@ -6285,10 +7195,17 @@
       context.fillStyle = "#192e4d";
       context.textAlign = "center";
       context.textBaseline = "middle";
-      context.font = "700 42px Georgia, 'Times New Roman', serif";
-      context.fillText("GOAL", 0, -3);
+      context.font = mission.scoreAttack
+        ? "700 31px Georgia, 'Times New Roman', serif"
+        : "700 42px Georgia, 'Times New Roman', serif";
+      context.fillText(mission.scoreAttack ? "FINISH" : "GOAL", 0, -8);
       context.fillStyle = "#df7829";
-      context.fillRect(-49, 29, 98, 6);
+      context.fillRect(-49, 25, 98, 6);
+      if (mission.scoreAttack) {
+        context.fillStyle = "#192e4d";
+        context.font = "700 24px system-ui, sans-serif";
+        context.fillText(String(mission.score), 0, 48);
+      }
       context.restore();
     }
     context.restore();
@@ -6369,12 +7286,18 @@
       if (!data?.ok || !Number.isFinite(data.x + data.y) || typeof data.page !== "string") {
         settled = true;
         clearActiveStage();
+        mission.scorePlanningPortal = false;
+        if (mission.scoreAttack) {
+          fallbackToLocalScoreRound();
+          return;
+        }
         mission.previewUntil = -Infinity;
         return;
       }
       const plannedDistance = mission.routeDistance + Math.max(0, data.plannedDistance || 0);
       const minimumAcceptedDistance = mission.targetRouteDistance * CONFIG.missionPlanningMinimumAcceptRatio;
       if (
+        !mission.scoreAttack &&
         mission.segmentIndex === 0 &&
         mission.targetRouteDistance > 0 &&
         plannedDistance < minimumAcceptedDistance &&
@@ -6395,12 +7318,14 @@
       mission.finalGoalX = data.x;
       mission.finalGoalY = data.y;
       mission.finalGoalReady = true;
+      mission.scorePlanningPortal = false;
       mission.plannedPortalPages = [
         firstPortalPage,
         ...(Array.isArray(data.portalPages) ? data.portalPages : [])
       ].filter((path, index, pages) => pages.indexOf(path) === index);
       mission.plannedPortalTransitions = mission.plannedPortalPages.length;
       mission.plannedRouteDistance = plannedDistance;
+      if (mission.scoreAttack) rememberScoreTarget(data.page, data.x, data.y);
       const finalPageUrl = new URL(data.page.replace(/^\//, ""), staticSiteRoot);
       beginMissionPreview({ pageUrl: finalPageUrl.href, goalX: data.x, goalY: data.y });
     };
@@ -6690,6 +7615,7 @@
     drawLadderPassage(window.scrollX, window.scrollY);
     drawPortal(window.scrollX, window.scrollY);
     drawPlayer(window.scrollX, window.scrollY);
+    drawScoreHud();
     drawGoalCelebration();
     drawMissionPreview();
   }
@@ -6700,6 +7626,7 @@
     state.lastTime = time;
     state.accumulator += frameSeconds;
 
+    updateScoreAttackState(frameSeconds, time / 1000);
     const previewActive = missionPreviewActive(time / 1000);
     if (previewActive) {
       state.accumulator = 0;
@@ -6762,10 +7689,12 @@
       case "ArrowLeft":
       case "KeyA":
         input.left = pressed;
+        if (tutorial.active && pressed) tutorial.actions.left = true;
         break;
       case "ArrowRight":
       case "KeyD":
         input.right = pressed;
+        if (tutorial.active && pressed) tutorial.actions.right = true;
         break;
       case "Space":
         input.space = pressed;
@@ -6860,7 +7789,14 @@
     dropHatch,
     ladderTraversal,
     mission,
+    tutorial,
     resetGame,
+    setTutorialStep,
+    completeTutorialStep,
+    tutorialRequirementMet,
+    startNextScoreRound,
+    collectScoreFlag,
+    scoreTick: updateScoreAttackState,
     rebuild: () => buildCollisionMap({ preservePlayer: true }),
     respawn,
     navigationTick: updateNavigation,
@@ -6883,12 +7819,16 @@
   };
 
   async function start() {
+    // The public entrance is the tutorial. Redirect as soon as the deferred
+    // script runs instead of downloading every image on the mirrored home page
+    // only to leave it immediately.
+    if (redirectToTutorialStart()) return;
     if (isPlanningDocument && document.readyState === "loading") {
       await new Promise((resolve) => window.addEventListener("DOMContentLoaded", resolve, { once: true }));
     } else if (!isPlanningDocument && document.readyState !== "complete") {
       await new Promise((resolve) => window.addEventListener("load", resolve, { once: true }));
     }
-    if (redirectToRandomStartPage()) return;
+    if (!isTutorialDocument && redirectToRandomStartPage()) return;
     prepareWorld();
     if (!isPlanningDocument) {
       installPlayerHoverRules();
