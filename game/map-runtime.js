@@ -66,6 +66,7 @@
     missionTargetMaximumViewport: 24.5,
     missionPlanningMaximumPortals: 10,
     missionMaximumConsecutiveHeaderPortals: 2,
+    missionMaximumHeaderPortals: 1,
     missionPlanningCompletionRatio: .9,
     missionPlanningMinimumAcceptRatio: .55,
     missionStartMaximumAttempts: 3,
@@ -93,7 +94,8 @@
     maxFrameSeconds: 1 / 20
   });
 
-  if (new URLSearchParams(location.search).get("eimei-preview") === "1") {
+  const initialRouteParameters = new URLSearchParams(location.search);
+  if (initialRouteParameters.get("eimei-preview") === "1") {
     const preparePreviewDocument = () => {
       document.documentElement.classList.add("eimei-preview-document");
       if (!document.body) return;
@@ -104,6 +106,7 @@
     if (!document.body) document.addEventListener("DOMContentLoaded", preparePreviewDocument, { once: true });
     return;
   }
+  const isPlanningDocument = initialRouteParameters.get("eimei-route") === "plan";
 
   const ignoredTags = new Set([
     "SCRIPT",
@@ -343,6 +346,7 @@
     plannedPortalTransitions: 0,
     plannedPortalPages: [],
     headerPortalStreak: 0,
+    headerPortalTotal: 0,
     planningTrace: [],
     recoveringFromDetour: false,
     targetRouteDistance: 0,
@@ -355,8 +359,10 @@
   canvas.id = "eimei-game-canvas";
   canvas.setAttribute("aria-hidden", "true");
   canvas.dataset.eimeiGame = "true";
-  document.documentElement.classList.add("eimei-game-active");
-  document.documentElement.append(canvas);
+  if (!isPlanningDocument) {
+    document.documentElement.classList.add("eimei-game-active");
+    document.documentElement.append(canvas);
+  }
   let missionPreviewPhoto = null;
   let gameResetting = false;
 
@@ -2466,11 +2472,17 @@
     const planningHeaderPortalStreak = planningMode
       ? Math.max(0, Number.parseInt(routeParameters.get("eimei-plan-header-streak") || "0", 10) || 0)
       : 0;
+    const planningHeaderPortalTotal = planningMode
+      ? Math.max(0, Number.parseInt(routeParameters.get("eimei-plan-header-total") || "0", 10) || 0)
+      : 0;
     const requestedHeaderPortalStreak = requestedRouteStage === "continue"
       ? Math.max(0, Math.min(
         CONFIG.missionMaximumConsecutiveHeaderPortals,
         Number.parseInt(routeParameters.get("eimei-header-streak") || "0", 10) || 0
       ))
+      : 0;
+    const requestedHeaderPortalTotal = requestedRouteStage === "continue"
+      ? Math.max(0, Number.parseInt(routeParameters.get("eimei-header-total") || "0", 10) || 0)
       : 0;
     const requestedPortalPages = (requestedRouteStage === "continue"
       ? routeParameters.get("eimei-route-pages") || ""
@@ -2558,7 +2570,10 @@
     const planningBridgeOptions = planningMode && !plannedTextMeetsDistance && planningHopsLeft > 0
       ? (bridgePortalMissionOptions(arrivalSpawn, visitedPaths, "any") || []).filter((candidate) =>
         !candidate.globalNavigation ||
-        planningHeaderPortalStreak < CONFIG.missionMaximumConsecutiveHeaderPortals
+        (
+          planningHeaderPortalStreak < CONFIG.missionMaximumConsecutiveHeaderPortals &&
+          planningHeaderPortalTotal < CONFIG.missionMaximumHeaderPortals
+        )
       )
       : [];
     // A short header click must not outrank a portal reached after meaningful
@@ -2598,8 +2613,10 @@
       : [];
     const plannedContinuationPair = fixedFinalGoal && fixedFinalGoal.page !== currentPage
       ? pickPortalTowardAnyPlannedPage(arrivalSpawn, remainingPlannedPages, visitedPaths, {
-        allowGlobalNavigation: requestedHeaderPortalStreak < CONFIG.missionMaximumConsecutiveHeaderPortals
-      }) || pickPortalTowardAnyPlannedPage(arrivalSpawn, remainingPlannedPages, visitedPaths)
+        allowGlobalNavigation:
+          requestedHeaderPortalStreak < CONFIG.missionMaximumConsecutiveHeaderPortals &&
+          requestedHeaderPortalTotal < CONFIG.missionMaximumHeaderPortals
+      })
       : null;
     // Only an actual wrong turn may use a hub as a one-hop recovery. Normal
     // route following never receives this arbitrary fallback, which preserves
@@ -2711,6 +2728,7 @@
     mission.finalGoalReady = Boolean(fixedFinalGoal || pair.goalKind === "text");
     mission.plannedPortalTransitions = pair.goalKind === "portal" ? 1 : 0;
     mission.headerPortalStreak = routeStage === "continue" ? requestedHeaderPortalStreak : 0;
+    mission.headerPortalTotal = routeStage === "continue" ? requestedHeaderPortalTotal : 0;
     mission.plannedPortalPages = routeStage === "continue"
       ? requestedPortalPages
       : pair.goalKind === "portal" && pair.portalDestination
@@ -2742,6 +2760,7 @@
         scan: true,
         page: pageIdentity(),
         headerPortalStreak: planningHeaderPortalStreak,
+        headerPortalTotal: planningHeaderPortalTotal,
         localGoal,
         bridges: planningBridges.map((bridge) => ({
           href: bridge.portalDestination.href,
@@ -2763,7 +2782,8 @@
         planFinalGoal(pair.portalDestination, {
           remainingDistance: Math.max(0, targetRouteDistance - pair.routeDistance),
           hopsLeft: CONFIG.missionPlanningMaximumPortals,
-          headerPortalStreak: pair.globalNavigation ? 1 : 0
+          headerPortalStreak: pair.globalNavigation ? 1 : 0,
+          headerPortalTotal: pair.globalNavigation ? 1 : 0
         });
       }
     }
@@ -2788,7 +2808,9 @@
         "eimei-plan-distance",
         "eimei-plan-hops",
         "eimei-plan-header-streak",
+        "eimei-plan-header-total",
         "eimei-header-streak",
+        "eimei-header-total",
         "eimei-route-pages"
       ]) cleanUrl.searchParams.delete(key);
       history.replaceState(history.state, "", cleanUrl.href);
@@ -3727,6 +3749,8 @@
           ? Math.min(CONFIG.missionMaximumConsecutiveHeaderPortals, mission.headerPortalStreak + 1)
           : 0;
         target.searchParams.set("eimei-header-streak", String(nextHeaderPortalStreak));
+        const nextHeaderPortalTotal = mission.headerPortalTotal + (isGlobalNavigationAnchor(anchor) ? 1 : 0);
+        target.searchParams.set("eimei-header-total", String(nextHeaderPortalTotal));
         target.searchParams.delete("eimei-portals");
         if (mission.plannedPortalPages.length > 0) {
           target.searchParams.set("eimei-route-pages", mission.plannedPortalPages.join("|"));
@@ -4569,9 +4593,9 @@
       let pair = null;
       for (const desiredPage of desiredPages) {
         pair = pickPortalTowardFinalPage(routeStart, desiredPage, excluded, {
-          allowGlobalNavigation: mission.headerPortalStreak < CONFIG.missionMaximumConsecutiveHeaderPortals,
-          allowFallback: false
-        }) || pickPortalTowardFinalPage(routeStart, desiredPage, excluded, {
+          allowGlobalNavigation:
+            mission.headerPortalStreak < CONFIG.missionMaximumConsecutiveHeaderPortals &&
+            mission.headerPortalTotal < CONFIG.missionMaximumHeaderPortals,
           allowFallback: false
         });
         if (pair) break;
@@ -6218,7 +6242,8 @@
   function planFinalGoal(destination, {
     remainingDistance = 0,
     hopsLeft = 0,
-    headerPortalStreak = 0
+    headerPortalStreak = 0,
+    headerPortalTotal = 0
   } = {}) {
     clearFinalGoalPlanner();
     if (!destination) return;
@@ -6291,7 +6316,8 @@
       remainingHops,
       accumulatedDistance,
       portalPages,
-      consecutiveHeaderPortals
+      consecutiveHeaderPortals,
+      totalHeaderPortals
     ) => {
       if (settled) return;
       clearActiveStage();
@@ -6325,6 +6351,7 @@
       plannerUrl.searchParams.set("eimei-plan-distance", String(Math.max(0, remaining)));
       plannerUrl.searchParams.set("eimei-plan-hops", String(Math.max(0, remainingHops)));
       plannerUrl.searchParams.set("eimei-plan-header-streak", String(Math.max(0, consecutiveHeaderPortals)));
+      plannerUrl.searchParams.set("eimei-plan-header-total", String(Math.max(0, totalHeaderPortals)));
       plannerUrl.searchParams.set("eimei-visited", [...visitedPages].join("|"));
 
       activeReceive = (event) => {
@@ -6337,6 +6364,9 @@
           accumulatedDistance,
           headerPortalStreak: Number.isFinite(scan?.headerPortalStreak)
             ? scan.headerPortalStreak
+            : null,
+          headerPortalTotal: Number.isFinite(scan?.headerPortalTotal)
+            ? scan.headerPortalTotal
             : null,
           localDistance: Number.isFinite(scan?.localGoal?.distance) ? scan.localGoal.distance : null,
           bridges: Array.isArray(scan?.bridges)
@@ -6384,7 +6414,8 @@
           remainingHops - 1,
           accumulatedDistance + Math.max(0, bridge.distance),
           [...portalPages, bridge.page],
-          bridge.globalNavigation ? consecutiveHeaderPortals + 1 : 0
+          bridge.globalNavigation ? consecutiveHeaderPortals + 1 : 0,
+          totalHeaderPortals + (bridge.globalNavigation ? 1 : 0)
         );
       };
       window.addEventListener("message", activeReceive);
@@ -6400,7 +6431,8 @@
       hopsLeft,
       0,
       [],
-      Math.max(0, headerPortalStreak)
+      Math.max(0, headerPortalStreak),
+      Math.max(0, headerPortalTotal)
     );
   }
 
@@ -6756,11 +6788,14 @@
     }
     if (redirectToRandomStartPage()) return;
     prepareWorld();
-    installPlayerHoverRules();
-    resizeCanvas();
+    if (!isPlanningDocument) {
+      installPlayerHoverRules();
+      resizeCanvas();
+    }
     if (document.fonts?.ready) await document.fonts.ready;
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     buildCollisionMap({ preservePlayer: false });
+    if (isPlanningDocument) return;
     state.lastTime = performance.now();
     requestAnimationFrame(frame);
   }
