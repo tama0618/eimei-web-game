@@ -56,6 +56,7 @@
     finishLastSentAt: -Infinity,
     navigationCourseKey: null,
     navigationCoursePromise: null,
+    navigationRetryAt: 0,
     photo: null,
     hud: null,
     hudKey: null,
@@ -460,6 +461,54 @@
     };
   }
 
+  function stableTextHash(value) {
+    const text = String(value ?? "");
+    let hash = 2166136261;
+    for (let index = 0; index < text.length; index += 1) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  function shuffled(values, random) {
+    const result = [...values];
+    for (let index = result.length - 1; index > 0; index -= 1) {
+      const swap = Math.floor(random() * (index + 1));
+      [result[index], result[swap]] = [result[swap], result[index]];
+    }
+    return result;
+  }
+
+  function raceWispPages(playable, course, count = 8) {
+    const random = seededRandom(stableTextHash(`${course.id}|${course.seed}|site-wide-wisps`));
+    const eligible = playable.filter((page) => page.page !== course.goal.page);
+    const buckets = new Map();
+    for (const page of eligible) {
+      const category = categoryKeyFor(page.page);
+      if (!buckets.has(category)) buckets.set(category, []);
+      buckets.get(category).push(page.page);
+    }
+
+    const selected = [];
+    const selectedSet = new Set();
+    for (const category of shuffled([...buckets.keys()], random)) {
+      const page = shuffled(buckets.get(category), random)[0];
+      if (!page || selectedSet.has(page)) continue;
+      selected.push(page);
+      selectedSet.add(page);
+      if (selected.length === count) return selected;
+    }
+
+    for (const page of shuffled(eligible.map((candidate) => candidate.page), random)) {
+      if (selectedSet.has(page)) continue;
+      selected.push(page);
+      selectedSet.add(page);
+      if (selected.length === count) break;
+    }
+    return selected;
+  }
+
   function shortestRoute(pageMap, start, goal, maximumDepth = 8) {
     if (start === goal) return [start];
     const queue = [[start]];
@@ -592,6 +641,10 @@
       const drawPool = freshCategoryCandidates.length > 0 ? freshCategoryCandidates : balancedCandidates;
       const selected = drawPool[Math.floor(random() * drawPool.length)] || null;
       if (!selected) throw new Error("no_course");
+      selected.wispPages = raceWispPages(playable, selected);
+      if (selected.wispPages.length !== 8 || new Set(selected.wispPages).size !== 8) {
+        throw new Error("no_wisp_pages");
+      }
       send({ type: "course", course: selected });
     } catch (error) {
       race.lastError = error.message;
@@ -672,7 +725,10 @@
     });
     map.setRaceWispClaims?.(room.claimedWispIds || []);
     loadPrivateHints(room.roundId);
-    if (stage >= 4) race.navigationCourseKey = `${room.roundId}:${currentPage}`;
+    race.navigationCourseKey = stage >= 4 && finalGuideReady(map)
+      ? `${room.roundId}:${currentPage}`
+      : null;
+    if (stage < 4 || finalGuideReady(map)) race.navigationRetryAt = 0;
     if (shouldPlaceAtStart) sessionStorage.removeItem(startPlacementStorageKey);
     race.configuredRoundId = room.roundId;
     ensureRaceHud();
@@ -709,14 +765,36 @@
     }
   }
 
+  function finalGuideReady(map = window.EimeiMap) {
+    return Boolean(
+      map?.race?.configured &&
+      map.race.navigationEnabled &&
+      map.mission?.guideBody &&
+      map.mission.guidePoint &&
+      map.state?.bodies?.includes(map.mission.guideBody)
+    );
+  }
+
   function ensureFinalNavigation() {
     const room = race.room;
     if (!room?.course || isArena || hintStage(room) < 4) return;
     const key = `${room.roundId}:${pageIdentity()}`;
-    if (race.navigationCourseKey === key || race.navigationCoursePromise) {
-      window.EimeiMap?.setRaceNavigationEnabled?.(true);
+    const map = window.EimeiMap;
+    if (finalGuideReady(map)) {
+      race.navigationCourseKey = key;
+      race.navigationRetryAt = 0;
       return;
     }
+    map?.setRaceNavigationEnabled?.(true);
+    if (finalGuideReady(map)) {
+      race.navigationCourseKey = key;
+      race.navigationRetryAt = 0;
+      return;
+    }
+    const now = performance.now();
+    if (race.navigationCoursePromise || now < race.navigationRetryAt) return;
+    race.navigationRetryAt = now + 800;
+    race.navigationCourseKey = null;
     race.navigationCoursePromise = navigationCourseForCurrentPage(room.course)
       .then((course) => waitForMap().then((map) => map?.configureRaceRound({
         roomCode: room.code,
@@ -728,7 +806,10 @@
         frozen: room.phase === "countdown" && serverNow() < room.startAt,
         finished: room.phase === "finished"
       })))
-      .then(() => { race.navigationCourseKey = key; })
+      .then(() => {
+        race.navigationCourseKey = finalGuideReady() ? key : null;
+        if (race.navigationCourseKey) race.navigationRetryAt = 0;
+      })
       .finally(() => { race.navigationCoursePromise = null; });
   }
 
@@ -776,7 +857,7 @@
     if (!race.hints || !race.room?.course) return;
     const stage = hintStage();
     const goal = race.room.course.goal;
-    if (stage >= 3 && !race.catalogData) {
+    if (stage >= 1 && !race.catalogData) {
       loadCatalog().then(() => {
         race.hintKey = null;
         updateHints();
@@ -785,17 +866,19 @@
     let label = "手掛かり 0 / 3";
     let value = "写真のみ｜時間経過でヒント解禁";
     if (stage === 1) {
-      label = "手掛かり 1 / 3　大分類";
-      value = categoryFor(goal.page);
+      label = "手掛かり 1 / 3　ページの長さ";
+      value = pageSizeHint(goal);
     } else if (stage === 2) {
-      label = "手掛かり 2 / 3　ページ種別";
-      value = pageTypeHint(goal);
+      label = "手掛かり 2 / 3　ページの構造";
+      value = pageStructureHint(goal);
     } else if (stage === 3) {
-      label = "手掛かり 3 / 3　ページ内の位置";
+      label = "手掛かり 3 / 3　旗の位置";
       value = positionHint(goal);
     } else if (stage >= 4) {
       label = "FINAL GUIDE　ナビ解禁";
-      value = "黄色い光が旗まで案内中";
+      value = finalGuideReady()
+        ? "黄色い光が旗まで案内中"
+        : "黄色い光を目的地へ接続中";
     }
     const key = `${stage}:${label}:${value}`;
     if (race.hintKey === key) {
@@ -818,56 +901,64 @@
     else window.EimeiMap?.setRaceNavigationEnabled?.(false);
   }
 
-  function pageTypeHint(goal) {
+  function catalogGoalGeometry(goal) {
+    const page = race.catalogData?.pages?.find((candidate) => candidate.page === goal.page);
+    const target = page?.targets?.find((candidate) => candidate.id === goal.id) || goal;
+    const width = Math.max(1, Number(page?.width) || Number(target?.x) * 2 || 1);
+    const height = Math.max(1, Number(page?.height) || Number(target?.y) * 2 || 1);
+    const x = Math.max(0, Math.min(width, Number(target?.x) || 0));
+    const y = Math.max(0, Math.min(height, Number(target?.y) || 0));
+    return { page, target, width, height, x, y, xRatio: x / width, yRatio: y / height };
+  }
+
+  function pageSizeHint(goal) {
+    const { height } = catalogGoalGeometry(goal);
+    const screens = height / Math.max(560, window.innerHeight || 720);
+    if (screens < 1.8) return "1〜2画面ほどの短いページ";
+    if (screens < 3.8) return "数画面ぶん続く標準的なページ";
+    if (screens < 7) return "縦に長いページ";
+    return "かなり縦に長いページ";
+  }
+
+  function pageStructureHint(goal) {
     const parts = String(goal.page || "").split("/").filter(Boolean);
-    const category = categoryFor(goal.page);
     const filename = parts.at(-1) || "";
-    const year = parts.find((part) => /^20\d{2}$/.test(part));
-    if (parts[0] === "news") {
-      if (/^news20\d{2}\.html?$/i.test(filename)) return `${year || "年度別"}ニュースの一覧ページ`;
-      return `${year ? `${year}年度・` : ""}ニュースの記事ページ`;
-    }
-    if (/^(?:index|top)\.html?$/i.test(filename)) return `${category}エリアの入口ページ`;
-    if (parts.length >= 3) return `${category}エリアの詳しい記事ページ`;
-    return `${category}エリアの情報ページ`;
+    if (/^(?:index|top)\.html?$/i.test(filename)) return "大きなエリアの入口ページ";
+    if (/^news20\d{2}\.html?$/i.test(filename)) return "複数項目が並ぶ一覧ページ";
+    if (parts.length >= 3) return "階層の深い個別ページ";
+    return "入口から一段進んだ情報ページ";
   }
 
   function positionHint(goal) {
-    const page = race.catalogData?.pages?.find((candidate) => candidate.page === goal.page);
-    const height = Math.max(1, Number(page?.height) || Number(goal.y) * 2 || 1);
-    const ratio = Number(goal.y) / height;
-    const band = ratio < .34 ? "上の方" : ratio < .7 ? "中央付近" : "下の方";
-    const selector = String(goal.selector || "").toLowerCase();
-    const kind = /(?:^|>)a(?::|\[|$)/.test(selector)
-      ? "リンク"
-      : /(?:^|>)h[1-6](?::|\[|$)/.test(selector) ? "見出し" : "文字の足場";
-    return `ページの${band}にある${kind}`;
+    const { xRatio, yRatio } = catalogGoalGeometry(goal);
+    const vertical = yRatio < .34 ? "上の方" : yRatio < .7 ? "中央付近" : "下の方";
+    const horizontal = xRatio < .34 ? "左寄り" : xRatio < .67 ? "中央寄り" : "右寄り";
+    return `旗はページの${vertical}・${horizontal}`;
   }
 
   function privateHintChoices(goal) {
-    const labelParts = graphemes(String(goal?.label || "目的地"));
-    const titleParts = graphemes(String(goal?.title || "英明高等学校"));
-    const first = labelParts[0] || "？";
-    const last = labelParts.at(-1) || "？";
-    const middle = labelParts[Math.floor((labelParts.length - 1) * .5)] || first;
-    const masked = labelParts.map((part, index) => index % 2 === 0 ? part : "○").join("");
-    const year = `${goal?.page || ""} ${goal?.title || ""} ${goal?.context || ""}`.match(/20\d{2}/)?.[0];
-    const context = String(goal?.context || "")
-      .replace(String(goal?.label || ""), "■■")
-      .replace(/\s+/gu, " ")
-      .trim()
-      .slice(0, 46);
-    const choices = [
-      `旗の文字は「${first}」から始まる`,
-      `旗の文字は「${last}」で終わる`,
-      `旗の文字数は ${labelParts.length || 1} 文字`,
-      `旗の文字を一部だけ見ると「${masked}」`,
-      `目的ページの題名は「${titleParts[0] || "？"}」から始まる`,
-      year ? `目的地に関係する年は ${year} 年` : `目的ページの題名は ${titleParts.length || 1} 文字`,
-      `旗の文字の中央付近には「${middle}」がある`,
-      context ? `旗の周辺には「${context}」と書かれている` : `旗の文字の先頭2文字は「${labelParts.slice(0, 2).join("")}」`
+    const { xRatio, yRatio, y } = catalogGoalGeometry(goal);
+    const verticalHalf = yRatio < .5 ? "上半分" : "下半分";
+    const horizontalThird = xRatio < 1 / 3 ? "左側" : xRatio < 2 / 3 ? "中央付近" : "右側";
+    const verticalThird = Math.min(3, Math.floor(yRatio * 3) + 1);
+    const horizontalQuarter = Math.min(4, Math.floor(xRatio * 4) + 1);
+    const verticalPercent = Math.max(5, Math.min(95, Math.round(yRatio * 20) * 5));
+    const horizontalPercent = Math.max(5, Math.min(95, Math.round(xRatio * 20) * 5));
+    const screenDistance = Math.max(.5, Math.round((y / Math.max(560, window.innerHeight || 720)) * 2) / 2);
+    return [
+      `旗はページの${verticalHalf}にある`,
+      `旗はページ幅の${horizontalThird}にある`,
+      `上から3分割すると、第${verticalThird}区画に旗がある`,
+      `左から4分割すると、第${horizontalQuarter}区画に旗がある`,
+      `旗の高さは上端から約${verticalPercent}%地点`,
+      `旗の横位置は左端から約${horizontalPercent}%地点`,
+      `ページ上端から約${screenDistance}画面ぶん下に旗がある`,
+      `旗は上から約${verticalPercent}%・左から約${horizontalPercent}%付近`
     ];
-    return choices.filter((value, index, all) => value && all.indexOf(value) === index);
+  }
+
+  function isPositionPrivateHintText(value) {
+    return /^(?:旗はページの|旗はページ幅の|上から3分割すると|左から4分割すると|旗の高さは|旗の横位置は|ページ上端から)/u.test(String(value || ""));
   }
 
   function loadPrivateHints(roundId) {
@@ -878,7 +969,12 @@
       const stored = JSON.parse(sessionStorage.getItem(privateHintStorageKey) || "null");
       if (stored?.roundId === roundId && Array.isArray(stored.hints)) {
         race.privateHints = stored.hints
-          .filter((hint) => hint && typeof hint.wispId === "string" && typeof hint.text === "string")
+          .filter((hint) =>
+            hint &&
+            typeof hint.wispId === "string" &&
+            typeof hint.text === "string" &&
+            isPositionPrivateHintText(hint.text)
+          )
           .slice(-8);
       }
     } catch {
@@ -901,7 +997,7 @@
     root.className = "eimei-race-private-hints";
     root.hidden = true;
     root.setAttribute("aria-live", "polite");
-    root.innerHTML = `<p><span>BLUE HAZE</span> 自分だけのヒント</p><ol></ol>`;
+    root.innerHTML = `<p><span>BLUE HAZE</span> 自分だけの位置情報</p><ol></ol>`;
     document.documentElement.append(root);
     race.privateHintRoot = root;
     return root;
@@ -924,9 +1020,18 @@
     }
   }
 
-  function receivePrivateHint(message) {
+  async function receivePrivateHint(message) {
     if (!race.room?.course?.goal || message.roundId !== race.room.roundId) return;
     loadPrivateHints(message.roundId);
+    if (race.privateHints.some((hint) => hint.wispId === message.wispId)) return;
+    if (!race.catalogData) {
+      try {
+        await loadCatalog();
+      } catch {
+        // The goal coordinates still provide a coarse fallback if the catalog is unavailable.
+      }
+    }
+    if (!race.room?.course?.goal || message.roundId !== race.room.roundId) return;
     if (race.privateHints.some((hint) => hint.wispId === message.wispId)) return;
     const choices = privateHintChoices(race.room.course.goal);
     const hintNumber = Math.max(1, Number.parseInt(message.hintNumber, 10) || 1);
@@ -1355,6 +1460,7 @@
     window.addEventListener("eimei-race-finish", reportFinish);
     window.addEventListener("eimei-race-route-missing", () => {
       race.navigationCourseKey = null;
+      race.navigationRetryAt = 0;
       ensureFinalNavigation();
     });
     window.addEventListener("eimei-race-wisp", (event) => {

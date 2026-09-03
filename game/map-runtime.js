@@ -422,6 +422,7 @@
     finishPending: false,
     finishReportedAt: -Infinity,
     missingRoutePage: null,
+    lastGuideRepairAt: -Infinity,
     remotePlayers: new Map(),
     incomingGrapples: new Map(),
     wisps: [],
@@ -1511,11 +1512,13 @@
     }
   }
 
-  function ladderCandidateBetween(lowerBody, upperBody, obstacleIndex = null) {
+  function ladderCandidateBetween(lowerBody, upperBody, obstacleIndex = null, maximumHeightOverride = null) {
     const topY = upperBody.y + upperBody.height;
     const bottomY = lowerBody.y;
     const height = bottomY - topY;
-    const maximumHeight = Math.min(CONFIG.webRange * 0.94, window.innerHeight * CONFIG.ladderMaximumHeightViewport);
+    const maximumHeight = Number.isFinite(maximumHeightOverride)
+      ? maximumHeightOverride
+      : Math.min(CONFIG.webRange * 0.94, window.innerHeight * CONFIG.ladderMaximumHeightViewport);
     if (height < CONFIG.ladderMinimumHeight || height > maximumHeight) return null;
 
     const directLeft = lowerBody.x + player.width * 0.5 - 2;
@@ -1637,6 +1640,10 @@
 
   function collectLadders() {
     if (isTutorialDocument) return collectTutorialLadders();
+    const bodyBelongsToHeader = (body) => Boolean(
+      body?.sourceElement?.closest?.("header, #main-nav") ||
+      body?.sourceRegions?.some((region) => region.element?.closest?.("header, #main-nav"))
+    );
     const bodies = state.bodies.filter((body) =>
       body.navigationXs?.length > 0 &&
       body.y >= 36 &&
@@ -1658,6 +1665,41 @@
         ) continue;
         const candidate = ladderCandidateBetween(lowerBody, upperBody, obstacleIndex);
         if (candidate) candidates.push(candidate);
+      }
+    }
+    const headerBodies = bodies.filter(bodyBelongsToHeader);
+    const headerBottom = Math.max(0, ...headerBodies.map((body) => body.y + body.height));
+    const longHeaderMaximum = Math.min(
+      1200,
+      Math.max(900, CONFIG.webRange * 1.55, window.innerHeight * 1.05)
+    );
+    const firstContentY = Math.min(
+      Infinity,
+      ...bodies
+        .filter((body) => !bodyBelongsToHeader(body) && body.y - headerBottom >= 150)
+        .map((body) => body.y)
+    );
+    if (Number.isFinite(firstContentY)) {
+      const firstContentBand = bodies.filter((body) =>
+        !bodyBelongsToHeader(body) &&
+        body.y >= firstContentY - 4 &&
+        body.y <= firstContentY + 180
+      );
+      for (const lowerBody of firstContentBand) {
+        for (const upperBody of headerBodies) {
+          if (
+            horizontalGap(lowerBody, upperBody) > CONFIG.ladderGrabHorizontalPx + player.width + 12
+          ) continue;
+          const candidate = ladderCandidateBetween(
+            lowerBody,
+            upperBody,
+            obstacleIndex,
+            longHeaderMaximum
+          );
+          if (!candidate || candidate.height < 150) continue;
+          candidate.headerConnector = true;
+          candidates.push(candidate);
+        }
       }
     }
     if (candidates.length === 0) return [];
@@ -1694,12 +1736,30 @@
     const selected = [];
     const addCandidate = (candidate) => {
       if (!candidate || selected.length >= desiredCount) return;
+      if (candidate.headerConnector && selected.some((other) => other.headerConnector)) return;
       const tooClose = selected.some((other) =>
         Math.abs(other.x - candidate.x) < 92 &&
         Math.abs((other.topY + other.bottomY) * 0.5 - (candidate.topY + candidate.bottomY) * 0.5) < 170
       );
       if (!tooClose) selected.push(candidate);
     };
+    // Some top pages put the global menu a full screen above the first article
+    // floor. Ordinary scoring favours short decorative ladders and can omit the
+    // only obvious way back to that menu. Reserve one slot for a long, usable
+    // header connector whenever such a gap exists.
+    const headerConnectorMinimumHeight = Math.max(150, Math.min(300, window.innerHeight * 0.24));
+    const headerConnector = candidates
+      .filter((candidate) =>
+        candidate.height >= headerConnectorMinimumHeight &&
+        bodyBelongsToHeader(candidate.upperBody) &&
+        !bodyBelongsToHeader(candidate.lowerBody)
+      )
+      .toSorted((a, b) =>
+        a.bottomY - b.bottomY ||
+        Number(b.directAccess) - Number(a.directAccess) ||
+        b.height - a.height
+      )[0];
+    if (headerConnector) addCandidate(headerConnector);
     for (const candidate of sorted.filter((item) => item.rescue)) addCandidate(candidate);
     for (const candidate of [...bandChoices.entries()].toSorted((a, b) => a[0] - b[0]).map((entry) => entry[1])) {
       addCandidate(candidate);
@@ -3772,9 +3832,19 @@
       return [];
     }
     const page = pageIdentity();
+    const slots = Array.isArray(race.course?.wispPages)
+      ? race.course.wispPages
+        .map((assignedPage, index) => assignedPage === page ? index : -1)
+        .filter((index) => index >= 0 && index < CONFIG.raceWispCount)
+      : [];
     const geometryKey = `${Math.round(state.documentWidth / 20)}:${Math.round(state.documentHeight / 20)}:${state.bodies.length}`;
-    const placementKey = `${race.roundId}|${page}|${geometryKey}`;
-    if (!force && race.wispPlacementKey === placementKey && race.wisps.length > 0) return race.wisps;
+    const placementKey = `${race.roundId}|${page}|${slots.join(",")}|${geometryKey}`;
+    if (!force && race.wispPlacementKey === placementKey) return race.wisps;
+    if (slots.length === 0) {
+      race.wisps = [];
+      race.wispPlacementKey = placementKey;
+      return [];
+    }
 
     const candidates = navigationBodies().filter(raceWispBodyIsStable);
     if (candidates.length === 0) {
@@ -3791,9 +3861,9 @@
     const goalX = page === race.course?.goal?.page ? Number(race.course.goal.x) : NaN;
     const goalY = page === race.course?.goal?.page ? Number(race.course.goal.y) : NaN;
 
-    for (let index = 0; index < CONFIG.raceWispCount; index += 1) {
+    for (const [ordinal, index] of slots.entries()) {
       const desiredX = state.documentWidth * (0.08 + random() * 0.84);
-      const desiredY = state.documentHeight * ((index + 0.18 + random() * 0.64) / CONFIG.raceWispCount);
+      const desiredY = state.documentHeight * ((ordinal + 0.18 + random() * 0.64) / slots.length);
       const available = candidates.filter((body) => !chosenBodies.has(body));
       const pool = available.length > 0 ? available : candidates;
       const body = pool.toSorted((first, second) => {
@@ -4009,7 +4079,10 @@
     if (!target || pageIdentity() !== target.page) return false;
     const body = raceTargetBody(target);
     const centerX = raceTargetCenter(body, target);
-    if (!body || !Number.isFinite(centerX)) return false;
+    if (!body || !Number.isFinite(centerX)) {
+      clearRaceMissionTarget();
+      return false;
+    }
     mission.goalBody = body;
     mission.goalElement = raceTargetElement(target) || sourceElementAt(body, centerX);
     mission.goalPoint = { x: centerX, y: body.y };
@@ -4175,6 +4248,7 @@
     race.frozen = Boolean(frozen);
     race.finished = Boolean(finished);
     race.missingRoutePage = null;
+    race.lastGuideRepairAt = -Infinity;
     mission.initialized = true;
     mission.runId = race.roundId;
     mission.scoreAttack = false;
@@ -4215,9 +4289,20 @@
 
   function setRaceNavigationEnabled(value) {
     const enabled = Boolean(value);
-    if (!race.active || race.navigationEnabled === enabled) return;
+    if (!race.active) return;
+    const changed = race.navigationEnabled !== enabled;
     race.navigationEnabled = enabled;
-    configureRaceMissionTarget({ launchFromPlayer: true });
+    const guideIsReady = Boolean(
+      mission.guideBody &&
+      mission.guidePoint &&
+      state.bodies.includes(mission.guideBody)
+    );
+    // A late map build used to leave navigationEnabled=true while the actual
+    // guide had no body. Repeated enable calls are therefore repair requests,
+    // not no-ops. This keeps the HUD and the yellow guide in the same state.
+    if (changed || (enabled && !guideIsReady) || (!enabled && guideIsReady)) {
+      configureRaceMissionTarget({ launchFromPlayer: true });
+    }
   }
 
   function setRaceFrozen(value) {
@@ -6870,6 +6955,19 @@
       return;
     }
     let guide = mission.guideBody;
+    const raceGuideIsMissing = Boolean(
+      race.active &&
+      race.configured &&
+      race.navigationEnabled &&
+      !race.finished &&
+      !race.finishPending &&
+      (!guide || !mission.guidePoint || !state.bodies.includes(guide))
+    );
+    if (raceGuideIsMissing && nowSeconds - race.lastGuideRepairAt >= 0.65) {
+      race.lastGuideRepairAt = nowSeconds;
+      configureRaceMissionTarget({ launchFromPlayer: true });
+      guide = mission.guideBody;
+    }
     // Every score round owns exactly one decisive marker. A menu/collision
     // rebuild can briefly clear that reference after the first pickup; restore
     // it from the still-valid goal instead of leaving the round playable but
