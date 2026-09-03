@@ -876,9 +876,7 @@
       value = positionHint(goal);
     } else if (stage >= 4) {
       label = "FINAL GUIDE　ナビ解禁";
-      value = finalGuideReady()
-        ? "黄色い光が旗まで案内中"
-        : "黄色い光を目的地へ接続中";
+      value = "黄色い光をたどって旗へ";
     }
     const key = `${stage}:${label}:${value}`;
     if (race.hintKey === key) {
