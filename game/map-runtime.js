@@ -1685,10 +1685,16 @@
         const roomRight = window.innerWidth - visualRight;
         const roomLeft = visualLeft;
         const placeRight = roomRight >= 46 || roomRight >= roomLeft;
+        const tutorialMenu = isTutorialDocument && Boolean(element.closest(".tutorial-site-nav"));
         // Keep the ladder close enough that a side dismount naturally overlaps
         // the menu floor. A 16px offset plus the narrow player sprite demanded
         // near pixel-perfect timing to reach submenu portals.
-        const centerX = (placeRight ? visualRight + 9 : visualLeft - 9) + window.scrollX;
+        // In the tutorial the player first stands on the narrow parent tab.
+        // Putting the ladder at the far edge of the wider dropdown made it
+        // impossible to reach without leaving the tab that keeps it open.
+        const centerX = tutorialMenu
+          ? ownerRect.right + window.scrollX + 9
+          : (placeRight ? visualRight + 9 : visualLeft - 9) + window.scrollX;
         // Include the parent tab itself. Previously the ladder began below the
         // tab, leaving the top row awkwardly out of reach.
         const topY = Math.min(rect.top, ownerRect.top) + window.scrollY - 2;
@@ -1706,7 +1712,8 @@
           directAccess: true,
           rescue: false,
           menu: true,
-          menuSide: placeRight ? 1 : -1,
+          menuSide: tutorialMenu ? 1 : placeRight ? 1 : -1,
+          tutorialMenu,
           overlayElement: element,
           overlayOwner: owner,
           visualColor: "#111111"
@@ -3389,6 +3396,36 @@
     return { x: Number.isFinite(x) ? x : preferred, y: body.y };
   }
 
+  function tutorialEntryBody(checkpoint = tutorialCurrentCheckpoint()) {
+    const entryId = checkpoint?.dataset.entry || "tutorial-start";
+    return tutorialBodyForElement(document.getElementById(entryId));
+  }
+
+  function focusTutorialEntry() {
+    const focus = () => window.scrollTo({
+      left: Math.max(0, player.x - window.innerWidth * 0.32),
+      top: Math.max(0, player.y - window.innerHeight * 0.46),
+      behavior: "instant"
+    });
+    focus();
+    requestAnimationFrame(focus);
+  }
+
+  function placeAtTutorialEntry(checkpoint = tutorialCurrentCheckpoint(), { focus = true } = {}) {
+    const entryBody = tutorialEntryBody(checkpoint);
+    if (!entryBody) return false;
+    mission.spawnBody = entryBody;
+    placePlayerOnBody(entryBody, { randomizeX: false });
+    player.grounded = true;
+    player.groundedAt = performance.now() / 1000;
+    player.standingBody = entryBody.kind === "text" ? entryBody : null;
+    player.navigationBody = entryBody;
+    mission.lastStandingBody = entryBody;
+    setKeypointGuide({ launchFromPlayer: true });
+    if (focus) focusTutorialEntry();
+    return true;
+  }
+
   function setTutorialStep(index, { launchFromPlayer = true } = {}) {
     const checkpoints = tutorialCheckpoints();
     const checkpoint = checkpoints[index];
@@ -3463,7 +3500,7 @@
       case "double": return tutorial.actions.doubleJump;
       case "swing": return tutorial.actions.swing;
       case "reel": return tutorial.actions.reel && web.hatchesCompleted > 0;
-      case "ladder": return tutorial.actions.ladderClimb && tutorial.actions.ladderDismount;
+      case "ladder": return tutorial.actions.ladderClimb;
       case "drop": return tutorial.actions.drop;
       case "follow":
       case "flag":
@@ -3499,7 +3536,8 @@
       buildCollisionMap({ preservePlayer: true });
       advanced = setTutorialStep(completedIndex + 1, { launchFromPlayer: true });
     }
-    if (!advanced) tutorial.transitioning = false;
+    if (advanced) placeAtTutorialEntry(tutorialCurrentCheckpoint(), { focus: true });
+    else tutorial.transitioning = false;
     // The course swaps a few visible safety nets as its path turns upward or
     // downward. Rebuild asynchronously after the next goal is already live.
     scheduleRebuild();

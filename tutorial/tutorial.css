@@ -20,18 +20,17 @@ body {
 body {
   position: relative;
   width: 4300px;
-  height: 2320px;
+  height: 2380px;
   overflow: visible;
 }
 
 .tutorial-header {
   position: absolute;
   top: 28px;
-  left: 50%;
+  left: 120px;
   width: 820px;
-  padding: 22px 0 22px;
+  padding: 22px 0;
   border-bottom: 2px solid #24211d;
-  transform: translateX(-50%);
 }
 
 .tutorial-header .eyebrow {
@@ -56,19 +55,35 @@ body {
 .tutorial-world {
   position: relative;
   width: 4300px;
-  height: 2260px;
+  height: 2320px;
   margin: 0;
 }
 
+/*
+ * Each lesson owns one camera-sized room. Finishing a flag moves the player
+ * to the next room's entry, so unrelated instructions can never overlap the
+ * current route or become accidental collision geometry.
+ */
 .tutorial-stage {
-  display: contents;
+  position: absolute;
+  width: 900px;
+  height: 560px;
 }
+
+.stage-move   { left: 80px;   top: 250px; }
+.stage-jump   { left: 1120px; top: 250px; }
+.stage-double { left: 2160px; top: 250px; }
+.stage-swing  { left: 3200px; top: 250px; }
+.stage-reel   { left: 3200px; top: 980px; }
+.stage-ladder { left: 2160px; top: 980px; }
+.stage-drop   { left: 1120px; top: 980px; }
+.stage-flag   { left: 80px;   top: 980px; }
+.stage-menu   { left: 80px;   top: 1710px; width: 1900px; }
 
 .platform,
 .goal-platform,
 .word-wall span,
-.upper-course-reset,
-.course-safety {
+.stage-reset {
   position: absolute;
   margin: 0;
   white-space: nowrap;
@@ -89,7 +104,20 @@ body {
   text-underline-offset: 6px;
 }
 
-.spawn-platform { left: 120px; top: 390px; font-weight: 700; }
+.stage-reset {
+  left: 0;
+  top: 520px;
+  width: 900px;
+  overflow: hidden;
+  padding-bottom: 6px;
+  border-bottom: 2px solid rgba(36, 33, 29, 0.72);
+  color: #80786e;
+  font-size: 18px;
+}
+
+.stage-menu .stage-reset { width: 1900px; }
+
+.spawn-platform { left: 40px; top: 90px; font-weight: 700; }
 .spawn-platform::before {
   position: absolute;
   left: 16px;
@@ -104,73 +132,71 @@ body {
   from { transform: translateY(-7px); }
   to { transform: translateY(0); }
 }
-.move-right { left: 430px; top: 520px; }
-.move-left { left: 150px; top: 650px; }
-.move-goal { left: 610px; top: 650px; }
 
-.jump-road { left: 920px; top: 650px; }
-.jump-wall { position: absolute; left: 1285px; top: 598px; }
+.move-right { left: 400px; top: 215px; }
+.move-left { left: 70px; top: 340px; }
+.move-goal { left: 590px; top: 340px; }
+
+.jump-road { left: 60px; top: 380px; }
+.jump-wall { position: absolute; left: 470px; top: 315px; }
+.jump-goal { left: 525px; top: 380px; }
+
+.double-road { left: 50px; top: 430px; }
+.double-wall { position: absolute; left: 500px; top: 320px; }
+.double-goal { left: 560px; top: 320px; }
+
 .jump-wall span,
 .double-wall span,
 .drop-wall-left span,
-.drop-wall-right span { position: static; display: block; margin-top: -2px; font-size: 25px; }
-.jump-goal { left: 1340px; top: 650px; }
-
-.double-road { left: 1670px; top: 650px; }
-.double-wall { position: absolute; left: 2020px; top: 560px; }
-.double-goal { left: 2075px; top: 560px; }
-
-.swing-note { left: 2400px; top: 365px; font-size: 18px; }
-.web-anchor { left: 2720px; top: 245px; color: #3a6582; }
-.swing-left { left: 2400px; top: 560px; }
-.swing-right { left: 3100px; top: 500px; }
-.swing-safety {
-  left: 0;
-  top: 850px;
-  display: none;
-  width: 4300px;
-  overflow: hidden;
-  padding: 0 0 6px 1650px;
-  border-bottom: 2px solid rgba(36, 33, 29, 0.72);
-  color: #6e655b;
+.drop-wall-right span {
+  position: static;
+  display: block;
+  margin-top: -2px;
+  font-size: 25px;
 }
 
-html[data-eimei-tutorial-step="3"] .swing-safety { display: block; }
+.swing-note { left: 70px; top: 105px; font-size: 18px; }
+.web-anchor { left: 380px; top: 105px; color: #3a6582; }
+.swing-left { left: 60px; top: 400px; }
+.swing-right { left: 650px; top: 355px; }
 
-.reel-note { left: 3480px; top: 385px; font-size: 18px; }
-.hatch-platform { left: 3480px; top: 205px; }
-.reel-base { left: 3480px; top: 500px; }
+.reel-note { left: 250px; top: 350px; font-size: 18px; }
+.hatch-platform { left: 270px; top: 120px; }
+.reel-base { left: 270px; top: 430px; }
 
-.ladder-note { left: 3330px; top: 305px; font-size: 18px; }
-.hatch-platform.ladder-upper { left: 3480px; top: 205px; }
-.ladder-exit { left: 3340px; top: 430px; }
-.ladder-lower { left: 3490px; top: 650px; }
-.authored-ladder { position: absolute; left: 3710px; top: 205px; width: 24px; height: 445px; }
+.ladder-upper { left: 465px; top: 140px; }
+.ladder-lower { left: 220px; top: 430px; }
+.authored-ladder {
+  position: absolute;
+  left: 520px;
+  top: 140px;
+  width: 24px;
+  height: 290px;
+}
 
-.drop-note { left: 2710px; top: 350px; font-size: 19px; }
-.thin-floor { left: 2460px; top: 430px; font-size: 20px; }
-.drop-wall-left { position: absolute; left: 2432px; top: 430px; }
-.drop-wall-right { position: absolute; left: 3235px; top: 430px; }
-.drop-goal { left: 2730px; top: 850px; }
+.thin-floor { left: 160px; top: 180px; }
+.drop-wall-left { position: absolute; left: 132px; top: 180px; }
+.drop-wall-right { position: absolute; left: 820px; top: 180px; }
+.drop-goal { left: 350px; top: 440px; }
 
-.flag-road-one { left: 2360px; top: 1070px; }
-.flag-road-two { left: 1660px; top: 1230px; }
-.flag-road-three { left: 980px; top: 1390px; }
-.flag-goal { left: 580px; top: 1390px; }
+.flag-road-one { left: 60px; top: 110px; }
+.flag-road-two { left: 300px; top: 245px; }
+.flag-road-three { left: 60px; top: 380px; }
+.flag-goal { left: 600px; top: 380px; }
 
-.menu-note { left: 420px; top: 1510px; font-size: 18px; }
+.menu-note { left: 40px; top: 70px; font-size: 18px; }
+.menu-start { left: 40px; top: 180px; }
 .tutorial-site-nav {
   position: absolute;
   left: 350px;
-  top: 1600px;
-  width: 1800px;
+  top: 180px;
+  width: 1500px;
   height: 64px;
 }
 
 .tutorial-site-nav .menu {
   display: flex;
   align-items: flex-start;
-  gap: 0;
   width: 100%;
   margin: 0;
   padding: 0;
@@ -180,13 +206,13 @@ html[data-eimei-tutorial-step="3"] .swing-safety { display: block; }
 .tutorial-site-nav .menu > li {
   position: relative;
   flex: 0 0 auto;
-  min-width: 190px;
+  min-width: 180px;
   margin: 0;
-  padding: 0 22px 13px;
+  padding: 0 18px 13px;
   border-bottom: 2px solid rgba(36, 33, 29, 0.68);
   text-align: center;
   white-space: nowrap;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.2;
 }
 
@@ -235,31 +261,6 @@ html[data-eimei-tutorial-step="3"] .swing-safety { display: block; }
   top: 5px;
   color: #554f48;
   font-size: 12px;
-}
-
-.upper-course-reset {
-  left: 0;
-  top: 790px;
-  display: none;
-  width: 4300px;
-  overflow: hidden;
-  padding-bottom: 6px;
-  border-bottom: 2px solid rgba(36, 33, 29, 0.72);
-  color: #80786e;
-}
-
-html[data-eimei-tutorial-step="0"] .upper-course-reset,
-html[data-eimei-tutorial-step="1"] .upper-course-reset,
-html[data-eimei-tutorial-step="2"] .upper-course-reset { display: block; }
-
-.course-safety {
-  left: 0;
-  top: 2180px;
-  width: 4300px;
-  overflow: hidden;
-  padding-bottom: 6px;
-  border-bottom: 2px solid rgba(36, 33, 29, 0.72);
-  color: #80786e;
 }
 
 [hidden] { display: none !important; }

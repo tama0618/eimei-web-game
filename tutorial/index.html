@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>サイト歩行訓練</title>
-  <link rel="stylesheet" href="../game/map.css?v=f117439f22cf" data-eimei-game="map">
-  <link rel="stylesheet" href="./tutorial.css?v=f117439f22cf">
+  <link rel="stylesheet" href="../game/map.css?v=d1f30dadb358" data-eimei-game="map">
+  <link rel="stylesheet" href="./tutorial.css?v=d1f30dadb358">
 </head>
 <body>
   <header class="tutorial-header">
@@ -16,89 +16,93 @@
 
   <main class="tutorial-world" aria-label="操作チュートリアル">
     <section class="tutorial-stage stage-move" data-eimei-tutorial-stage>
-      <p class="platform spawn-platform"><span id="tutorial-start" data-eimei-tutorial-spawn>START</span> ━━━━━━━━━━━</p>
-      <p class="platform move-right">矢印キーで右へ　→━━━━━━━━</p>
-      <p class="platform move-left">━━━━━━━━←　今度は左へ</p>
+      <p class="platform spawn-platform"><span id="tutorial-start" data-eimei-tutorial-spawn>START</span> ━━━━━━━━━</p>
+      <p class="platform move-right">矢印キーで右へ　→━━━━━━</p>
+      <p class="platform move-left">━━━━━━←　今度は左へ</p>
       <p class="platform goal-platform move-goal" id="tutorial-move-goal">
-        <span data-eimei-tutorial-checkpoint data-require="move" data-entry="tutorial-start">移動の旗</span>━━━━━━━━
+        <span data-eimei-tutorial-checkpoint data-require="move" data-entry="tutorial-start" aria-label="移動講習の旗">旗</span>━━━━━━
       </p>
+      <p class="stage-reset" data-eimei-tutorial-reset>やり直し━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
     </section>
 
     <section class="tutorial-stage stage-jump" data-eimei-tutorial-stage>
-      <p class="platform jump-road" id="tutorial-jump-start">↑ / SPACE ジャンプ━━━━━━</p>
+      <p class="platform jump-road" id="tutorial-jump-start">↑ / SPACE でジャンプ━━━━━━━━</p>
       <div class="word-wall jump-wall" aria-label="ジャンプで越える壁"><span>壁</span><span>壁</span><span>壁</span></div>
       <p class="platform goal-platform jump-goal" id="tutorial-jump-goal">
-        ━━━<span data-eimei-tutorial-checkpoint data-require="jump" data-entry="tutorial-move-goal">ジャンプの旗</span>━━━
+        ━━━<span data-eimei-tutorial-checkpoint data-require="jump" data-entry="tutorial-jump-start" aria-label="ジャンプ講習の旗">旗</span>━━━━━━
       </p>
+      <p class="stage-reset" data-eimei-tutorial-reset>やり直し━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
     </section>
 
     <section class="tutorial-stage stage-double" data-eimei-tutorial-stage>
-      <p class="platform double-road" id="tutorial-double-start">空中でもう一度 ↑ / SPACE━━━━━━━━━━━━━━━━━━━━</p>
-      <div class="word-wall double-wall" aria-label="二段ジャンプで上がる高い壁"><span>二</span><span>段</span><span>上</span><span>へ</span></div>
+      <p class="platform double-road" id="tutorial-double-start">空中でもう一度 ↑ / SPACE━━━━━━━━━━━━</p>
+      <div class="word-wall double-wall" aria-label="二段ジャンプで上がる高い壁"><span>二</span><span>段</span><span>ジ</span><span>ャ</span><span>ン</span><span>プ</span><span>↑</span></div>
       <p class="platform goal-platform double-goal" id="tutorial-double-goal">
-        ━━━<span data-eimei-tutorial-checkpoint data-require="double" data-entry="tutorial-jump-goal">二段ジャンプの旗</span>━━
+        ━━━<span data-eimei-tutorial-checkpoint data-require="double" data-entry="tutorial-double-start" aria-label="二段ジャンプ講習の旗">旗</span>━━━━
       </p>
+      <p class="stage-reset" data-eimei-tutorial-reset>やり直し━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
     </section>
 
     <section class="tutorial-stage stage-swing" data-eimei-tutorial-stage>
       <p class="platform swing-note" data-eimei-game="tutorial-copy">X で糸を刺す　← → で振る</p>
-      <p class="platform web-anchor" data-eimei-tutorial-web-anchor>ここへ刺す━━━━━━━━</p>
-      <p class="platform swing-left" id="tutorial-swing-start">スウィング開始━━━━━━</p>
+      <p class="platform web-anchor" data-eimei-tutorial-web-anchor>ここへ刺す━━━━━━</p>
+      <p class="platform swing-left" id="tutorial-swing-start">ここからスウィング━━━━━━</p>
       <p class="platform goal-platform swing-right" id="tutorial-swing-goal">
-        ━━<span data-eimei-tutorial-checkpoint data-require="swing" data-entry="tutorial-double-goal">スウィングの旗</span>━━
+        ━━<span data-eimei-tutorial-checkpoint data-require="swing" data-entry="tutorial-swing-start" aria-label="スウィング講習の旗">旗</span>━━━━
       </p>
-      <p class="platform swing-safety" data-eimei-tutorial-reset>落下　直前の旗へ戻る━━━━━━━━━━━━━━━━━━━━</p>
+      <p class="stage-reset" data-eimei-tutorial-reset>落下　この講習の最初へ戻る━━━━━━━━━━━━━━━━━━━━</p>
     </section>
 
     <section class="tutorial-stage stage-reel" data-eimei-tutorial-stage>
       <p class="platform reel-note" data-eimei-game="tutorial-copy">真上の線へ X　刺さったまま ↑ で巻き取る</p>
-      <p class="platform hatch-platform ladder-upper" id="tutorial-reel-goal" data-eimei-tutorial-hatch>
-        ━━━━━<span data-eimei-tutorial-checkpoint data-require="reel" data-entry="tutorial-swing-goal">上貫通の旗</span>━━━━━
+      <p class="platform hatch-platform" id="tutorial-reel-goal" data-eimei-tutorial-hatch>
+        ━━━━━<span data-eimei-tutorial-checkpoint data-require="reel" data-entry="tutorial-reel-start" aria-label="巻き取りと上貫通講習の旗">旗</span>━━━━━
       </p>
-      <p class="platform reel-base" id="tutorial-reel-start">この真下から上へ━━━━━━━━━━</p>
+      <p class="platform reel-base" id="tutorial-reel-start">この真下で X → ↑━━━━━━━━━━</p>
+      <p class="stage-reset" data-eimei-tutorial-reset>やり直し━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
     </section>
 
     <section class="tutorial-stage stage-ladder" data-eimei-tutorial-stage>
-      <p class="platform ladder-note" data-eimei-game="tutorial-copy">↓ で梯子　途中で ← を押して降りる</p>
-      <p class="platform goal-platform ladder-exit" id="tutorial-ladder-goal">
-        <span data-eimei-tutorial-checkpoint data-require="ladder" data-entry="tutorial-reel-goal">途中下車の旗</span>━━━━━━
+      <p class="platform goal-platform ladder-upper" id="tutorial-ladder-goal">
+        ━━━<span data-eimei-tutorial-checkpoint data-require="ladder" data-entry="tutorial-ladder-lower" aria-label="梯子講習の旗">旗</span>━━━━━━
       </p>
-      <p class="platform ladder-lower" id="tutorial-ladder-lower">梯子の下━━━━━━━━━━</p>
-      <div class="authored-ladder" data-eimei-tutorial-ladder data-upper="tutorial-reel-goal" data-lower="tutorial-ladder-lower" aria-hidden="true"></div>
+      <p class="platform ladder-lower" id="tutorial-ladder-lower">梯子に触れて ↑ で上る━━━━━━━━</p>
+      <div class="authored-ladder" data-eimei-tutorial-ladder data-upper="tutorial-ladder-goal" data-lower="tutorial-ladder-lower" aria-hidden="true"></div>
+      <p class="stage-reset" data-eimei-tutorial-reset>やり直し━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
     </section>
 
     <section class="tutorial-stage stage-drop" data-eimei-tutorial-stage>
-      <p class="platform drop-note" data-eimei-game="tutorial-copy">薄い足場の上で ↓</p>
-      <p class="platform thin-floor" id="tutorial-drop-start">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
+      <p class="platform thin-floor" id="tutorial-drop-start">薄い足場の上で ↓━━━━━━━━━━━━━━━━━━</p>
       <div class="word-wall drop-wall-left" aria-hidden="true"><span>│</span><span>│</span><span>│</span><span>│</span><span>│</span><span>│</span><span>│</span><span>│</span></div>
       <div class="word-wall drop-wall-right" aria-hidden="true"><span>│</span><span>│</span><span>│</span><span>│</span><span>│</span><span>│</span><span>│</span><span>│</span></div>
       <p class="platform goal-platform drop-goal" id="tutorial-drop-goal">
-        ━━━<span data-eimei-tutorial-checkpoint data-require="drop" data-entry="tutorial-ladder-goal">下貫通の旗</span>━━━
+        ━━━<span data-eimei-tutorial-checkpoint data-require="drop" data-entry="tutorial-drop-start" aria-label="下貫通講習の旗">旗</span>━━━━━━
       </p>
+      <p class="stage-reset" data-eimei-tutorial-reset>やり直し━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
     </section>
 
     <section class="tutorial-stage stage-flag" data-eimei-tutorial-stage>
-      <p class="platform flag-road-one">本編は写真と同じ場所を探す━━━━━━━━━━</p>
+      <p class="platform flag-road-one" id="tutorial-flag-start">本編は写真と同じ場所を探す━━━━━━━━</p>
       <p class="platform flag-road-two">相手より先に現地の旗を取れば勝ち━━━━━━━━</p>
-      <p class="platform flag-road-three">黄色い光は最後のヒント━━━━━━━━━━</p>
+      <p class="platform flag-road-three">黄色い光は最後のヒント━━━━━━━━</p>
       <p class="platform goal-platform flag-goal" id="tutorial-flag-goal">
-        ━━━<span data-eimei-tutorial-checkpoint data-require="flag" data-entry="tutorial-drop-goal">練習の旗</span>━━━━
+        ━━━<span data-eimei-tutorial-checkpoint data-require="flag" data-entry="tutorial-flag-start" aria-label="練習用の旗">旗</span>━━━━━━
       </p>
+      <p class="stage-reset" data-eimei-tutorial-reset>やり直し━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
     </section>
 
     <section class="tutorial-stage stage-menu" data-eimei-tutorial-stage>
-      <p class="platform menu-note" data-eimei-game="tutorial-copy">見出しの上に立つと、下にメニューが開く</p>
+      <p class="platform menu-note" data-eimei-game="tutorial-copy">見出しの上に立つ → 梯子は ↑ ↓ → 横で降りる</p>
+      <p class="platform menu-start" id="tutorial-menu-start">学校案内へ━━━━━━━━</p>
       <nav id="main-nav" class="tutorial-site-nav" aria-label="メニューとドアの講習">
         <ul class="menu">
           <li class="menu-owner">
             <span class="menu-trigger">学校案内</span>
             <ul>
               <li><span>理事長・校長挨拶</span></li>
-              <li><span>校訓・教育方針</span></li>
-              <li><span>コース紹介</span></li>
               <li class="portal-row">
-                <span class="portal-command">ドアに触れて ↓</span>
-                <a href="../arena/index.html"><span data-eimei-tutorial-checkpoint data-require="portal" data-entry="tutorial-flag-goal">https://www.eimei.ed.jp/</span></a>
+                <span class="portal-command">← で棚へ　ドアに触れて ↓</span>
+                <a href="../arena/index.html"><span data-eimei-tutorial-checkpoint data-require="portal" data-entry="tutorial-menu-start">https://www.eimei.ed.jp/</span></a>
               </li>
             </ul>
           </li>
@@ -111,12 +115,10 @@
           <li><span>通信制課程</span></li>
         </ul>
       </nav>
+      <p class="stage-reset" data-eimei-tutorial-reset>やり直し━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
     </section>
-
-    <p class="upper-course-reset" data-eimei-tutorial-reset>やり直し━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
-    <p class="course-safety" data-eimei-tutorial-reset>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
   </main>
 
-  <script defer src="../game/map-runtime.js?v=f117439f22cf" data-eimei-game="map"></script>
+  <script defer src="../game/map-runtime.js?v=d1f30dadb358" data-eimei-game="map"></script>
 </body>
 </html>
