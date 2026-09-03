@@ -412,12 +412,40 @@
     completedSteps: []
   };
 
+  function captureFixedWorldPlacements() {
+    if (isPlanningDocument) return [];
+    return [...document.querySelectorAll("header, header img, section, .fixbana, #side, #side-wide, #tabbed")]
+      .filter((element) => getComputedStyle(element).position === "fixed")
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        element.classList.add("eimei-world-fixed");
+        return {
+          element,
+          left: rect.left,
+          top: rect.top
+        };
+      });
+  }
+
+  // Measure viewport-pinned school UI before the game class turns it into
+  // world geometry. `position:absolute` alone keeps it from following the
+  // camera, but an auto-positioned sidebar can jump into the header and lose
+  // all of its physical link rows. A small translate preserves the exact
+  // pre-game location while allowing the element to scroll with the stage.
+  const fixedWorldPlacements = captureFixedWorldPlacements();
+
   const canvas = document.createElement("canvas");
   canvas.id = "eimei-game-canvas";
   canvas.setAttribute("aria-hidden", "true");
   canvas.dataset.eimeiGame = "true";
   if (!isPlanningDocument) {
     document.documentElement.classList.add("eimei-game-active");
+    for (const placement of fixedWorldPlacements) {
+      const rect = placement.element.getBoundingClientRect();
+      const deltaX = placement.left - rect.left;
+      const deltaY = placement.top - rect.top;
+      placement.element.style.setProperty("translate", `${deltaX}px ${deltaY}px`, "important");
+    }
     document.documentElement.append(canvas);
   }
   let missionPreviewPhoto = null;
@@ -2143,6 +2171,10 @@
   function portalMissionCandidates(bodies, excludedPaths = new Set()) {
     const candidates = [];
     for (const anchor of document.querySelectorAll("a[href]")) {
+      // Fixed section navigation can overlap the desktop header on the source
+      // site itself. Players may still use its visible links, but mission
+      // planning must never choose one as the required portal.
+      if (anchor.closest("#side, #side-wide, #tabbed")) continue;
       // Portals need a physical text row after a hidden menu opens. Image-only
       // and empty utility links can borrow their parent tab during planning but
       // have nowhere real to place a door, which strands the guide in mid-air.

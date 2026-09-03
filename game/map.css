@@ -18,9 +18,10 @@ html.eimei-game-active body {
   transform-origin: 0 0;
 }
 
-/* Fixed headers are useful on a website but become moving geometry in a
-   platformer. Keep their initial appearance and make them part of the world. */
-html.eimei-game-active header {
+/* The runtime marks only elements which were actually viewport-fixed before
+   game mode started. Converting every header unconditionally removed the
+   desktop header from layout and pulled the red menu over unrelated links. */
+html.eimei-game-active .eimei-world-fixed {
   position: absolute !important;
 }
 
