@@ -18,6 +18,7 @@
   const roundStorageKey = "eimei-race-round-v1";
   const startPlacementStorageKey = "eimei-race-place-start-v1";
   const roomAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const photoIntroMilliseconds = 3200;
   const playerPalettes = [
     { primary: "#164c7e", dark: "#092643", accent: "#f05b32", visor: "#6ee8ff", glow: "rgba(31,151,211,.24)" },
     { primary: "#a53e32", dark: "#4f1714", accent: "#f0a52f", visor: "#ffd38a", glow: "rgba(197,73,57,.24)" },
@@ -66,6 +67,7 @@
     warmControllers: new Set(),
     warmedRoundId: null,
     lastGrappleMessage: null,
+    courseRetryCount: 0,
     lastError: null
   };
 
@@ -192,6 +194,7 @@
   function errorText(code) {
     return ({
       invalid_profile: "ニックネームは1〜8文字で入力してください",
+      room_full: "この部屋は4人で満員です",
       need_two_players: "対戦開始には2人以上必要です",
       host_only: "対戦を開始できるのは部屋の作成者です",
       round_active: "現在の対戦が終了するまで開始できません",
@@ -322,7 +325,10 @@
       return;
     }
     if (message.type === "course_request") {
-      if (race.room?.hostId === race.playerId) provideCourse(message);
+      if (race.room?.hostId === race.playerId) {
+        race.courseRetryCount = 0;
+        provideCourse(message);
+      }
       return;
     }
     if (message.type === "position") {
@@ -342,6 +348,18 @@
     if (message.type === "error") {
       race.lastError = message.code;
       setArenaStatus(errorText(message.code), "error");
+      if (
+        message.code === "invalid_course" &&
+        race.room?.hostId === race.playerId &&
+        race.room?.phase === "preparing" &&
+        race.courseRetryCount < 3
+      ) {
+        race.courseRetryCount += 1;
+        window.setTimeout(() => provideCourse({
+          seed: Number(race.room.courseSeed) + race.courseRetryCount * 0x9e3779b1,
+          recentGoalIds: race.room.recentGoalIds || []
+        }), 180);
+      }
     }
   }
 
@@ -373,7 +391,7 @@
     if (roomCode) roomCode.textContent = room.code;
     const count = document.querySelector("[data-race-player-count]");
     const connectedPlayers = room.players.filter((player) => player.connected);
-    if (count) count.textContent = String(connectedPlayers.length);
+    if (count) count.textContent = `${connectedPlayers.length} / ${room.maxPlayers || 4}`;
     const list = document.querySelector("[data-race-player-list]");
     if (list) {
       list.replaceChildren(...room.players.map((player) => {
@@ -487,7 +505,16 @@
     try {
       const catalog = await loadCatalog();
       const pageMap = new Map(catalog.pages.map((page) => [page.page, page]));
-      const playable = catalog.pages.filter((page) => page.targets.length > 0 && page.height >= 420);
+      const usableTarget = (target) => Boolean(
+        target &&
+        String(target.id || "").length > 0 && String(target.id).length <= 180 &&
+        String(target.selector || "").length > 0 && String(target.selector).length <= 700 &&
+        String(target.label || "").trim() &&
+        Number.isFinite(Number(target.x)) && Number.isFinite(Number(target.y))
+      );
+      const playable = catalog.pages
+        .map((page) => ({ ...page, targets: page.targets.filter(usableTarget) }))
+        .filter((page) => page.targets.length > 0 && page.height >= 420);
       const recent = new Set(recentGoalIds);
       const random = seededRandom(seed);
       let selected = null;
@@ -502,8 +529,14 @@
         const start = startPage.targets[Math.floor(random() * startPage.targets.length)];
         const goal = goalPool[Math.floor(random() * goalPool.length)];
         if (!start || !goal) continue;
+        const identity = `${start.id}=>${goal.id}`;
+        let identityHash = 2166136261;
+        for (let index = 0; index < identity.length; index += 1) {
+          identityHash ^= identity.charCodeAt(index);
+          identityHash = Math.imul(identityHash, 16777619);
+        }
         selected = {
-          id: `${start.id}=>${goal.id}`,
+          id: `race-${(Number(seed) >>> 0).toString(36)}-${(identityHash >>> 0).toString(36)}`,
           seed: Number(seed),
           start: { ...start, page: startPage.page, title: startPage.title },
           goal: { ...goal, page: goalPage.page, title: goalPage.title },
@@ -515,7 +548,16 @@
       send({ type: "course", course: selected });
     } catch (error) {
       race.lastError = error.message;
-      setArenaStatus("目的地を生成できませんでした", "error");
+      if (race.courseRetryCount < 3) {
+        race.courseRetryCount += 1;
+        setArenaStatus("目的地を再抽選しています");
+        window.setTimeout(() => provideCourse({
+          seed: Number(seed) + race.courseRetryCount * 0x9e3779b1,
+          recentGoalIds
+        }), 180);
+      } else {
+        setArenaStatus("目的地を生成できませんでした。もう一度開始してください", "error");
+      }
     }
   }
 
@@ -796,10 +838,11 @@
   }
 
   function ensureRacePhoto(goal) {
-    if (race.photo?.goal.id === goal.id) return;
+    if (race.photo?.goal.id === goal.id && race.photo.roundId === race.room?.roundId) return;
+    window.clearTimeout(race.photo?.introTimer);
     race.photo?.root.remove();
     const root = document.createElement("div");
-    root.className = "eimei-race-photo";
+    root.className = "eimei-race-photo is-intro";
     root.setAttribute("aria-label", "目的地の写真。Cキーで拡大");
     const iframe = document.createElement("iframe");
     iframe.tabIndex = -1;
@@ -817,10 +860,19 @@
       iframe,
       marker,
       goal,
+      roundId: race.room?.roundId || null,
       scale: 1,
       viewWidth: Math.max(1, window.innerWidth),
-      viewHeight: Math.max(1, window.innerHeight)
+      viewHeight: Math.max(1, window.innerHeight),
+      introUntil: performance.now() + photoIntroMilliseconds,
+      introTimer: 0
     };
+    const currentPhoto = race.photo;
+    currentPhoto.introTimer = window.setTimeout(() => {
+      if (race.photo !== currentPhoto) return;
+      currentPhoto.root.classList.remove("is-intro");
+      sizePhoto();
+    }, photoIntroMilliseconds);
     const url = new URL(goal.page.replace(/^\//, ""), staticRoot);
     url.searchParams.set("eimei-preview", "1");
     iframe.addEventListener("load", () => {
@@ -852,7 +904,7 @@
       window.EimeiMap?.setRaceFrozen?.(false);
       return;
     }
-    const showingPhoto = remaining > 4000;
+    const showingPhoto = Boolean(race.photo && performance.now() < race.photo.introUntil);
     if (race.photo) {
       const changed = race.photo.root.classList.toggle("is-intro", showingPhoto);
       if (changed) sizePhoto();
@@ -918,7 +970,7 @@
       const root = document.createElement("div");
       root.className = "eimei-race-ghost";
       const name = race.room.players.find((player) => player.id === message.playerId)?.nickname || "PLAYER";
-      root.innerHTML = `<span class="eimei-race-ghost-name"></span><span class="eimei-race-ghost-body"></span><span class="eimei-race-ghost-head"></span>`;
+      root.innerHTML = `<span class="eimei-race-ghost-name"></span>`;
       root.querySelector(".eimei-race-ghost-name").textContent = name;
       root.style.setProperty("--race-player-color", paletteFor(
         race.room.players.find((player) => player.id === message.playerId)
@@ -928,15 +980,28 @@
       race.ghosts.set(message.playerId, ghost);
     }
     ghost.lastAt = performance.now();
-    ghost.root.style.left = `${Number(message.x) * map.state.documentWidth - map.player.width * .5}px`;
-    ghost.root.style.top = `${Number(message.y) * map.state.documentHeight - map.player.height}px`;
     const remoteX = Number(message.x) * map.state.documentWidth;
     const remoteY = Number(message.y) * map.state.documentHeight - map.player.height * .55;
+    const remoteLeft = remoteX - map.player.width * .5;
+    const remoteTop = Number(message.y) * map.state.documentHeight - map.player.height;
+    const localCenterX = map.player.x + map.player.width * .5;
+    const localFeetY = map.player.y + map.player.height;
+    const overlapsLocal = Math.abs(remoteX - localCenterX) < map.player.width * 1.15 &&
+      Math.abs(Number(message.y) * map.state.documentHeight - localFeetY) < map.player.height * .8;
+    const remotePlayer = race.room.players.find((player) => player.id === message.playerId);
+    const colorIndex = Number(remotePlayer?.colorIndex) || 0;
+    const overlapDirection = colorIndex % 2 === 0 ? -1 : 1;
+    const overlapOffset = overlapsLocal ? overlapDirection * (11 + Math.floor(colorIndex / 2) * 2) : 0;
+    ghost.root.classList.toggle("is-overlapping", overlapsLocal);
+    ghost.root.style.setProperty("--race-overlap-offset", `${overlapOffset}px`);
+    ghost.root.style.left = `${remoteLeft}px`;
+    ghost.root.style.top = `${remoteTop}px`;
     map.setRaceRemotePlayer?.({
       id: message.playerId,
       x: remoteX,
       y: remoteY,
       facing: message.facing,
+      visualOffsetX: overlapOffset,
       palette: paletteFor(race.room.players.find((player) => player.id === message.playerId))
     });
   }
@@ -972,11 +1037,38 @@
   function showResult() {
     if (race.result || !race.room) return;
     const winner = race.room.players.find((player) => player.id === race.room.winnerId);
+    const roundPlayerIds = new Set(race.room.roundPlayerIds || []);
+    const participants = race.room.players
+      .filter((player) => roundPlayerIds.size === 0
+        ? player.connected || player.currentPage || player.id === race.room.winnerId
+        : roundPlayerIds.has(player.id))
+      .toSorted((first, second) =>
+        Number(second.id === race.room.winnerId) - Number(first.id === race.room.winnerId) ||
+        (Number(second.points) || 0) - (Number(first.points) || 0) ||
+        first.joinedAt - second.joinedAt
+      );
     const root = document.createElement("div");
     root.className = "eimei-race-result";
-    root.innerHTML = `<section class="eimei-race-result-card"><p class="eimei-race-result-kicker">RACE RESULT</p><h2></h2><p></p><button type="button">待機室へ戻る</button></section>`;
+    root.innerHTML = `<section class="eimei-race-result-card"><p class="eimei-race-result-kicker">RACE RESULT</p><h2></h2><p class="eimei-race-result-summary">この部屋の通算ポイント</p><div class="eimei-race-result-players"></div><button type="button">待機室へ戻る</button></section>`;
     root.querySelector("h2").textContent = `${winner?.nickname || "PLAYER"} の勝利`;
-    root.querySelector("section > p:not(.eimei-race-result-kicker)").textContent = winner?.id === race.playerId ? "一番乗りです。" : "次は先に見つければ勝ち。";
+    const playerGrid = root.querySelector(".eimei-race-result-players");
+    playerGrid.replaceChildren(...participants.map((participant) => {
+      const palette = paletteFor(participant);
+      const card = document.createElement("article");
+      card.className = "eimei-race-result-player";
+      card.classList.toggle("is-winner", participant.id === race.room.winnerId);
+      card.classList.toggle("is-self", participant.id === race.playerId);
+      card.style.setProperty("--race-player-color", palette.primary);
+      card.style.setProperty("--race-player-visor", palette.visor);
+      card.style.setProperty("--race-player-accent", palette.accent);
+      card.innerHTML = `<span class="eimei-race-result-player-avatar" aria-hidden="true"></span><span class="eimei-race-result-player-copy"><span class="eimei-race-result-player-name"></span><span class="eimei-race-result-player-state"></span></span><span class="eimei-race-result-player-points"><strong></strong><span>PT</span></span>`;
+      card.querySelector(".eimei-race-result-player-name").textContent = participant.nickname;
+      card.querySelector(".eimei-race-result-player-state").textContent = participant.id === race.room.winnerId
+        ? "WINNER"
+        : participant.id === race.playerId ? "YOU" : "CHALLENGER";
+      card.querySelector("strong").textContent = String(Math.max(0, Number.parseInt(participant.points, 10) || 0));
+      return card;
+    }));
     root.querySelector("button").addEventListener("click", () => location.assign(arenaRoomUrl().href));
     document.documentElement.append(root);
     race.result = root;

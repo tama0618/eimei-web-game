@@ -122,19 +122,33 @@
   background: rgba(18,22,28,.72);
   font-family: "Yu Gothic", system-ui, sans-serif;
 }
-.eimei-race-result-card { width: min(500px,calc(100vw - 48px)); padding: 34px; border: 2px solid #252b34; background: #fffdf6; box-shadow: 10px 12px 0 rgba(0,0,0,.25); text-align: center; }
-.eimei-race-result-kicker { margin: 0 0 10px; color: #737b85; font: 700 13px/1 Georgia,serif; letter-spacing: .22em; }
-.eimei-race-result h2 { margin: 0 0 10px; font-size: clamp(28px,6vw,48px); }
-.eimei-race-result p { margin: 0 0 24px; color: #555f6a; }
-.eimei-race-result button { padding: 13px 24px; border: 2px solid #252b34; color: #fff; background: #223f70; font-weight: 800; cursor: pointer; }
+.eimei-race-result .eimei-race-result-card { all: initial; box-sizing: border-box; position: relative !important; display: block !important; width: min(720px,calc(100vw - 48px)); height: auto !important; max-height: calc(100vh - 48px); overflow: auto; padding: 30px; border: 2px solid #252b34; color: #202832; background: #fffdf6; box-shadow: 10px 12px 0 rgba(0,0,0,.25); text-align: center; font-family: "Yu Gothic",system-ui,sans-serif; }
+.eimei-race-result .eimei-race-result-kicker { all: unset; display: block; margin: 0 0 8px; color: #737b85; font: 700 13px/1 Georgia,serif; letter-spacing: .22em; }
+.eimei-race-result .eimei-race-result-card > h2 { all: unset; position: static !important; display: block; margin: 0 0 7px; color: #202832; font: 900 clamp(28px,6vw,48px)/1.15 "Yu Gothic",system-ui,sans-serif; }
+.eimei-race-result .eimei-race-result-summary { all: unset; display: block; margin: 0 0 22px; color: #66707b; font: 700 13px/1.5 "Yu Gothic",system-ui,sans-serif; }
+.eimei-race-result-players { all: unset; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-bottom: 24px; text-align: left; }
+.eimei-race-result-player { all: unset; box-sizing: border-box; position: relative; display: grid; grid-template-columns: 46px minmax(0,1fr) auto; align-items: center; gap: 10px; min-width: 0; padding: 12px; border: 2px solid var(--race-player-color,#42536e); background: #fffdf6; background: color-mix(in srgb,var(--race-player-color,#42536e) 9%,#fffdf6); }
+.eimei-race-result-player.is-winner { border-color: #d49721; box-shadow: inset 0 4px #f0c34e; }
+.eimei-race-result-player-avatar { position: relative; width: 36px; height: 36px; border: 2px solid #fff; border-radius: 50%; background: var(--race-player-color,#42536e); box-shadow: 0 2px 0 rgba(0,0,0,.2); }
+.eimei-race-result-player-avatar::before { content: ""; position: absolute; top: 9px; right: 3px; width: 20px; height: 9px; border: 1px solid #fff; border-radius: 6px; background: var(--race-player-visor,#dffcff); }
+.eimei-race-result-player-avatar::after { content: ""; position: absolute; right: 27px; top: 22px; width: 11px; height: 4px; border-radius: 4px; background: var(--race-player-accent,#f05b32); transform: rotate(12deg); }
+.eimei-race-result-player-copy { min-width: 0; }
+.eimei-race-result-player-name { display: block; overflow: hidden; font-size: 16px; font-weight: 900; white-space: nowrap; text-overflow: ellipsis; }
+.eimei-race-result-player-state { display: block; margin-top: 2px; color: #6a737e; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.eimei-race-result-player.is-winner .eimei-race-result-player-state { color: #ad6d12; }
+.eimei-race-result-player-points { min-width: 54px; text-align: right; }
+.eimei-race-result-player-points strong { display: inline; font: 900 27px/1 Georgia,serif; }
+.eimei-race-result-player-points span { margin-left: 3px; color: #6f7780; font: 800 9px/1 system-ui,sans-serif; }
+.eimei-race-result .eimei-race-result-card > button { all: unset; box-sizing: border-box; display: inline-block; padding: 13px 24px; border: 2px solid #252b34; color: #fff; background: #223f70; font: 800 14px/1.2 "Yu Gothic",system-ui,sans-serif; cursor: pointer; }
+.eimei-race-result .eimei-race-result-card > button:focus-visible { outline: 3px solid #e0a828; outline-offset: 3px; }
 
-.eimei-race-ghost { position: absolute; z-index: 2147482998; width: 18px; height: 25px; pointer-events: none; transition: left .1s linear, top .1s linear; }
-.eimei-race-ghost-body { position: absolute; left: 3px; top: 10px; width: 12px; height: 14px; border-radius: 6px 6px 4px 4px; background: var(--race-player-color, #42536e); opacity: .72; outline: 1px solid rgba(255,255,255,.9); }
-.eimei-race-ghost-head { position: absolute; left: 2px; top: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--race-player-color, #42536e); opacity: .8; outline: 1px solid rgba(255,255,255,.9); }
+.eimei-race-ghost { position: absolute; z-index: 2147483004; width: 18px; height: 25px; transform: translateX(var(--race-overlap-offset,0)); pointer-events: none; transition: left .1s linear, top .1s linear, transform .12s ease-out; }
+.eimei-race-ghost.is-overlapping .eimei-race-ghost-name { color: #fff; background: var(--race-player-color, #42536e); }
 .eimei-race-ghost-name { position: absolute; left: 50%; top: -17px; max-width: 110px; padding: 1px 4px; transform: translateX(-50%); overflow: hidden; color: #202832; background: rgba(255,253,246,.88); font: 700 10px/1.3 system-ui,sans-serif; white-space: nowrap; text-overflow: ellipsis; }
 
 @media (max-width: 760px) {
   .eimei-race-photo { --photo-scale: .18; }
   .eimei-race-hud { width: 42vw; }
   .eimei-race-hints { left: auto; right: 12px; width: 48vw; transform: none; text-align: right; }
+  .eimei-race-result-players { grid-template-columns: 1fr; }
 }

@@ -420,7 +420,10 @@
     finishReportedAt: -Infinity,
     missingRoutePage: null,
     remotePlayers: new Map(),
-    incomingGrapples: new Map()
+    incomingGrapples: new Map(),
+    remoteRenderCount: 0,
+    remoteRenderStyle: "full-character",
+    lastRemoteRenderAt: -Infinity
   };
 
   const tutorial = {
@@ -442,6 +445,7 @@
     lastWebLength: 0,
     webStartX: null,
     ladderStartY: null,
+    resetAt: -Infinity,
     completedSteps: []
   };
 
@@ -1517,7 +1521,7 @@
     const centerY = rect.top + window.scrollY + rect.height * 0.5;
     return state.textBodies
       .filter((body) => body.sourceRegions?.some((region) =>
-        region.element === element || element.contains(region.element)
+        region.element === element || element.contains(region.element) || region.element.contains?.(element)
       ))
       .toSorted((a, b) =>
         Math.abs(bodyCenterX(a) - centerX) + Math.abs(a.y - centerY) * 3 -
@@ -3332,7 +3336,7 @@
 
   function tutorialGoalPoint(body, element) {
     const regions = body.sourceRegions?.filter((region) =>
-      region.element === element || element.contains(region.element)
+      region.element === element || element.contains(region.element) || region.element.contains?.(element)
     ) || [];
     const left = regions.length > 0 ? Math.min(...regions.map((region) => region.left)) : body.x;
     const right = regions.length > 0 ? Math.max(...regions.map((region) => region.right)) : body.x + body.width;
@@ -3349,7 +3353,12 @@
     const checkpoints = tutorialCheckpoints();
     const checkpoint = checkpoints[index];
     if (!checkpoint) return false;
-    const goalBody = tutorialBodyForElement(checkpoint);
+    const anchor = checkpoint.closest("a[href]");
+    // The final menu lesson deliberately keeps its destination row hidden
+    // until the player stands on the parent tab. Use that visible tab as the
+    // temporary physical goal, then the normal hover rebuild remaps it to the
+    // real link row after the menu opens.
+    const goalBody = tutorialBodyForElement(checkpoint) || (anchor ? portalBodyForAnchor(anchor) : null);
     if (!goalBody) return false;
 
     tutorial.step = index;
@@ -3358,10 +3367,15 @@
     for (const element of checkpoints) element.classList.remove("is-current");
     checkpoint.classList.add("is-current");
 
-    const anchor = checkpoint.closest("a[href]");
     const support = player.navigationBody || supportingMapBody() || mission.spawnBody || goalBody;
-    const route = support === goalBody ? [goalBody] : [support, goalBody].filter(Boolean);
-    const point = tutorialGoalPoint(goalBody, checkpoint);
+    // Tutorial guidance has exactly one meaningful target: the next flag (or
+    // menu tab proxy). Including the platform already under the player made
+    // the light appear to stop there for a frame and sometimes wait for the
+    // platform to be stepped on again.
+    const route = [goalBody];
+    const point = anchor && !isElementVisible(checkpoint)
+      ? { x: bodyCenterX(goalBody), y: goalBody.y }
+      : tutorialGoalPoint(goalBody, checkpoint);
     mission.initialized = true;
     mission.scoreAttack = false;
     mission.scoreFinished = false;
@@ -3374,7 +3388,7 @@
     mission.continuationMode = "tutorial";
     mission.runId = "tutorial";
     mission.route = route;
-    mission.routeDistance = routeTravelDistance(route);
+    mission.routeDistance = directBodyDistance(support, goalBody);
     mission.routePhysicalAtPlan = false;
     mission.routeIndex = Math.max(0, route.length - 1);
     mission.guideBody = null;
@@ -3426,8 +3440,8 @@
     tutorial.completedSteps.push(checkpoint.dataset.require || "reach");
     checkpoint.classList.remove("is-current");
     checkpoint.classList.add("is-complete");
-    const release = document.querySelector(`[data-eimei-tutorial-release="${completedIndex}"]`);
-    if (release) {
+    const releases = [...document.querySelectorAll(`[data-eimei-tutorial-release="${completedIndex}"]`)];
+    for (const release of releases) {
       release.hidden = true;
       release.setAttribute("aria-hidden", "true");
     }
@@ -3437,10 +3451,44 @@
     // Select the next visible checkpoint before rebuilding. Waiting for a
     // resize/rebuild callback left a tiny but real state where no destination
     // existed; on slow devices that state could persist for seconds.
-    setTutorialStep(completedIndex + 1, { launchFromPlayer: true });
+    let advanced = setTutorialStep(completedIndex + 1, { launchFromPlayer: true });
+    if (!advanced) {
+      // A hover-only rebuild can replace the body set on the exact frame a
+      // flag is collected. Rebuild once and resolve the next flag now; leaving
+      // `transitioning` true would strand the tutorial at the previous flag.
+      buildCollisionMap({ preservePlayer: true });
+      advanced = setTutorialStep(completedIndex + 1, { launchFromPlayer: true });
+    }
+    if (!advanced) tutorial.transitioning = false;
+    // The course swaps a few visible safety nets as its path turns upward or
+    // downward. Rebuild asynchronously after the next goal is already live.
     scheduleRebuild();
     window.dispatchEvent(new CustomEvent("eimei-tutorial-complete", {
       detail: { index: completedIndex, completedAt: nowSeconds }
+    }));
+    return true;
+  }
+
+  function resetTutorialFromSafety(support, nowSeconds) {
+    if (!tutorial.active || !player.grounded || !support || nowSeconds < tutorial.resetAt) return false;
+    const sources = [support.sourceElement, ...(support.sourceRegions || []).map((region) => region.element)]
+      .filter(Boolean);
+    const resetSurface = sources.map((source) =>
+      source.matches?.("[data-eimei-tutorial-reset]")
+        ? source
+        : source.closest?.("[data-eimei-tutorial-reset]")
+    ).find(Boolean);
+    if (!resetSurface) return false;
+    const checkpoint = tutorialCurrentCheckpoint();
+    const entryId = checkpoint?.dataset.entry || "tutorial-start";
+    const entryBody = tutorialBodyForElement(document.getElementById(entryId));
+    if (!entryBody) return false;
+    tutorial.resetAt = nowSeconds + 0.45;
+    placePlayerOnBody(entryBody, { randomizeX: false });
+    mission.lastStandingBody = entryBody;
+    setKeypointGuide({ launchFromPlayer: true });
+    window.dispatchEvent(new CustomEvent("eimei-tutorial-reset", {
+      detail: { index: tutorial.step, entryId }
     }));
     return true;
   }
@@ -3460,7 +3508,34 @@
     mission.spawnBody = spawnBody;
     mission.visitedPaths = [pageIdentity()];
     placePlayerOnBody(spawnBody, { randomizeX: false });
+    // A tutorial entrance is not itself a scavenger hunt. Prefer the part of
+    // a long merged text floor that actually owns the START marker, then put
+    // it on screen immediately even when the browser restored an old scroll.
+    const spawnRegions = spawnBody.sourceRegions?.filter((region) =>
+      region.element === spawnElement || spawnElement?.contains(region.element) || region.element.contains?.(spawnElement)
+    ) || [];
+    if (spawnRegions.length > 0) {
+      const left = Math.min(...spawnRegions.map((region) => region.left));
+      const right = Math.max(...spawnRegions.map((region) => region.right));
+      const preferredCenter = (left + right) * 0.5;
+      const spawnX = [...(spawnBody.navigationXs || [])]
+        .filter((x) => x + player.width * 0.5 >= left && x + player.width * 0.5 <= right)
+        .sort((a, b) =>
+          Math.abs(a + player.width * 0.5 - preferredCenter) - Math.abs(b + player.width * 0.5 - preferredCenter)
+        )[0];
+      if (Number.isFinite(spawnX)) {
+        player.x = spawnX;
+        player.spawnX = spawnX;
+      }
+    }
     setTutorialStep(0, { launchFromPlayer: true });
+    const focusStart = () => window.scrollTo({
+      left: Math.max(0, player.x - window.innerWidth * 0.34),
+      top: Math.max(0, player.y - window.innerHeight * 0.48),
+      behavior: "instant"
+    });
+    focusStart();
+    requestAnimationFrame(focusStart);
   }
 
   function raceTargetElement(target) {
@@ -3535,17 +3610,33 @@
     };
   }
 
-  function setRaceRemotePlayer({ id, x, y, facing = 1, palette = null } = {}) {
+  function setRaceRemotePlayer({ id, x, y, facing = 1, palette = null, visualOffsetX = 0 } = {}) {
     if (!race.active || !id || !Number.isFinite(Number(x) + Number(y))) return false;
+    const nowSeconds = performance.now() / 1000;
     const existing = race.remotePlayers.get(String(id)) || {};
+    const nextX = Number(x);
+    const nextY = Number(y);
+    const previousX = Number.isFinite(existing.x) ? existing.x : nextX;
+    const previousY = Number.isFinite(existing.y) ? existing.y : nextY;
+    const updateSeconds = Math.max(1 / 120, nowSeconds - (existing.updatedAt || nowSeconds));
+    const measuredVelocityX = (nextX - previousX) / updateSeconds;
+    const measuredVelocityY = (nextY - previousY) / updateSeconds;
     race.remotePlayers.set(String(id), {
       ...existing,
       id: String(id),
-      x: Number(x),
-      y: Number(y),
+      x: nextX,
+      y: nextY,
+      renderX: Number.isFinite(existing.renderX) ? existing.renderX : nextX,
+      renderY: Number.isFinite(existing.renderY) ? existing.renderY : nextY,
+      velocityX: Math.max(-CONFIG.maxRunSpeed * 1.4, Math.min(CONFIG.maxRunSpeed * 1.4, measuredVelocityX)),
+      velocityY: Math.max(-CONFIG.maxFallSpeed, Math.min(CONFIG.maxFallSpeed, measuredVelocityY)),
       facing: Number(facing) < 0 ? -1 : 1,
       palette: palette || existing.palette || null,
-      expiresAt: performance.now() / 1000 + 2.2
+      visualOffsetX: Number.isFinite(Number(visualOffsetX)) ? Number(visualOffsetX) : 0,
+      updatedAt: nowSeconds,
+      renderedAt: existing.renderedAt || nowSeconds,
+      runPhase: existing.runPhase || 0,
+      expiresAt: nowSeconds + 2.2
     });
     return true;
   }
@@ -5227,8 +5318,14 @@
   function positionPortalForEntry(portal, body, anchor, entrySide = 0) {
     if (!portal || !body || !anchor || portal.entering) return;
     const region = anchorRegion(body, anchor);
-    const center = Math.max(region.left, Math.min(player.x + player.width * 0.5, region.right));
-    portal.entrySide = Math.sign(entrySide);
+    const nextEntrySide = Math.sign(entrySide);
+    const regionWidth = Math.max(1, region.right - region.left);
+    if (!Number.isFinite(portal.anchorRatio) || portal.entrySide !== nextEntrySide) {
+      const approachedCenter = Math.max(region.left, Math.min(player.x + player.width * 0.5, region.right));
+      portal.anchorRatio = Math.max(0, Math.min(1, (approachedCenter - region.left) / regionWidth));
+    }
+    const center = region.left + regionWidth * portal.anchorRatio;
+    portal.entrySide = nextEntrySide;
     portal.x = portal.entrySide < 0
       ? region.left - CONFIG.portalWidth
       : portal.entrySide > 0 ? region.right : center - CONFIG.portalWidth * 0.5;
@@ -5347,6 +5444,7 @@
           x: 0,
           baseY: 0,
           entrySide: 0,
+          anchorRatio: Number.NaN,
           color: getComputedStyle(anchor).color || standingBody.visualColor || "#333333",
           progress: 0,
           entering: false,
@@ -5375,9 +5473,7 @@
       height: CONFIG.portalHeight
     };
     const nearPortal = playerIsNearPortal(portal);
-    const guidedPortalVisible = portal.anchor === mission.portalAnchor &&
-      portalBodyIsUsable(mission.goalBody, portal.anchor);
-    const shouldRemain = portal.entering || anchor === portal.anchor || nearPortal || guidedPortalVisible || nowSeconds - portal.lastTouched < 0.65;
+    const shouldRemain = portal.entering || anchor === portal.anchor || nearPortal || nowSeconds - portal.lastTouched < 0.65;
     portal.progress = Math.max(0, Math.min(1, portal.progress + (shouldRemain ? 1 : -1) * dt / CONFIG.portalGrowSeconds));
 
     if (portal.entering) {
@@ -5424,14 +5520,9 @@
     let best = null;
     let bestScore = Infinity;
     refreshHatchCandidate();
-    const hatchPoint = state.hatchCandidate ? {
-      x: state.hatchCandidate.centerX,
-      y: state.hatchCandidate.body.y + state.hatchCandidate.body.height,
-      kind: "hatch-seam",
-      hatchSeam: true
-    } : null;
+    const tutorialCheckpoint = tutorial.active ? tutorialCurrentCheckpoint() : null;
     const tutorialAnchorElement = tutorial.active
-      ? tutorialCurrentCheckpoint()?.closest("[data-eimei-tutorial-stage]")
+      ? tutorialCheckpoint?.closest("[data-eimei-tutorial-stage]")
         ?.querySelector("[data-eimei-tutorial-web-anchor]")
       : null;
     const tutorialAnchorBody = tutorialBodyForElement(tutorialAnchorElement);
@@ -5440,6 +5531,15 @@
       y: tutorialAnchorBody.y,
       kind: "tutorial-anchor",
       tutorialAnchor: true
+    } : null;
+    // The swing lesson has one authored anchor. A route-generated hatch seam
+    // can be closer, but teaching the wrong grapple here makes the obstacle
+    // look broken. Outside this lesson normal hatch auto-aim remains active.
+    const hatchPoint = state.hatchCandidate && !(tutorialCheckpoint?.dataset.require === "swing" && tutorialPoint) ? {
+      x: state.hatchCandidate.centerX,
+      y: state.hatchCandidate.body.y + state.hatchCandidate.body.height,
+      kind: "hatch-seam",
+      hatchSeam: true
     } : null;
     expireRacePlayerEffects();
     const remotePlayerPoints = race.active
@@ -5470,13 +5570,17 @@
         dx * desiredDirection >= -24;
       const shortHatchAnchor = isNearbyHatchAnchor(anchorBody, centerX, centerY, point.x, point.y);
       if (!regularAnchor && !shortHatchAnchor && !remoteAnchor) continue;
-      if ((!anchorBody && !remoteAnchor) || !webLineIsClear(centerX, centerY, point.x, point.y, anchorBody)) continue;
+      if (
+        (!anchorBody && !remoteAnchor) ||
+        !webLineIsClear(centerX, centerY, point.x, point.y, anchorBody, point.remotePlayer ? 0.8 : 0.985)
+      ) continue;
       const behindPenalty = !point.hatchSeam && !point.tutorialAnchor && dx * desiredDirection < -18 ? 115 : 0;
       const kindPenalty = point.kind === "image" ? 28 : point.kind === "line" ? 8 : 0;
       const score = distance * (point.hatchSeam ? 0.42 : point.remotePlayer ? 0.64 : 1) + behindPenalty + kindPenalty +
         Math.abs(dx) * (point.hatchSeam ? 0.012 : 0.04) -
         (shortHatchAnchor ? 24 : 0) - (point.hatchSeam ? 190 : 0) -
-        (point.tutorialAnchor ? 240 : 0) - (point.remotePlayer ? 135 : 0);
+        (point.tutorialAnchor ? 240 : 0) -
+        (point.remotePlayer ? (distance <= 440 ? 430 : 220) : 0);
       if (score < bestScore) {
         best = shortHatchAnchor ? { ...point, shortHatchAnchor: true } : point;
         bestScore = score;
@@ -5538,7 +5642,7 @@
     return exit >= 0 && entry <= 1 ? Math.max(0, entry) : null;
   }
 
-  function webLineIsClear(startX, startY, endX, endY, anchorBody) {
+  function webLineIsClear(startX, startY, endX, endY, anchorBody, maximumEntry = 0.985) {
     return !state.bodies.some((body) => {
       if (body === anchorBody || (body.kind !== "text" && body.kind !== "line")) return false;
       // Tutorial checkpoints use a full-width bottom border as a physical
@@ -5554,7 +5658,7 @@
         )
       ) return false;
       const entry = segmentEntryTime(startX, startY, endX, endY, body);
-      return Number.isFinite(entry) && entry > 0.001 && entry < 0.985;
+      return Number.isFinite(entry) && entry > 0.001 && entry < maximumEntry;
     });
   }
 
@@ -6241,18 +6345,37 @@
     const anchor = mission.portalAnchor;
     if (!anchor || !portalBodyIsUsable(body, anchor)) return false;
     const region = anchorRegion(body, anchor);
+    const activationRect = {
+      x: region.left - CONFIG.portalWidth - 12,
+      y: body.y - CONFIG.portalHeight - 10,
+      width: Math.max(1, region.right - region.left) + CONFIG.portalWidth * 2 + 24,
+      height: CONFIG.portalHeight + body.height + 20
+    };
+    // Navigation may point at a link from the other side of the page, but the
+    // ordinary door should not materialize there until the player arrives.
+    // The yellow guide remains visible, so hiding the premature door loses no
+    // information and prevents it from appearing to follow the character.
+    if (!intersects(player, activationRect)) return true;
     const desiredCenter = Math.max(
       region.left,
       Math.min(mission.goalPoint?.x ?? player.x + player.width * 0.5, region.right)
     );
+    const playerCenter = player.x + player.width * 0.5;
+    const entrySide = playerCenter < region.left - player.width * 0.15
+      ? -1
+      : playerCenter > region.right + player.width * 0.15 ? 1 : 0;
     if (interaction.portal?.anchor === anchor) {
-      interaction.portal.x = desiredCenter - CONFIG.portalWidth * 0.5;
-      interaction.portal.baseY = body.y;
+      if (entrySide === 0) {
+        interaction.portal.entrySide = 0;
+        interaction.portal.anchorRatio = (desiredCenter - region.left) /
+          Math.max(1, region.right - region.left);
+      }
+      positionPortalForEntry(interaction.portal, body, anchor, entrySide);
       interaction.portal.color = getComputedStyle(anchor).color || body.visualColor || "#333333";
       interaction.portal.lastTouched = nowSeconds;
       return true;
     }
-    updatePortal(anchor, body, 0, nowSeconds);
+    updatePortal(anchor, body, 0, nowSeconds, { entrySide });
     return interaction.portal?.anchor === anchor;
   }
 
@@ -6460,6 +6583,7 @@
   function updateNavigation(dt, nowSeconds) {
     if (!mission.initialized) return;
     const support = player.navigationBody || (player.grounded ? supportingMapBody() : null);
+    if (resetTutorialFromSafety(support, nowSeconds)) return;
     if (
       race.active &&
       !race.finished &&
@@ -7287,13 +7411,16 @@
     for (const grapple of race.incomingGrapples.values()) {
       const startX = grapple.x - scrollX;
       const startY = grapple.y - scrollY;
-      context.strokeStyle = "rgba(6, 20, 38, 0.5)";
+      const palette = grapple.palette || player.palette;
+      context.strokeStyle = palette.dark;
+      context.globalAlpha = 0.7;
       context.lineWidth = 4.4;
       context.beginPath();
       context.moveTo(startX, startY);
       context.lineTo(targetX, targetY);
       context.stroke();
-      context.strokeStyle = grapple.palette?.visor || "rgba(220, 252, 255, 0.98)";
+      context.globalAlpha = 1;
+      context.strokeStyle = palette.primary;
       context.lineWidth = 1.8;
       context.stroke();
     }
@@ -7309,20 +7436,22 @@
     const endY = web.anchorY - scrollY;
 
     context.save();
-    context.strokeStyle = "rgba(6, 32, 62, 0.48)";
+    context.strokeStyle = player.palette.dark;
+    context.globalAlpha = 0.7;
     context.lineWidth = 4.2;
     context.beginPath();
     context.moveTo(startX, startY);
     context.lineTo(endX, endY);
     context.stroke();
-    context.strokeStyle = "rgba(220, 252, 255, 0.97)";
+    context.globalAlpha = 1;
+    context.strokeStyle = player.palette.primary;
     context.lineWidth = 1.7;
     context.stroke();
-    context.fillStyle = web.candidate?.palette?.glow || "rgba(64, 223, 255, 0.28)";
+    context.fillStyle = player.palette.glow;
     context.beginPath();
     context.arc(endX, endY, 7.2, 0, Math.PI * 2);
     context.fill();
-    context.fillStyle = web.candidate?.palette?.visor || "#5eeaff";
+    context.fillStyle = player.palette.visor;
     context.beginPath();
     context.arc(endX, endY, 3.8, 0, Math.PI * 2);
     context.fill();
@@ -7597,6 +7726,122 @@
       drawPortalSwarm(rect, portal.progress, scrollX, scrollY, performance.now() / 1000);
       context.restore();
     }
+  }
+
+  function drawRemotePlayers(scrollX, scrollY) {
+    if (!race.active || race.remotePlayers.size === 0) {
+      race.remoteRenderCount = 0;
+      return;
+    }
+    const nowSeconds = performance.now() / 1000;
+    expireRacePlayerEffects(nowSeconds);
+    let renderedCount = 0;
+    const spriteScale = player.height / 32;
+    const scaled = (value) => value * spriteScale;
+    const spriteRadius = scaled(15);
+
+    for (const remote of race.remotePlayers.values()) {
+      const elapsed = Math.max(1 / 240, Math.min(0.08, nowSeconds - (remote.renderedAt || nowSeconds)));
+      const blend = 1 - Math.exp(-elapsed * 18);
+      remote.renderX += (remote.x - remote.renderX) * blend;
+      remote.renderY += (remote.y - remote.renderY) * blend;
+      remote.renderedAt = nowSeconds;
+      const speedRatio = Math.min(1, Math.abs(remote.velocityX || 0) / CONFIG.maxRunSpeed);
+      remote.runPhase = (remote.runPhase || 0) + elapsed * (5 + speedRatio * 13);
+      const centerX = remote.renderX + (remote.visualOffsetX || 0) - scrollX;
+      const groundedMotion = Math.abs(remote.velocityY || 0) < 28;
+      const bob = groundedMotion ? -Math.abs(Math.sin(remote.runPhase)) * scaled(1.2) * speedRatio : -scaled(1.4);
+      const centerY = remote.renderY - scrollY + bob;
+      const feetY = centerY + spriteRadius + scaled(2);
+      if (
+        centerX < -spriteRadius * 2 || centerX > state.viewportWidth + spriteRadius * 2 ||
+        feetY < -player.height || centerY > state.viewportHeight + player.height
+      ) continue;
+
+      renderedCount += 1;
+      const facing = remote.facing || 1;
+      const palette = remote.palette || player.palette;
+      const footSwing = groundedMotion ? Math.sin(remote.runPhase) * scaled(3.2) * speedRatio : 0;
+      context.save();
+      context.globalAlpha = 0.97;
+
+      context.fillStyle = "rgba(5, 18, 38, 0.2)";
+      context.beginPath();
+      context.ellipse(centerX, feetY + scaled(1), scaled(11 - speedRatio * 1.5), scaled(2.8), 0, 0, Math.PI * 2);
+      context.fill();
+
+      context.strokeStyle = palette.dark;
+      context.lineWidth = scaled(3.2);
+      context.lineCap = "round";
+      context.beginPath();
+      context.moveTo(centerX - scaled(4.5), centerY + scaled(11.5));
+      context.lineTo(centerX - scaled(4) + footSwing, feetY);
+      context.moveTo(centerX + scaled(4.5), centerY + scaled(11.5));
+      context.lineTo(centerX + scaled(4) - footSwing, feetY);
+      context.stroke();
+
+      const scarfLength = scaled(8 + speedRatio * 9);
+      context.strokeStyle = palette.accent;
+      context.lineWidth = scaled(3.3);
+      context.beginPath();
+      context.moveTo(centerX - facing * scaled(7), centerY - scaled(3));
+      context.quadraticCurveTo(
+        centerX - facing * (scaled(10) + scarfLength * 0.35),
+        centerY - scaled(7) - Math.sin(remote.runPhase) * scaled(1.5),
+        centerX - facing * scarfLength,
+        centerY - scaled(2) + Math.cos(remote.runPhase * 0.8) * scaled(2)
+      );
+      context.stroke();
+
+      context.fillStyle = palette.glow;
+      context.beginPath();
+      context.arc(centerX, centerY, spriteRadius + scaled(2.2), 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = palette.primary;
+      context.beginPath();
+      context.arc(centerX, centerY, spriteRadius, 0, Math.PI * 2);
+      context.fill();
+      context.strokeStyle = "rgba(255, 255, 255, 0.96)";
+      context.lineWidth = scaled(1.7);
+      context.stroke();
+
+      const visorX = centerX + facing * scaled(2.3);
+      context.fillStyle = palette.visor;
+      context.beginPath();
+      context.roundRect(visorX - scaled(6), centerY - scaled(5.3), scaled(12), scaled(6.4), scaled(3.2));
+      context.fill();
+      context.strokeStyle = "#ffffff";
+      context.lineWidth = scaled(1);
+      context.stroke();
+      context.strokeStyle = "rgba(255, 255, 255, 0.78)";
+      context.lineWidth = scaled(0.8);
+      context.beginPath();
+      context.moveTo(visorX - scaled(3.8), centerY - scaled(3.6));
+      context.lineTo(visorX + scaled(1.2), centerY - scaled(3.6));
+      context.stroke();
+
+      context.fillStyle = palette.accent;
+      context.beginPath();
+      context.arc(centerX - facing * scaled(9.8), centerY + scaled(6.2), scaled(2.3), 0, Math.PI * 2);
+      context.fill();
+
+      for (let index = 0; index < CONFIG.webMaximumCharges; index += 1) {
+        const pipX = centerX + (index - 0.5) * scaled(7);
+        const pipY = centerY - spriteRadius - scaled(5);
+        context.fillStyle = palette.visor;
+        context.strokeStyle = "#ffffff";
+        context.lineWidth = scaled(1);
+        context.beginPath();
+        context.arc(pipX, pipY, scaled(2.2), 0, Math.PI * 2);
+        context.fill();
+        context.stroke();
+      }
+      context.restore();
+    }
+
+    race.remoteRenderCount = renderedCount;
+    race.remoteRenderStyle = "full-character";
+    if (renderedCount > 0) race.lastRemoteRenderAt = nowSeconds;
   }
 
   function drawPlayer(scrollX, scrollY) {
@@ -8513,6 +8758,7 @@
     drawDropHatch(window.scrollX, window.scrollY);
     drawLadderPassage(window.scrollX, window.scrollY);
     drawPortal(window.scrollX, window.scrollY);
+    drawRemotePlayers(window.scrollX, window.scrollY);
     drawPlayer(window.scrollX, window.scrollY);
     drawScoreHud();
     drawGoalCelebration();

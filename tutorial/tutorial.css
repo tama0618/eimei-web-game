@@ -5,14 +5,12 @@
   color: #24211d;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html,
 body {
   margin: 0;
-  min-width: 920px;
+  min-width: 2680px;
   min-height: 100%;
   background:
     linear-gradient(90deg, rgba(42, 36, 30, 0.035) 1px, transparent 1px) 0 0 / 58px 58px,
@@ -21,15 +19,17 @@ body {
 
 body {
   position: relative;
-  height: 5260px;
+  width: 2680px;
+  height: 1740px;
   overflow: visible;
 }
 
 .tutorial-header {
-  top: 0;
+  position: absolute;
+  top: 28px;
   left: 50%;
   width: 820px;
-  padding: 42px 0 28px;
+  padding: 22px 0 22px;
   border-bottom: 2px solid #24211d;
   transform: translateX(-50%);
 }
@@ -55,21 +55,20 @@ body {
 
 .tutorial-world {
   position: relative;
-  width: 920px;
-  height: 5200px;
-  margin: 0 auto;
+  width: 2680px;
+  height: 1680px;
+  margin: 0;
 }
 
 .tutorial-stage {
-  position: absolute;
-  left: 0;
-  width: 920px;
+  display: contents;
 }
 
 .platform,
-.checkpoint-floor,
-.url-platform,
-.word-wall span {
+.goal-platform,
+.word-wall span,
+.upper-course-reset,
+.course-safety {
   position: absolute;
   margin: 0;
   white-space: nowrap;
@@ -78,18 +77,10 @@ body {
   letter-spacing: 0.035em;
 }
 
-.checkpoint-floor [data-eimei-tutorial-checkpoint],
-.url-platform [data-eimei-tutorial-checkpoint] {
+.goal-platform [data-eimei-tutorial-checkpoint],
+.portal-row [data-eimei-tutorial-checkpoint] {
   color: #b45a24;
   font-weight: 700;
-}
-
-.checkpoint-floor {
-  left: 0 !important;
-  right: auto !important;
-  width: 920px;
-  padding: 0 0 7px var(--checkpoint-offset, 220px);
-  border-bottom: 2px solid rgba(36, 33, 29, 0.72);
 }
 
 [data-eimei-tutorial-checkpoint].is-current {
@@ -98,63 +89,180 @@ body {
   text-underline-offset: 6px;
 }
 
-.stage-move { top: 210px; height: 780px; }
-.spawn-platform { left: 70px; top: 40px; font-weight: 700; }
-.move-right { left: 86px; top: 220px; }
-.move-left { right: 70px; top: 400px; }
-.stage-move .checkpoint-floor { top: 630px; --checkpoint-offset: 250px; }
-
-.stage-jump { top: 990px; height: 440px; }
-.jump-road { left: 60px; top: 210px; }
-.jump-wall { position: absolute; left: 488px; top: 170px; }
-.jump-wall span { position: static; display: block; margin-top: -2px; font-size: 24px; }
-.stage-jump .checkpoint-floor { top: 210px; --checkpoint-offset: 570px; }
-
-.stage-double { top: 1430px; height: 520px; }
-.double-road { left: 55px; top: 355px; }
-.double-wall { position: absolute; left: 480px; top: 270px; }
-.double-wall span { position: static; display: block; margin-top: -2px; font-size: 25px; }
-.stage-double .checkpoint-floor { top: 355px; --checkpoint-offset: 560px; }
-
-.stage-swing { top: 1950px; height: 650px; }
-.swing-note { left: 52px; top: 72px; font-size: 18px; }
-.web-anchor { left: 357px; top: 135px; color: #3a6582; }
-.swing-left { left: 60px; top: 390px; }
-.swing-right { top: 390px; --checkpoint-offset: 570px; }
-.swing-safety { left: 105px; top: 560px; color: #6e655b; }
-
-.stage-reel { top: 2600px; height: 650px; }
-.reel-note { left: 58px; top: 72px; font-size: 18px; }
-.hatch-platform { top: 210px; --checkpoint-offset: 260px; }
-.reel-base { left: 270px; top: 505px; }
-
-.stage-ladder { top: 3250px; height: 650px; }
-.ladder-note { left: 50px; top: 46px; font-size: 18px; }
-.ladder-upper { left: 650px; top: 115px; }
-.ladder-exit { top: 335px; --checkpoint-offset: 706px; }
-.ladder-lower { left: 260px; top: 535px; }
-.authored-ladder { position: absolute; left: 675px; top: 115px; width: 24px; height: 420px; }
-
-.stage-drop { top: 3900px; height: 500px; }
-.drop-note { left: 76px; top: 62px; font-size: 19px; }
-.thin-floor { left: 70px; top: 180px; font-size: 20px; }
-.stage-drop .checkpoint-floor { top: 405px; --checkpoint-offset: 500px; }
-
-.stage-flag { top: 4400px; height: 570px; }
-.flag-road-one { left: 72px; top: 45px; }
-.flag-road-two { right: 70px; top: 180px; }
-.flag-road-three { left: 80px; top: 315px; }
-.stage-flag .checkpoint-floor { top: 465px; --checkpoint-offset: 520px; }
-
-.stage-door { top: 4970px; height: 230px; }
-.door-command { left: 545px; top: 20px; font-size: 18px; }
-.url-platform { left: 270px; top: 118px; font-size: 25px; }
-.url-platform a { color: #174f86; text-decoration: none; }
-.bottom-stop { left: 72px; top: 205px; color: #80786e; }
-
-[hidden] {
-  display: none !important;
+.spawn-platform { left: 120px; top: 390px; font-weight: 700; }
+.spawn-platform::before {
+  position: absolute;
+  left: 16px;
+  bottom: 42px;
+  content: "▼";
+  color: #b45a24;
+  font: 700 22px/1 system-ui, sans-serif;
+  animation: tutorial-start-marker 0.85s ease-in-out infinite alternate;
 }
+
+@keyframes tutorial-start-marker {
+  from { transform: translateY(-7px); }
+  to { transform: translateY(0); }
+}
+.move-right { left: 430px; top: 520px; }
+.move-left { left: 150px; top: 650px; }
+.move-goal { left: 610px; top: 650px; }
+
+.jump-road { left: 610px; top: 650px; }
+.jump-wall { position: absolute; left: 1030px; top: 605px; }
+.jump-wall span,
+.double-wall span,
+.drop-wall-left span,
+.drop-wall-right span { position: static; display: block; margin-top: -2px; font-size: 25px; }
+.jump-goal { left: 1120px; top: 650px; }
+
+.double-road { left: 1120px; top: 650px; }
+.double-wall { position: absolute; left: 1510px; top: 560px; }
+.double-goal { left: 1550px; top: 560px; }
+
+.swing-note { left: 1550px; top: 390px; font-size: 18px; }
+.web-anchor { left: 1800px; top: 250px; color: #3a6582; }
+.swing-left { left: 1550px; top: 560px; }
+.swing-right { left: 2240px; top: 500px; }
+.swing-safety {
+  left: 0;
+  top: 835px;
+  display: none;
+  width: 2680px;
+  overflow: hidden;
+  padding: 0 0 6px 1650px;
+  border-bottom: 2px solid rgba(36, 33, 29, 0.72);
+  color: #6e655b;
+}
+
+html[data-eimei-tutorial-step="3"] .swing-safety { display: block; }
+
+.reel-note { left: 2060px; top: 575px; font-size: 18px; }
+.hatch-platform { left: 2135px; top: 205px; }
+.reel-base { left: 2240px; top: 500px; }
+
+.ladder-note { left: 1915px; top: 304px; font-size: 18px; }
+.ladder-upper { left: 2135px; top: 205px; }
+.ladder-exit { left: 1870px; top: 430px; }
+.ladder-lower { left: 2070px; top: 650px; }
+.authored-ladder { position: absolute; left: 2180px; top: 205px; width: 24px; height: 445px; }
+
+.drop-note { left: 1550px; top: 365px; font-size: 19px; }
+.thin-floor { left: 1450px; top: 430px; font-size: 20px; }
+.drop-wall-left { position: absolute; left: 1422px; top: 430px; }
+.drop-wall-right { position: absolute; left: 2175px; top: 430px; }
+.drop-goal { left: 1690px; top: 770px; }
+
+.flag-road-one { left: 1470px; top: 770px; }
+.flag-road-two { left: 1080px; top: 700px; }
+.flag-road-three { left: 760px; top: 620px; }
+.flag-goal { left: 610px; top: 620px; }
+
+.menu-note { left: 420px; top: 770px; font-size: 18px; }
+.tutorial-site-nav {
+  position: absolute;
+  left: 350px;
+  top: 850px;
+  width: 1800px;
+  height: 64px;
+}
+
+.tutorial-site-nav .menu {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tutorial-site-nav .menu > li {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 190px;
+  margin: 0;
+  padding: 0 22px 13px;
+  border-bottom: 2px solid rgba(36, 33, 29, 0.68);
+  text-align: center;
+  white-space: nowrap;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.tutorial-site-nav .menu > li + li::before {
+  position: absolute;
+  left: 0;
+  content: "│";
+  color: #8c867e;
+}
+
+.tutorial-site-nav .menu > li > ul {
+  position: absolute;
+  z-index: 4;
+  top: 38px;
+  left: 0;
+  display: none;
+  width: 310px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid #24211d;
+  background: #eee8dc;
+  text-align: left;
+}
+
+.tutorial-site-nav .menu > li:hover > ul,
+.tutorial-site-nav .menu > li.eimei-player-hover > ul {
+  display: block;
+}
+
+.tutorial-site-nav .menu > li > ul > li {
+  position: relative;
+  min-height: 58px;
+  padding: 17px 20px 13px;
+  border-bottom: 1px solid rgba(36, 33, 29, 0.34);
+  white-space: nowrap;
+  font-size: 18px;
+}
+
+.tutorial-site-nav .menu > li > ul > li:last-child { border-bottom: 0; }
+.tutorial-site-nav a { color: #174f86; text-decoration: none; }
+.portal-row { padding-top: 29px !important; }
+.portal-command {
+  position: absolute;
+  left: 20px;
+  top: 5px;
+  color: #554f48;
+  font-size: 12px;
+}
+
+.upper-course-reset {
+  left: 0;
+  top: 760px;
+  display: none;
+  width: 2680px;
+  overflow: hidden;
+  padding-bottom: 6px;
+  border-bottom: 2px solid rgba(36, 33, 29, 0.72);
+  color: #80786e;
+}
+
+html[data-eimei-tutorial-step="0"] .upper-course-reset,
+html[data-eimei-tutorial-step="1"] .upper-course-reset,
+html[data-eimei-tutorial-step="2"] .upper-course-reset { display: block; }
+
+.course-safety {
+  left: 0;
+  top: 1580px;
+  width: 2680px;
+  overflow: hidden;
+  padding-bottom: 6px;
+  border-bottom: 2px solid rgba(36, 33, 29, 0.72);
+  color: #80786e;
+}
+
+[hidden] { display: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; }

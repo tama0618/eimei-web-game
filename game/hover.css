@@ -57,3 +57,7 @@ summary.eimei-player-hover { background: #dcffff; }
 #side ul li a.eimei-player-hover { color: #FFDACC; }
 #side-wide ul li a.eimei-player-hover { color: #FFDACC; }
 #thismonth ul li a.eimei-player-hover { color: #ccc; }
+
+/* tutorial/tutorial.css */
+.tutorial-site-nav .menu > li.eimei-player-hover > ul,
+.tutorial-site-nav .menu > li.eimei-player-hover > ul { display: block; }
