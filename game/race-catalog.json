@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-03T09:02:51.719Z",
+  "generatedAt": "2026-09-03T12:21:45.883Z",
   "viewport": {
     "width": 1365,
     "height": 768
@@ -5171,7 +5171,7 @@
       "page": "/club/top.html",
       "title": "部活動情報‐英明高等学校",
       "width": 1473.59375,
-      "height": 1372.635415,
+      "height": 1402.96354,
       "targets": [
         {
           "id": "/club/top.html:0:body>div>div>div:nth-of-type(2)>p:nth-of-type(1)",
@@ -5212,6 +5212,16 @@
           "x": 452.8203125,
           "y": 882.62375,
           "bodyWidth": 239.265625
+        },
+        {
+          "id": "/club/top.html:4:body>div>div>div:nth-of-type(2)>p:nth-of-type(14)>nav>span",
+          "selector": "body>div>div>div:nth-of-type(2)>p:nth-of-type(14)>nav>span",
+          "label": "年度移動",
+          "context": "部活動・同好会 主な活動記録",
+          "title": "部活動情報‐英明高等学校",
+          "x": 382.28125,
+          "y": 1103.234375,
+          "bodyWidth": 78.59375
         }
       ],
       "links": [
@@ -5233,7 +5243,9 @@
         "/news/2025/kensotai.html",
         "/news/2024/kensotai.html",
         "/news/2023/kensotai.html",
-        "/news/2023/shikoku.html"
+        "/news/2023/shikoku.html",
+        "/news/new.html",
+        "/news/2024/news2024.html"
       ]
     },
     {
@@ -5384,21 +5396,181 @@
     },
     {
       "page": "/entrance/pamphlet.html",
-      "title": "",
-      "width": 0,
-      "height": 0,
-      "targets": [],
-      "links": [],
-      "error": "Condition timed out: Boolean(window.EimeiMap?.state?.textBodies?.length && document.readyState!=='loading')"
+      "title": "サイト歩行訓練",
+      "width": 6060,
+      "height": 3248,
+      "targets": [
+        {
+          "id": "/entrance/pamphlet.html:0:#tutorial-reel-goal",
+          "selector": "#tutorial-reel-goal",
+          "label": "━━━━━上貫通の旗━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 5111.0859375,
+          "y": 290.5,
+          "bodyWidth": 478.171875
+        },
+        {
+          "id": "/entrance/pamphlet.html:1:body>main>section:nth-of-type(1)>p:nth-of-type(1)",
+          "selector": "body>main>section:nth-of-type(1)>p:nth-of-type(1)",
+          "label": "START ━━━━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 460.5703125,
+          "y": 549.5,
+          "bodyWidth": 467.90625
+        },
+        {
+          "id": "/entrance/pamphlet.html:2:body>main>section:nth-of-type(4)>p:nth-of-type(4)>span",
+          "selector": "body>main>section:nth-of-type(4)>p:nth-of-type(4)>span",
+          "label": "スウィングの旗",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 4514.4140625,
+          "y": 700.8125,
+          "bodyWidth": 348.828125
+        },
+        {
+          "id": "/entrance/pamphlet.html:3:body>main>section:nth-of-type(3)>p:nth-of-type(2)>span",
+          "selector": "body>main>section:nth-of-type(3)>p:nth-of-type(2)>span",
+          "label": "二段ジャンプの旗",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 3128.15625,
+          "y": 787.5,
+          "bodyWidth": 414.4375
+        },
+        {
+          "id": "/entrance/pamphlet.html:4:#tutorial-jump-start",
+          "selector": "#tutorial-jump-start",
+          "label": "↑ または SPACE でジャンプ━━━━━━━━━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 1753.15625,
+          "y": 913.5,
+          "bodyWidth": 970.5625
+        },
+        {
+          "id": "/entrance/pamphlet.html:5:#tutorial-ladder-lower",
+          "selector": "#tutorial-ladder-lower",
+          "label": "梯子の下━━━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 5109.1484375,
+          "y": 913.5,
+          "bodyWidth": 446.296875
+        },
+        {
+          "id": "/entrance/pamphlet.html:6:body>main>section:nth-of-type(8)>p:nth-of-type(2)",
+          "selector": "body>main>section:nth-of-type(8)>p:nth-of-type(2)",
+          "label": "相手より先に現地の旗を取れば勝ち━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 2706.5390625,
+          "y": 1725.5,
+          "bodyWidth": 765.078125
+        },
+        {
+          "id": "/entrance/pamphlet.html:7:body>main>p:nth-of-type(2)",
+          "selector": "body>main>p:nth-of-type(2)",
+          "label": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 1721.4140625,
+          "y": 3055.5,
+          "bodyWidth": 3442.828125
+        }
+      ],
+      "links": []
     },
     {
       "page": "/entrance/recruit.html",
-      "title": "",
-      "width": 0,
-      "height": 0,
-      "targets": [],
-      "links": [],
-      "error": "Condition timed out: Boolean(window.EimeiMap?.state?.textBodies?.length && document.readyState!=='loading')"
+      "title": "サイト歩行訓練",
+      "width": 6060,
+      "height": 3248,
+      "targets": [
+        {
+          "id": "/entrance/recruit.html:0:#tutorial-reel-goal",
+          "selector": "#tutorial-reel-goal",
+          "label": "━━━━━上貫通の旗━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 5111.0859375,
+          "y": 290.5,
+          "bodyWidth": 478.171875
+        },
+        {
+          "id": "/entrance/recruit.html:1:body>main>section:nth-of-type(1)>p:nth-of-type(1)",
+          "selector": "body>main>section:nth-of-type(1)>p:nth-of-type(1)",
+          "label": "START ━━━━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 460.5703125,
+          "y": 549.5,
+          "bodyWidth": 467.90625
+        },
+        {
+          "id": "/entrance/recruit.html:2:body>main>section:nth-of-type(4)>p:nth-of-type(4)>span",
+          "selector": "body>main>section:nth-of-type(4)>p:nth-of-type(4)>span",
+          "label": "スウィングの旗",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 4514.4140625,
+          "y": 700.8125,
+          "bodyWidth": 348.828125
+        },
+        {
+          "id": "/entrance/recruit.html:3:body>main>section:nth-of-type(3)>p:nth-of-type(2)>span",
+          "selector": "body>main>section:nth-of-type(3)>p:nth-of-type(2)>span",
+          "label": "二段ジャンプの旗",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 3128.15625,
+          "y": 787.5,
+          "bodyWidth": 414.4375
+        },
+        {
+          "id": "/entrance/recruit.html:4:#tutorial-jump-start",
+          "selector": "#tutorial-jump-start",
+          "label": "↑ または SPACE でジャンプ━━━━━━━━━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 1753.15625,
+          "y": 913.5,
+          "bodyWidth": 970.5625
+        },
+        {
+          "id": "/entrance/recruit.html:5:#tutorial-ladder-lower",
+          "selector": "#tutorial-ladder-lower",
+          "label": "梯子の下━━━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 5109.1484375,
+          "y": 913.5,
+          "bodyWidth": 446.296875
+        },
+        {
+          "id": "/entrance/recruit.html:6:body>main>section:nth-of-type(8)>p:nth-of-type(2)",
+          "selector": "body>main>section:nth-of-type(8)>p:nth-of-type(2)",
+          "label": "相手より先に現地の旗を取れば勝ち━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 2706.5390625,
+          "y": 1725.5,
+          "bodyWidth": 765.078125
+        },
+        {
+          "id": "/entrance/recruit.html:7:body>main>p:nth-of-type(2)",
+          "selector": "body>main>p:nth-of-type(2)",
+          "label": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 1721.4140625,
+          "y": 3055.5,
+          "bodyWidth": 3442.828125
+        }
+      ],
+      "links": []
     },
     {
       "page": "/index.html",
@@ -6138,12 +6310,92 @@
     },
     {
       "page": "/information/c-tokushin.html",
-      "title": "",
-      "width": 0,
-      "height": 0,
-      "targets": [],
-      "links": [],
-      "error": "Condition timed out: Boolean(window.EimeiMap?.state?.textBodies?.length && document.readyState!=='loading')"
+      "title": "サイト歩行訓練",
+      "width": 6060,
+      "height": 3248,
+      "targets": [
+        {
+          "id": "/information/c-tokushin.html:0:#tutorial-reel-goal",
+          "selector": "#tutorial-reel-goal",
+          "label": "━━━━━上貫通の旗━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 5111.0859375,
+          "y": 290.5,
+          "bodyWidth": 478.171875
+        },
+        {
+          "id": "/information/c-tokushin.html:1:body>main>section:nth-of-type(1)>p:nth-of-type(1)",
+          "selector": "body>main>section:nth-of-type(1)>p:nth-of-type(1)",
+          "label": "START ━━━━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 460.5703125,
+          "y": 549.5,
+          "bodyWidth": 467.90625
+        },
+        {
+          "id": "/information/c-tokushin.html:2:body>main>section:nth-of-type(4)>p:nth-of-type(4)>span",
+          "selector": "body>main>section:nth-of-type(4)>p:nth-of-type(4)>span",
+          "label": "スウィングの旗",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 4514.4140625,
+          "y": 700.8125,
+          "bodyWidth": 348.828125
+        },
+        {
+          "id": "/information/c-tokushin.html:3:body>main>section:nth-of-type(3)>p:nth-of-type(2)>span",
+          "selector": "body>main>section:nth-of-type(3)>p:nth-of-type(2)>span",
+          "label": "二段ジャンプの旗",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 3128.15625,
+          "y": 787.5,
+          "bodyWidth": 414.4375
+        },
+        {
+          "id": "/information/c-tokushin.html:4:#tutorial-jump-start",
+          "selector": "#tutorial-jump-start",
+          "label": "↑ または SPACE でジャンプ━━━━━━━━━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 1753.15625,
+          "y": 913.5,
+          "bodyWidth": 970.5625
+        },
+        {
+          "id": "/information/c-tokushin.html:5:#tutorial-ladder-lower",
+          "selector": "#tutorial-ladder-lower",
+          "label": "梯子の下━━━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 5109.1484375,
+          "y": 913.5,
+          "bodyWidth": 446.296875
+        },
+        {
+          "id": "/information/c-tokushin.html:6:body>main>section:nth-of-type(8)>p:nth-of-type(2)",
+          "selector": "body>main>section:nth-of-type(8)>p:nth-of-type(2)",
+          "label": "相手より先に現地の旗を取れば勝ち━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 2706.5390625,
+          "y": 1725.5,
+          "bodyWidth": 765.078125
+        },
+        {
+          "id": "/information/c-tokushin.html:7:body>main>p:nth-of-type(2)",
+          "selector": "body>main>p:nth-of-type(2)",
+          "label": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+          "context": "サイト歩行訓練",
+          "title": "サイト歩行訓練",
+          "x": 1721.4140625,
+          "y": 3055.5,
+          "bodyWidth": 3442.828125
+        }
+      ],
+      "links": []
     },
     {
       "page": "/information/course.html",
@@ -6849,7 +7101,7 @@
       "page": "/information/i-uniform.html",
       "title": "制服‐英明高等学校",
       "width": 1660,
-      "height": 3116.08854,
+      "height": 5174.08854,
       "targets": [
         {
           "id": "/information/i-uniform.html:0:body>div>div>div:nth-of-type(2)>div:nth-of-type(1)>span:nth-of-type(2)",
@@ -7748,7 +8000,7 @@
       "page": "/news/2024/20240104.html",
       "title": "部活動 結果報告",
       "width": 1466.59375,
-      "height": 2519.49479,
+      "height": 2589.49479,
       "targets": [
         {
           "id": "/news/2024/20240104.html:0:body>div>div>div>h3",
@@ -8591,7 +8843,7 @@
       "page": "/news/2024/20240301.html",
       "title": "卒業証書授与式",
       "width": 1466.59375,
-      "height": 4784.90104,
+      "height": 4994.90104,
       "targets": [
         {
           "id": "/news/2024/20240301.html:0:body>div>div>div>div>h3",
@@ -8741,7 +8993,7 @@
       "page": "/news/2024/20240317.html",
       "title": "ティンガティンガ体験",
       "width": 1473.59375,
-      "height": 2655.260415,
+      "height": 2795.260415,
       "targets": [
         {
           "id": "/news/2024/20240317.html:0:body>div>div>div>h3",
@@ -8771,7 +9023,7 @@
       "page": "/news/2024/20240324.html",
       "title": "嵯峨美術大学オープンキャンパスツアー（美術デザイン系）",
       "width": 1473.59375,
-      "height": 2571.260415,
+      "height": 2795.260415,
       "targets": [
         {
           "id": "/news/2024/20240324.html:0:body>div>div>div>h3",
@@ -10037,7 +10289,7 @@
       "page": "/news/2024/202407102.html",
       "title": "クラスマッチ",
       "width": 1466.59375,
-      "height": 2723.135415,
+      "height": 3213.135415,
       "targets": [
         {
           "id": "/news/2024/202407102.html:0:body>div>div>div>div>h3",
@@ -11527,7 +11779,7 @@
       "page": "/news/2024/20241007.html",
       "title": "体育祭",
       "width": 1466.59375,
-      "height": 4545.791665,
+      "height": 5315.791665,
       "targets": [
         {
           "id": "/news/2024/20241007.html:0:body>div>div>div>div>h3",
@@ -11782,7 +12034,7 @@
       "page": "/news/2024/202410182.html",
       "title": "進学ガイダンス（１年生）",
       "width": 1473.59375,
-      "height": 1472.697915,
+      "height": 1696.697915,
       "targets": [
         {
           "id": "/news/2024/202410182.html:0:body>div>div>div>h3",
@@ -13387,7 +13639,7 @@
       "page": "/news/2024/20250304.html",
       "title": "卒業証書授与式",
       "width": 1466.59375,
-      "height": 4179.697915000001,
+      "height": 4109.697915000001,
       "targets": [
         {
           "id": "/news/2024/20250304.html:0:body>div>div>div>div>h3",
@@ -13995,16 +14247,26 @@
       "page": "/news/2024/news2024.html",
       "title": "2024(令和6)年度のニュース -英明高等学校",
       "width": 1467,
-      "height": 6235,
+      "height": 6265,
       "targets": [
         {
-          "id": "/news/2024/news2024.html:0:body>div>div>div>h3",
+          "id": "/news/2024/news2024.html:0:body>div>div>div>p:nth-of-type(1)>nav>span:nth-of-type(1)",
+          "selector": "body>div>div>div>p:nth-of-type(1)>nav>span:nth-of-type(1)",
+          "label": "年度移動",
+          "context": "年度移動2026202520242023",
+          "title": "2024(令和6)年度のニュース -英明高等学校",
+          "x": 387.578125,
+          "y": 240.109375,
+          "bodyWidth": 78.59375
+        },
+        {
+          "id": "/news/2024/news2024.html:1:body>div>div>div>h3",
           "selector": "body>div>div>div>h3",
           "label": "２０２４（令和６）年度のニュース",
           "context": "２０２４（令和６）年度のニュース",
           "title": "2024(令和6)年度のニュース -英明高等学校",
           "x": 316.390625,
-          "y": 286.671875,
+          "y": 317,
           "bodyWidth": 560
         }
       ],
@@ -14024,8 +14286,10 @@
         "/meiyu/top.html",
         "/proxy/graduate.html",
         "/correspondencecourse/index.html",
+        "/news/2025/news2025.html",
         "/news/2024/20240402.html",
         "/news/2024/20240410.html",
+        "/news/2024/20240427.html",
         "/news/2024/202403273.html",
         "/news/2024/202404291.html",
         "/news/2024/202404292.html",
@@ -14432,7 +14696,7 @@
       "page": "/news/2025/20250502.html",
       "title": "遠足",
       "width": 1466.59375,
-      "height": 5979.354165,
+      "height": 6049.354165,
       "targets": [
         {
           "id": "/news/2025/20250502.html:0:body>div>div>div>div>p:nth-of-type(1)",
@@ -14461,7 +14725,7 @@
           "context": "遠足",
           "title": "遠足",
           "x": 191.4453125,
-          "y": 2059.03125,
+          "y": 1989.03125,
           "bodyWidth": 151.921875
         },
         {
@@ -18435,16 +18699,26 @@
       "page": "/news/2025/news2025.html",
       "title": "2025(令和7)年度のニュース -英明高等学校",
       "width": 1466.59375,
-      "height": 5796,
+      "height": 5826,
       "targets": [
         {
-          "id": "/news/2025/news2025.html:0:body>div>div>div>h3",
+          "id": "/news/2025/news2025.html:0:body>div>div>div>p:nth-of-type(1)>nav>span:nth-of-type(1)",
+          "selector": "body>div>div>div>p:nth-of-type(1)>nav>span:nth-of-type(1)",
+          "label": "年度移動",
+          "context": "年度移動2026202520242023",
+          "title": "2025(令和7)年度のニュース -英明高等学校",
+          "x": 387.578125,
+          "y": 240.109375,
+          "bodyWidth": 78.59375
+        },
+        {
+          "id": "/news/2025/news2025.html:1:body>div>div>div>h3",
           "selector": "body>div>div>div>h3",
           "label": "２０２５（令和７）年度のニュース",
           "context": "２０２５（令和７）年度のニュース",
           "title": "2025(令和7)年度のニュース -英明高等学校",
           "x": 316.390625,
-          "y": 286.671875,
+          "y": 317,
           "bodyWidth": 560
         }
       ],
@@ -18464,9 +18738,10 @@
         "/meiyu/top.html",
         "/proxy/graduate.html",
         "/correspondencecourse/index.html",
+        "/news/2024/news2024.html",
         "/news/2025/20250404.html",
         "/news/2025/20250409.html",
-        "/news/2025/20250412.html",
+        "/news/2025/20250427.html",
         "/news/2025/20250430.html",
         "/news/2025/20250422.html",
         "/news/2025/20250502.html",
@@ -18767,7 +19042,7 @@
       "page": "/news/2026/202605011.html",
       "title": "遠足",
       "width": 1466.59375,
-      "height": 3916.635415,
+      "height": 4546.635415,
       "targets": [
         {
           "id": "/news/2026/202605011.html:0:body>div>div>div>div>p:nth-of-type(1)",
@@ -18796,7 +19071,7 @@
           "context": "遠足",
           "title": "遠足",
           "x": 337.0859375,
-          "y": 1544.671875,
+          "y": 1754.671875,
           "bodyWidth": 660.171875
         },
         {
@@ -18806,7 +19081,7 @@
           "context": "遠足",
           "title": "遠足",
           "x": 198.59375,
-          "y": 2608.421875,
+          "y": 3098.421875,
           "bodyWidth": 383.1875
         }
       ],
@@ -18834,7 +19109,7 @@
       "page": "/news/2026/202605121.html",
       "title": "総体壮行会",
       "width": 1473.59375,
-      "height": 1626.697915,
+      "height": 1696.697915,
       "targets": [
         {
           "id": "/news/2026/202605121.html:0:body>div>div>div>h3",
@@ -20016,16 +20291,26 @@
       "page": "/news/new.html",
       "title": "ニュース -英明高等学校",
       "width": 1466.59375,
-      "height": 3099,
+      "height": 3129,
       "targets": [
         {
-          "id": "/news/new.html:0:body>div>div>div>h3",
+          "id": "/news/new.html:0:body>div>div>div>p:nth-of-type(1)>nav>span:nth-of-type(1)",
+          "selector": "body>div>div>div>p:nth-of-type(1)>nav>span:nth-of-type(1)",
+          "label": "年度移動",
+          "context": "年度移動2026202520242023",
+          "title": "ニュース -英明高等学校",
+          "x": 387.578125,
+          "y": 240.109375,
+          "bodyWidth": 78.59375
+        },
+        {
+          "id": "/news/new.html:1:body>div>div>div>h3",
           "selector": "body>div>div>div>h3",
           "label": "２０２６（令和８）年度のニュース",
           "context": "２０２６（令和８）年度のニュース",
           "title": "ニュース -英明高等学校",
           "x": 316.390625,
-          "y": 286.671875,
+          "y": 317,
           "bodyWidth": 560
         }
       ],
@@ -20045,10 +20330,12 @@
         "/meiyu/top.html",
         "/proxy/graduate.html",
         "/correspondencecourse/index.html",
+        "/news/2025/news2025.html",
+        "/news/2024/news2024.html",
         "/news/2026/202604071.html",
         "/news/2026/202604081.html",
         "/news/2026/202604201.html",
-        "/news/2026/202604251.html",
+        "/news/2026/202604011.html",
         "/news/2026/202605011.html",
         "/news/2026/202605121.html",
         "/news/2026/202605131.html",
@@ -22525,8 +22812,8 @@
   ],
   "stats": {
     "pages": 400,
-    "playablePages": 396,
-    "targets": 1044,
-    "errors": 3
+    "playablePages": 399,
+    "targets": 1072,
+    "errors": 0
   }
 }

@@ -512,6 +512,46 @@
   const runtimeUrl = runtimeScript?.src ? new URL(runtimeScript.src) : new URL("./game/map-runtime.js", location.href);
   const staticSiteRoot = new URL("../", runtimeUrl);
 
+  function installNewsYearPortals() {
+    const selector = document.querySelector('select[name="year"]');
+    if (!selector || document.getElementById("eimei-news-year-portals")) return;
+
+    const years = [
+      ["2026", "news/new.html"],
+      ["2025", "news/2025/news2025.html"],
+      ["2024", "news/2024/news2024.html"]
+    ];
+    const currentPage = pageIdentity();
+    const navigation = document.createElement("nav");
+    navigation.id = "eimei-news-year-portals";
+    navigation.className = "eimei-news-year-portals";
+    navigation.setAttribute("aria-label", "ニュース年度移動");
+
+    const heading = document.createElement("span");
+    heading.className = "eimei-news-year-heading";
+    heading.textContent = "年度移動";
+    navigation.append(heading);
+
+    for (const [year, relativePath] of years) {
+      const target = new URL(relativePath, staticSiteRoot);
+      if (pageIdentity(target) === currentPage) {
+        const current = document.createElement("span");
+        current.className = "eimei-news-year-current";
+        current.textContent = year;
+        current.setAttribute("aria-current", "page");
+        navigation.append(current);
+        continue;
+      }
+      const anchor = document.createElement("a");
+      anchor.id = `eimei-news-year-${year}`;
+      anchor.href = target.href;
+      anchor.textContent = year;
+      navigation.append(anchor);
+    }
+
+    selector.replaceWith(navigation);
+  }
+
   function prepareWorld() {
     scaleDocumentBody();
   }
@@ -9002,6 +9042,7 @@
       await new Promise((resolve) => window.addEventListener("load", resolve, { once: true }));
     }
     if (!isTutorialDocument && redirectToRandomStartPage()) return;
+    installNewsYearPortals();
     prepareWorld();
     if (!isPlanningDocument) {
       installPlayerHoverRules();

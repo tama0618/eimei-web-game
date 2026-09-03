@@ -269,3 +269,43 @@ html.eimei-preview-document::-webkit-scrollbar {
     animation-duration: 0.01ms;
   }
 }
+
+/* Native select boxes cannot be operated by the character.  News index pages
+   therefore expose the mirrored years as ordinary physical links in play. */
+.eimei-news-year-portals {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-height: 36px;
+  padding: 4px 7px;
+  border-bottom: 2px solid #25211d;
+  color: #25211d;
+  background: rgba(255, 255, 255, 0.92);
+  font: 700 16px/1.3 "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+  white-space: nowrap;
+}
+
+.eimei-news-year-heading {
+  margin-right: 3px;
+  color: #5c554c;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.eimei-news-year-portals a,
+.eimei-news-year-current {
+  display: inline-block;
+  min-width: 48px;
+  padding: 4px 6px 3px;
+  border: 1px solid #25211d;
+  color: #142e52;
+  background: #fff;
+  text-align: center;
+  text-decoration: none;
+}
+
+.eimei-news-year-current {
+  color: #fff;
+  background: #25211d;
+}

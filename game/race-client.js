@@ -472,8 +472,12 @@
     return [];
   }
 
+  function categoryKeyFor(page) {
+    return page.split("/").filter(Boolean)[0] || "index";
+  }
+
   function categoryFor(page) {
-    const segment = page.split("/").filter(Boolean)[0] || "index";
+    const segment = categoryKeyFor(page);
     return ({
       information: "学校案内",
       news: "ニュース",
@@ -517,10 +521,28 @@
         .filter((page) => page.targets.length > 0 && page.height >= 420);
       const recent = new Set(recentGoalIds);
       const random = seededRandom(seed);
-      let selected = null;
-      for (let attempt = 0; attempt < 900; attempt += 1) {
-        const startPage = playable[Math.floor(random() * playable.length)];
-        const goalPage = playable[Math.floor(random() * playable.length)];
+      const pageBuckets = new Map();
+      for (const page of playable) {
+        const key = categoryKeyFor(page.page);
+        if (!pageBuckets.has(key)) pageBuckets.set(key, []);
+        pageBuckets.get(key).push(page);
+      }
+      const categories = [...pageBuckets.keys()];
+      for (let index = categories.length - 1; index > 0; index -= 1) {
+        const swap = Math.floor(random() * (index + 1));
+        [categories[index], categories[swap]] = [categories[swap], categories[index]];
+      }
+      const candidatesByGoalCategory = new Map();
+      const maximumAttempts = Math.max(900, categories.length * categories.length * 12);
+      for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+        const goalIndex = attempt % categories.length;
+        const sweep = Math.floor(attempt / categories.length);
+        const goalCategory = categories[goalIndex];
+        const startCategory = categories[(goalIndex + 1 + sweep) % categories.length];
+        const goalPages = pageBuckets.get(goalCategory) || [];
+        const startPages = pageBuckets.get(startCategory) || playable;
+        const startPage = startPages[Math.floor(random() * startPages.length)];
+        const goalPage = goalPages[Math.floor(random() * goalPages.length)];
         if (!startPage || !goalPage || startPage.page === goalPage.page) continue;
         const goalPool = goalPage.targets.filter((target) => !recent.has(target.id));
         if (goalPool.length === 0) continue;
@@ -535,15 +557,24 @@
           identityHash ^= identity.charCodeAt(index);
           identityHash = Math.imul(identityHash, 16777619);
         }
-        selected = {
+        const candidate = {
           id: `race-${(Number(seed) >>> 0).toString(36)}-${(identityHash >>> 0).toString(36)}`,
           seed: Number(seed),
           start: { ...start, page: startPage.page, title: startPage.title },
           goal: { ...goal, page: goalPage.page, title: goalPage.title },
           routePages
         };
-        if (categoryFor(startPage.page) !== categoryFor(goalPage.page) || attempt > 300) break;
+        // One candidate per section gives news one ticket in the draw instead
+        // of one ticket for every news article (nearly half the old catalog).
+        // Prefer a start in another section when the graph permits it.
+        const previous = candidatesByGoalCategory.get(goalCategory);
+        if (!previous || categoryKeyFor(startPage.page) !== goalCategory) {
+          candidatesByGoalCategory.set(goalCategory, candidate);
+        }
+        if (candidatesByGoalCategory.size === categories.length && attempt >= categories.length * 2) break;
       }
+      const balancedCandidates = [...candidatesByGoalCategory.values()];
+      const selected = balancedCandidates[Math.floor(random() * balancedCandidates.length)] || null;
       if (!selected) throw new Error("no_course");
       send({ type: "course", course: selected });
     } catch (error) {
@@ -624,6 +655,18 @@
     warmRaceRoute(room.course);
     updateHints();
     updateCountdown();
+    if (firstConfiguration) {
+      // Publish the post-placement position immediately. The regular timer is
+      // deliberately conservative for Chromebooks, so a small startup burst
+      // prevents one player remaining invisible while pages finish loading.
+      sendPosition();
+      window.setTimeout(() => {
+        if (race.configuredRoundId === room.roundId) sendPosition();
+      }, 240);
+      window.setTimeout(() => {
+        if (race.configuredRoundId === room.roundId) sendPosition();
+      }, 900);
+    }
     if (room.phase === "finished") showResult();
   }
 
@@ -991,7 +1034,7 @@
     const remotePlayer = race.room.players.find((player) => player.id === message.playerId);
     const colorIndex = Number(remotePlayer?.colorIndex) || 0;
     const overlapDirection = colorIndex % 2 === 0 ? -1 : 1;
-    const overlapOffset = overlapsLocal ? overlapDirection * (11 + Math.floor(colorIndex / 2) * 2) : 0;
+    const overlapOffset = overlapsLocal ? overlapDirection * (20 + Math.floor(colorIndex / 2) * 3) : 0;
     ghost.root.classList.toggle("is-overlapping", overlapsLocal);
     ghost.root.style.setProperty("--race-overlap-offset", `${overlapOffset}px`);
     ghost.root.style.left = `${remoteLeft}px`;
