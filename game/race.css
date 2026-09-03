@@ -1,0 +1,140 @@
+.eimei-race-profile {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(21, 25, 31, .72);
+}
+
+.eimei-race-profile-card {
+  width: min(420px, calc(100vw - 48px));
+  padding: 30px;
+  border: 2px solid #202832;
+  background: #fffdf6;
+  box-shadow: 9px 10px 0 rgba(0, 0, 0, .22);
+  font-family: "Yu Gothic", system-ui, sans-serif;
+}
+.eimei-race-profile-card h2 { margin: 0 0 8px; font-size: 25px; }
+.eimei-race-profile-card p { margin: 0 0 18px; color: #59616c; }
+.eimei-race-profile-card label { display: block; margin-bottom: 6px; font-weight: 700; }
+.eimei-race-profile-row { display: flex; gap: 8px; }
+.eimei-race-profile input { min-width: 0; flex: 1; padding: 12px; border: 2px solid #303741; font: 700 18px/1.2 inherit; }
+.eimei-race-profile button { padding: 10px 18px; border: 0; color: #fff; background: #223f70; font-weight: 800; cursor: pointer; }
+.eimei-race-profile-error { min-height: 1.4em; margin: 8px 0 0 !important; color: #b43e32 !important; font-size: 13px; }
+
+.eimei-race-hud {
+  position: fixed;
+  z-index: 2147483300;
+  top: 14px;
+  left: 14px;
+  display: grid;
+  width: min(250px, 34vw);
+  padding: 10px 12px;
+  border: 1px solid rgba(25, 31, 40, .72);
+  color: #202832;
+  background: rgba(255, 253, 246, .93);
+  box-shadow: 4px 5px 0 rgba(25, 31, 40, .14);
+  pointer-events: none;
+  font: 13px/1.35 "Yu Gothic", system-ui, sans-serif;
+}
+.eimei-race-hud-room { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; font-weight: 800; letter-spacing: .07em; }
+.eimei-race-hud ol { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.eimei-race-hud li { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.eimei-race-hud li::before { content: "●"; margin-right: 5px; color: var(--race-player-color, #858d98); }
+.eimei-race-hud li.is-self::before { content: "◆"; }
+.eimei-race-hud li.is-winner::before { content: "◆"; color: #d7802e; }
+
+.eimei-race-hints {
+  position: fixed;
+  z-index: 2147483310;
+  top: 14px;
+  left: 50%;
+  width: min(560px, 52vw);
+  transform: translateX(-50%);
+  pointer-events: none;
+  text-align: center;
+  font-family: "Yu Gothic", system-ui, sans-serif;
+}
+.eimei-race-hint-card { position: relative; display: inline-block; min-width: min(320px, 100%); max-width: 100%; padding: 9px 16px; border: 1px solid #343a42; border-top: 4px solid #d7a72c; background: rgba(255, 253, 246, .97); box-shadow: 4px 5px 0 rgba(25,31,40,.14); }
+.eimei-race-hint-card.is-updated { animation: eimei-race-hint-update .72s cubic-bezier(.2,.8,.2,1); }
+.eimei-race-hint-card.is-updated:not(.is-first-hint)::after { content: "HINT UPDATED"; position: absolute; left: 50%; top: calc(100% + 8px); padding: 4px 10px; transform: translateX(-50%); color: #fff; background: #272f38; font: 800 10px/1.2 system-ui,sans-serif; letter-spacing: .13em; white-space: nowrap; animation: eimei-race-hint-toast 2.4s ease both; }
+.eimei-race-hint-label { display: block; margin-bottom: 3px; color: #777f89; font-size: 10px; letter-spacing: .18em; }
+.eimei-race-hint-value { display: block; overflow: hidden; font-size: 15px; font-weight: 800; white-space: nowrap; text-overflow: ellipsis; }
+.eimei-race-hint-progress { display: block; margin-top: 5px; color: #c28a22; font: 700 9px/1 system-ui,sans-serif; letter-spacing: .2em; }
+
+@keyframes eimei-race-hint-update {
+  0% { transform: translateY(-15px) scale(.96); background: #f3c94f; opacity: .25; }
+  55% { transform: translateY(2px) scale(1.025); }
+  100% { transform: none; background: rgba(255,253,246,.95); opacity: 1; }
+}
+@keyframes eimei-race-hint-toast {
+  0% { transform: translate(-50%, -8px); opacity: 0; }
+  12%, 72% { transform: translate(-50%, 0); opacity: 1; }
+  100% { transform: translate(-50%, 5px); opacity: 0; }
+}
+
+.eimei-race-photo {
+  --photo-scale: .235;
+  position: fixed;
+  z-index: 2147483320;
+  right: 16px;
+  bottom: 16px;
+  width: 333px;
+  height: 193px;
+  overflow: hidden;
+  border: 6px solid #fffdf6;
+  outline: 1px solid #272d35;
+  background: #ece9e0;
+  box-shadow: 7px 8px 0 rgba(25, 31, 40, .2);
+  transition: width .2s ease, height .2s ease, right .2s ease, bottom .2s ease, transform .2s ease;
+  pointer-events: none;
+}
+.eimei-race-photo iframe { position: absolute; inset: 0; border: 0; transform: scale(var(--photo-scale)); transform-origin: 0 0; pointer-events: none; }
+.eimei-race-photo-marker { position: absolute; z-index: 2; width: 4px; height: 30px; background: #24282e; transform: translate(-2px,-28px); }
+.eimei-race-photo-marker::after { content: ""; position: absolute; left: 4px; top: 0; width: 22px; height: 13px; background: #e9932d; clip-path: polygon(0 0,100% 20%,75% 100%,0 80%); }
+.eimei-race-photo-key { position: absolute; z-index: 3; right: 5px; bottom: 5px; min-width: 25px; padding: 3px 5px; color: #fff; background: #202832; font: 800 11px/1 system-ui,sans-serif; text-align: center; }
+.eimei-race-photo.is-expanded,
+.eimei-race-photo.is-intro { z-index: 2147483440; right: 50%; bottom: 50%; transform: translate(50%,50%); box-shadow: 0 0 0 100vmax rgba(18,22,27,.67), 10px 12px 0 rgba(0,0,0,.28); }
+.eimei-race-photo.is-intro .eimei-race-photo-key { display: none; }
+
+.eimei-race-countdown {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483450;
+  display: grid;
+  place-items: center;
+  color: #fffdf6;
+  background: rgba(21,25,31,.55);
+  pointer-events: none;
+  font: 900 min(24vw,180px)/1 Georgia,serif;
+  text-shadow: 0 8px 0 #202832;
+}
+
+.eimei-race-result {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483600;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(18,22,28,.72);
+  font-family: "Yu Gothic", system-ui, sans-serif;
+}
+.eimei-race-result-card { width: min(500px,calc(100vw - 48px)); padding: 34px; border: 2px solid #252b34; background: #fffdf6; box-shadow: 10px 12px 0 rgba(0,0,0,.25); text-align: center; }
+.eimei-race-result-kicker { margin: 0 0 10px; color: #737b85; font: 700 13px/1 Georgia,serif; letter-spacing: .22em; }
+.eimei-race-result h2 { margin: 0 0 10px; font-size: clamp(28px,6vw,48px); }
+.eimei-race-result p { margin: 0 0 24px; color: #555f6a; }
+.eimei-race-result button { padding: 13px 24px; border: 2px solid #252b34; color: #fff; background: #223f70; font-weight: 800; cursor: pointer; }
+
+.eimei-race-ghost { position: absolute; z-index: 2147482998; width: 18px; height: 25px; pointer-events: none; transition: left .1s linear, top .1s linear; }
+.eimei-race-ghost-body { position: absolute; left: 3px; top: 10px; width: 12px; height: 14px; border-radius: 6px 6px 4px 4px; background: var(--race-player-color, #42536e); opacity: .72; outline: 1px solid rgba(255,255,255,.9); }
+.eimei-race-ghost-head { position: absolute; left: 2px; top: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--race-player-color, #42536e); opacity: .8; outline: 1px solid rgba(255,255,255,.9); }
+.eimei-race-ghost-name { position: absolute; left: 50%; top: -17px; max-width: 110px; padding: 1px 4px; transform: translateX(-50%); overflow: hidden; color: #202832; background: rgba(255,253,246,.88); font: 700 10px/1.3 system-ui,sans-serif; white-space: nowrap; text-overflow: ellipsis; }
+
+@media (max-width: 760px) {
+  .eimei-race-photo { --photo-scale: .18; }
+  .eimei-race-hud { width: 42vw; }
+  .eimei-race-hints { left: auto; right: 12px; width: 48vw; transform: none; text-align: right; }
+}

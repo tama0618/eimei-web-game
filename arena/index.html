@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja" data-eimei-arena>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>EIMEI RACE</title>
+  <link rel="icon" type="image/svg+xml" href="../images/kosyo-sq.svg">
+  <link rel="stylesheet" href="./arena.css">
+  <link rel="stylesheet" href="../game/race.css?v=cf464e95105b">
+</head>
+<body>
+  <main class="arena-shell">
+    <header class="arena-header">
+      <img src="../images/gakkousyokai_07.png" alt="英明高等学校">
+      <p>EIMEI RACE</p>
+    </header>
+
+    <section class="arena-room" aria-labelledby="room-heading">
+      <div>
+        <p class="arena-kicker">ROOM</p>
+        <h1 id="room-heading" data-race-room-code>------</h1>
+      </div>
+      <button type="button" class="arena-copy" data-race-copy>招待URLをコピー</button>
+    </section>
+
+    <section class="arena-status" aria-live="polite">
+      <span class="arena-status-dot"></span>
+      <p data-race-status>対戦サーバーへ接続しています</p>
+    </section>
+
+    <section class="arena-players" aria-labelledby="players-heading">
+      <div class="arena-section-heading">
+        <h2 id="players-heading">参加者</h2>
+        <span data-race-player-count>0</span>
+      </div>
+      <ol data-race-player-list></ol>
+    </section>
+
+    <section class="arena-actions">
+      <button type="button" class="arena-ready" data-race-ready disabled>準備OK</button>
+      <button type="button" class="arena-start" data-race-start hidden disabled>対戦開始</button>
+      <a href="../tutorial/index.html" class="arena-tutorial">操作練習</a>
+      <button type="button" class="arena-name" data-race-change-name>名前を変更</button>
+    </section>
+
+    <p class="arena-rule">写真だけを頼りに目的地を探し、最初に現地の旗を取ったプレイヤーの勝ち。</p>
+  </main>
+
+  <script src="../game/race-config.js?v=cf464e95105b"></script>
+  <script defer src="../game/race-client.js?v=cf464e95105b"></script>
+</body>
+</html>
