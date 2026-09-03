@@ -17,6 +17,7 @@
   const playerStorageKey = "eimei-race-player-v1";
   const roundStorageKey = "eimei-race-round-v1";
   const startPlacementStorageKey = "eimei-race-place-start-v1";
+  const privateHintStorageKey = "eimei-race-private-hints-v1";
   const roomAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const photoIntroMilliseconds = 3200;
   const playerPalettes = [
@@ -60,6 +61,9 @@
     hudKey: null,
     hints: null,
     hintKey: null,
+    privateHints: [],
+    privateHintRoot: null,
+    privateHintRoundId: null,
     countdown: null,
     result: null,
     ghosts: new Map(),
@@ -82,13 +86,15 @@
   }
 
   function ensureRoomCode() {
-    if (/^[A-Z2-9]{6}$/.test(race.roomCode)) return true;
-    if (!isArena) return false;
-    race.roomCode = generateRoomCode();
-    const url = new URL(location.href);
-    url.searchParams.set("room", race.roomCode);
-    history.replaceState(history.state, "", url.href);
-    return true;
+    return /^[A-Z2-9]{6}$/.test(race.roomCode);
+  }
+
+  function normalizeRoomCode(value) {
+    const normalized = String(value ?? "")
+      .normalize("NFKC")
+      .toUpperCase()
+      .replace(/[\s-]+/gu, "");
+    return /^[A-Z2-9]{6}$/.test(normalized) ? normalized : null;
   }
 
   function graphemes(value) {
@@ -175,12 +181,6 @@
     };
     if (typeof requestIdleCallback === "function") requestIdleCallback(() => run(), { timeout: 800 });
     else window.setTimeout(run, 120);
-  }
-
-  function arenaRoomUrl() {
-    const url = new URL(arenaUrl);
-    url.searchParams.set("room", race.roomCode);
-    return url;
   }
 
   function setArenaStatus(text, mode = "") {
@@ -339,6 +339,10 @@
       applyRemoteGrapple(message);
       return;
     }
+    if (message.type === "wisp_hint") {
+      receivePrivateHint(message);
+      return;
+    }
     if (message.type === "pong") {
       const receivedAt = Date.now();
       const sentAt = Number(message.clientNow) || receivedAt;
@@ -357,7 +361,8 @@
         race.courseRetryCount += 1;
         window.setTimeout(() => provideCourse({
           seed: Number(race.room.courseSeed) + race.courseRetryCount * 0x9e3779b1,
-          recentGoalIds: race.room.recentGoalIds || []
+          recentGoalIds: race.room.recentGoalIds || [],
+          recentGoalCategories: race.room.recentGoalCategories || []
         }), 180);
       }
     }
@@ -376,6 +381,7 @@
   function updateRoom(room) {
     if (!room || room.code !== race.roomCode) return;
     race.room = room;
+    window.EimeiMap?.setRaceWispClaims?.(room.claimedWispIds || []);
     if (isArena) updateArena();
     else configureMapRound();
   }
@@ -394,7 +400,7 @@
     if (count) count.textContent = `${connectedPlayers.length} / ${room.maxPlayers || 4}`;
     const list = document.querySelector("[data-race-player-list]");
     if (list) {
-      list.replaceChildren(...room.players.map((player) => {
+      list.replaceChildren(...connectedPlayers.map((player) => {
         const item = document.createElement("li");
         const palette = paletteFor(player);
         item.style.setProperty("--race-player-color", palette.primary);
@@ -411,7 +417,7 @@
           tags.append(host);
         }
         const state = document.createElement("span");
-        state.textContent = player.connected ? (player.ready ? "READY" : "WAIT") : "OFFLINE";
+        state.textContent = player.ready ? "READY" : "WAIT";
         tags.append(state);
         item.append(name, tags);
         return item;
@@ -428,7 +434,7 @@
     const start = document.querySelector("[data-race-start]");
     if (start) {
       const isHost = room.hostId === race.playerId;
-      const everyoneReady = connectedPlayers.length >= 2 && connectedPlayers.every((player) => player.ready);
+      const everyoneReady = connectedPlayers.length >= 1 && connectedPlayers.every((player) => player.ready);
       start.hidden = !isHost;
       start.disabled = !isHost || !everyoneReady || !new Set(["lobby", "finished"]).has(room.phase);
       start.textContent = room.phase === "finished" ? "再戦開始" : "対戦開始";
@@ -490,7 +496,12 @@
       proxy: "証明書案内",
       meiyu: "卒業生向け情報",
       restaurant: "英明レストラン",
-      correspondencecourse: "通信制課程"
+      correspondencecourse: "通信制課程",
+      "index.html": "学校トップ",
+      "copyright.html": "サイト案内",
+      "recruit.html": "採用情報",
+      "recruit_r4t.html": "採用情報",
+      "recruit_r6.html": "採用情報"
     })[segment] || "学校ホームページ";
   }
 
@@ -505,7 +516,7 @@
     return race.catalogPromise;
   }
 
-  async function provideCourse({ seed, recentGoalIds = [] }) {
+  async function provideCourse({ seed, recentGoalIds = [], recentGoalCategories = [] }) {
     try {
       const catalog = await loadCatalog();
       const pageMap = new Map(catalog.pages.map((page) => [page.page, page]));
@@ -574,7 +585,12 @@
         if (candidatesByGoalCategory.size === categories.length && attempt >= categories.length * 2) break;
       }
       const balancedCandidates = [...candidatesByGoalCategory.values()];
-      const selected = balancedCandidates[Math.floor(random() * balancedCandidates.length)] || null;
+      const recentlyUsedCategories = new Set(recentGoalCategories.slice(-3));
+      const freshCategoryCandidates = balancedCandidates.filter((candidate) =>
+        !recentlyUsedCategories.has(categoryKeyFor(candidate.goal.page))
+      );
+      const drawPool = freshCategoryCandidates.length > 0 ? freshCategoryCandidates : balancedCandidates;
+      const selected = drawPool[Math.floor(random() * drawPool.length)] || null;
       if (!selected) throw new Error("no_course");
       send({ type: "course", course: selected });
     } catch (error) {
@@ -584,7 +600,8 @@
         setArenaStatus("目的地を再抽選しています");
         window.setTimeout(() => provideCourse({
           seed: Number(seed) + race.courseRetryCount * 0x9e3779b1,
-          recentGoalIds
+          recentGoalIds,
+          recentGoalCategories
         }), 180);
       } else {
         setArenaStatus("目的地を生成できませんでした。もう一度開始してください", "error");
@@ -602,6 +619,12 @@
     target.searchParams.set("eimei-round", room.roundId);
     target.searchParams.set("eimei-route", "race");
     location.assign(target.href);
+  }
+
+  function arenaRoomUrl() {
+    const target = new URL(arenaUrl.href);
+    if (ensureRoomCode()) target.searchParams.set("room", race.roomCode);
+    return target;
   }
 
   function hintStage(room = race.room) {
@@ -647,6 +670,8 @@
       frozen: room.phase === "countdown" && serverNow() < room.startAt,
       finished: room.phase === "finished"
     });
+    map.setRaceWispClaims?.(room.claimedWispIds || []);
+    loadPrivateHints(room.roundId);
     if (stage >= 4) race.navigationCourseKey = `${room.roundId}:${currentPage}`;
     if (shouldPlaceAtStart) sessionStorage.removeItem(startPlacementStorageKey);
     race.configuredRoundId = room.roundId;
@@ -817,6 +842,101 @@
       ? "リンク"
       : /(?:^|>)h[1-6](?::|\[|$)/.test(selector) ? "見出し" : "文字の足場";
     return `ページの${band}にある${kind}`;
+  }
+
+  function privateHintChoices(goal) {
+    const labelParts = graphemes(String(goal?.label || "目的地"));
+    const titleParts = graphemes(String(goal?.title || "英明高等学校"));
+    const first = labelParts[0] || "？";
+    const last = labelParts.at(-1) || "？";
+    const middle = labelParts[Math.floor((labelParts.length - 1) * .5)] || first;
+    const masked = labelParts.map((part, index) => index % 2 === 0 ? part : "○").join("");
+    const year = `${goal?.page || ""} ${goal?.title || ""} ${goal?.context || ""}`.match(/20\d{2}/)?.[0];
+    const context = String(goal?.context || "")
+      .replace(String(goal?.label || ""), "■■")
+      .replace(/\s+/gu, " ")
+      .trim()
+      .slice(0, 46);
+    const choices = [
+      `旗の文字は「${first}」から始まる`,
+      `旗の文字は「${last}」で終わる`,
+      `旗の文字数は ${labelParts.length || 1} 文字`,
+      `旗の文字を一部だけ見ると「${masked}」`,
+      `目的ページの題名は「${titleParts[0] || "？"}」から始まる`,
+      year ? `目的地に関係する年は ${year} 年` : `目的ページの題名は ${titleParts.length || 1} 文字`,
+      `旗の文字の中央付近には「${middle}」がある`,
+      context ? `旗の周辺には「${context}」と書かれている` : `旗の文字の先頭2文字は「${labelParts.slice(0, 2).join("")}」`
+    ];
+    return choices.filter((value, index, all) => value && all.indexOf(value) === index);
+  }
+
+  function loadPrivateHints(roundId) {
+    if (race.privateHintRoundId === roundId) return;
+    race.privateHintRoundId = roundId;
+    race.privateHints = [];
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(privateHintStorageKey) || "null");
+      if (stored?.roundId === roundId && Array.isArray(stored.hints)) {
+        race.privateHints = stored.hints
+          .filter((hint) => hint && typeof hint.wispId === "string" && typeof hint.text === "string")
+          .slice(-8);
+      }
+    } catch {
+      sessionStorage.removeItem(privateHintStorageKey);
+    }
+    renderPrivateHints(false);
+  }
+
+  function savePrivateHints() {
+    if (!race.privateHintRoundId) return;
+    sessionStorage.setItem(privateHintStorageKey, JSON.stringify({
+      roundId: race.privateHintRoundId,
+      hints: race.privateHints.slice(-8)
+    }));
+  }
+
+  function ensurePrivateHintPanel() {
+    if (race.privateHintRoot?.isConnected) return race.privateHintRoot;
+    const root = document.createElement("aside");
+    root.className = "eimei-race-private-hints";
+    root.hidden = true;
+    root.setAttribute("aria-live", "polite");
+    root.innerHTML = `<p><span>BLUE HAZE</span> 自分だけのヒント</p><ol></ol>`;
+    document.documentElement.append(root);
+    race.privateHintRoot = root;
+    return root;
+  }
+
+  function renderPrivateHints(animate = false) {
+    const root = ensurePrivateHintPanel();
+    root.hidden = race.privateHints.length === 0;
+    const list = root.querySelector("ol");
+    list.replaceChildren(...race.privateHints.map((hint, index) => {
+      const item = document.createElement("li");
+      item.textContent = hint.text;
+      item.classList.toggle("is-latest", animate && index === race.privateHints.length - 1);
+      return item;
+    }));
+    if (animate && race.privateHints.length > 0) {
+      root.classList.remove("is-updated");
+      void root.offsetWidth;
+      root.classList.add("is-updated");
+    }
+  }
+
+  function receivePrivateHint(message) {
+    if (!race.room?.course?.goal || message.roundId !== race.room.roundId) return;
+    loadPrivateHints(message.roundId);
+    if (race.privateHints.some((hint) => hint.wispId === message.wispId)) return;
+    const choices = privateHintChoices(race.room.course.goal);
+    const hintNumber = Math.max(1, Number.parseInt(message.hintNumber, 10) || 1);
+    race.privateHints.push({
+      wispId: String(message.wispId || ""),
+      text: choices[(hintNumber - 1) % choices.length]
+    });
+    race.privateHints = race.privateHints.slice(-8);
+    savePrivateHints();
+    renderPrivateHints(true);
   }
 
   function photoScale(photo, expanded) {
@@ -1092,8 +1212,10 @@
       );
     const root = document.createElement("div");
     root.className = "eimei-race-result";
-    root.innerHTML = `<section class="eimei-race-result-card"><p class="eimei-race-result-kicker">RACE RESULT</p><h2></h2><p class="eimei-race-result-summary">この部屋の通算ポイント</p><div class="eimei-race-result-players"></div><button type="button">待機室へ戻る</button></section>`;
-    root.querySelector("h2").textContent = `${winner?.nickname || "PLAYER"} の勝利`;
+    root.innerHTML = `<section class="eimei-race-result-card"><p class="eimei-race-result-kicker">RACE RESULT</p><h2></h2><p class="eimei-race-result-summary">到着タイム / この部屋の自己ベスト / 通算ポイント</p><div class="eimei-race-result-players"></div><button type="button">待機室へ戻る</button></section>`;
+    root.querySelector("h2").textContent = participants.length === 1
+      ? `${winner?.nickname || "PLAYER"} ゴール`
+      : `${winner?.nickname || "PLAYER"} の勝利`;
     const playerGrid = root.querySelector(".eimei-race-result-players");
     playerGrid.replaceChildren(...participants.map((participant) => {
       const palette = paletteFor(participant);
@@ -1104,18 +1226,32 @@
       card.style.setProperty("--race-player-color", palette.primary);
       card.style.setProperty("--race-player-visor", palette.visor);
       card.style.setProperty("--race-player-accent", palette.accent);
-      card.innerHTML = `<span class="eimei-race-result-player-avatar" aria-hidden="true"></span><span class="eimei-race-result-player-copy"><span class="eimei-race-result-player-name"></span><span class="eimei-race-result-player-state"></span></span><span class="eimei-race-result-player-points"><strong></strong><span>PT</span></span>`;
+      card.innerHTML = `<span class="eimei-race-result-player-avatar" aria-hidden="true"></span><span class="eimei-race-result-player-copy"><span class="eimei-race-result-player-name"></span><span class="eimei-race-result-player-state"></span><span class="eimei-race-result-player-time"></span><span class="eimei-race-result-player-best"></span></span><span class="eimei-race-result-player-points"><strong></strong><span>PT</span></span>`;
       card.querySelector(".eimei-race-result-player-name").textContent = participant.nickname;
       card.querySelector(".eimei-race-result-player-state").textContent = participant.id === race.room.winnerId
         ? "WINNER"
         : participant.id === race.playerId ? "YOU" : "CHALLENGER";
-      card.querySelector("strong").textContent = String(Math.max(0, Number.parseInt(participant.points, 10) || 0));
+      card.querySelector(".eimei-race-result-player-time").textContent = Number.isFinite(participant.finishDurationMs)
+        ? `今回 ${formatRaceTime(participant.finishDurationMs)}`
+        : "今回 未到達";
+      card.querySelector(".eimei-race-result-player-best").textContent = Number.isFinite(participant.bestDurationMs)
+        ? `BEST ${formatRaceTime(participant.bestDurationMs)}`
+        : "BEST --:--.---";
+      card.querySelector(".eimei-race-result-player-points strong").textContent = String(Math.max(0, Number.parseInt(participant.points, 10) || 0));
       return card;
     }));
     root.querySelector("button").addEventListener("click", () => location.assign(arenaRoomUrl().href));
     document.documentElement.append(root);
     race.result = root;
     window.setTimeout(() => root.querySelector("button")?.focus(), 100);
+  }
+
+  function formatRaceTime(milliseconds) {
+    const total = Math.max(0, Math.round(Number(milliseconds) || 0));
+    const minutes = Math.floor(total / 60000);
+    const seconds = Math.floor(total % 60000 / 1000);
+    const millis = total % 1000;
+    return `${minutes}:${String(seconds).padStart(2, "0")}.${String(millis).padStart(3, "0")}`;
   }
 
   function reportFinish(event) {
@@ -1129,37 +1265,107 @@
   }
 
   function installArenaActions() {
-    document.querySelector("[data-race-copy]")?.addEventListener("click", async (event) => {
-      const text = arenaRoomUrl().href;
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch {
-        const area = document.createElement("textarea");
-        area.value = text;
-        document.body.append(area);
-        area.select();
-        document.execCommand("copy");
-        area.remove();
+    const entry = document.querySelector("[data-race-entry]");
+    const lobby = document.querySelector("[data-race-lobby]");
+    const roomInput = document.querySelector("[data-race-join-form] input[name='room']");
+    const entryError = document.querySelector("[data-race-entry-error]");
+
+    const showEntry = () => {
+      disconnect(false);
+      race.roomCode = "";
+      race.room = null;
+      race.lastError = null;
+      const url = new URL(location.href);
+      url.searchParams.delete("room");
+      history.replaceState(history.state, "", url.href);
+      if (entry) entry.hidden = false;
+      if (lobby) lobby.hidden = true;
+      document.querySelector("[data-race-player-list]")?.replaceChildren();
+      const count = document.querySelector("[data-race-player-count]");
+      if (count) count.textContent = "0 / 4";
+      if (entryError) entryError.textContent = "";
+      if (roomInput) {
+        roomInput.value = "";
+        requestAnimationFrame(() => roomInput.focus());
       }
-      event.currentTarget.textContent = "コピーしました";
-      window.setTimeout(() => { event.currentTarget.textContent = "招待URLをコピー"; }, 1400);
+    };
+
+    const enterRoom = (code) => {
+      const normalized = normalizeRoomCode(code);
+      if (!normalized) {
+        if (entryError) entryError.textContent = "英字と数字の6文字で入力してください";
+        roomInput?.focus();
+        return false;
+      }
+      disconnect(false);
+      race.roomCode = normalized;
+      race.room = null;
+      race.lastError = null;
+      const url = new URL(location.href);
+      url.searchParams.set("room", normalized);
+      history.replaceState(history.state, "", url.href);
+      const roomCode = document.querySelector("[data-race-room-code]");
+      if (roomCode) roomCode.textContent = normalized;
+      if (entry) entry.hidden = true;
+      if (lobby) lobby.hidden = false;
+      if (entryError) entryError.textContent = "";
+      const stored = normalizeNickname(localStorage.getItem(nicknameStorageKey));
+      if (stored) {
+        race.nickname = stored;
+        connect();
+      } else {
+        showProfileEditor();
+      }
+      return true;
+    };
+
+    document.querySelector("[data-race-create]")?.addEventListener("click", () => enterRoom(generateRoomCode()));
+    document.querySelector("[data-race-join-form]")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      enterRoom(roomInput?.value);
     });
+    roomInput?.addEventListener("input", () => {
+      roomInput.value = roomInput.value.toUpperCase().replace(/[^A-Z2-9]/gu, "").slice(0, 6);
+      if (entryError) entryError.textContent = "";
+    });
+    document.querySelector("[data-race-change-room]")?.addEventListener("click", showEntry);
     document.querySelector("[data-race-ready]")?.addEventListener("click", () => send({ type: "ready", ready: !currentPlayer()?.ready }));
     document.querySelector("[data-race-start]")?.addEventListener("click", () => send({ type: "start" }));
     document.querySelector("[data-race-change-name]")?.addEventListener("click", () => showProfileEditor({ force: true }));
   }
 
   function boot() {
-    if (!ensureRoomCode()) return;
     ensurePlayerId();
     if (isArena) {
-      document.querySelector("[data-race-room-code]").textContent = race.roomCode;
       installArenaActions();
+      const entry = document.querySelector("[data-race-entry]");
+      const lobby = document.querySelector("[data-race-lobby]");
+      if (!ensureRoomCode()) {
+        if (entry) entry.hidden = false;
+        if (lobby) lobby.hidden = true;
+        requestAnimationFrame(() => document.querySelector("[data-race-join-form] input")?.focus());
+        return;
+      }
+      document.querySelector("[data-race-room-code]").textContent = race.roomCode;
+      if (entry) entry.hidden = true;
+      if (lobby) lobby.hidden = false;
+    } else if (!ensureRoomCode()) {
+      return;
     }
     window.addEventListener("eimei-race-finish", reportFinish);
     window.addEventListener("eimei-race-route-missing", () => {
       race.navigationCourseKey = null;
       ensureFinalNavigation();
+    });
+    window.addEventListener("eimei-race-wisp", (event) => {
+      const detail = event.detail || {};
+      if (!send({
+        type: "wisp",
+        roundId: detail.roundId,
+        page: detail.page,
+        wispId: detail.wispId,
+        index: detail.index
+      })) event.preventDefault();
     });
     window.addEventListener("eimei-portal-warm", (event) => warmUrl(event.detail?.href));
     window.addEventListener("eimei-portal-entering", cancelWarmRequests);

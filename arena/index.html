@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>EIMEI RACE</title>
   <link rel="icon" type="image/svg+xml" href="../images/kosyo-sq.svg">
-  <link rel="stylesheet" href="./arena.css?v=3041541eec82">
-  <link rel="stylesheet" href="../game/race.css?v=3041541eec82">
+  <link rel="stylesheet" href="./arena.css?v=27f2fe81ea0e">
+  <link rel="stylesheet" href="../game/race.css?v=27f2fe81ea0e">
 </head>
 <body>
   <main class="arena-shell">
@@ -15,38 +15,57 @@
       <p>EIMEI RACE</p>
     </header>
 
-    <section class="arena-room" aria-labelledby="room-heading">
-      <div>
-        <p class="arena-kicker">ROOM</p>
-        <h1 id="room-heading" data-race-room-code>------</h1>
-      </div>
-      <button type="button" class="arena-copy" data-race-copy>招待URLをコピー</button>
+    <section class="arena-entry" data-race-entry aria-labelledby="entry-heading">
+      <p class="arena-kicker">MATCH LOBBY</p>
+      <h1 id="entry-heading">対戦部屋を選ぶ</h1>
+      <button type="button" class="arena-create" data-race-create>新しい部屋を作る</button>
+      <div class="arena-entry-divider"><span>または</span></div>
+      <form class="arena-join" data-race-join-form novalidate>
+        <label for="arena-room-code">6文字の部屋コード</label>
+        <div class="arena-join-row">
+          <input id="arena-room-code" name="room" type="text" inputmode="text" maxlength="6"
+            autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC234" aria-describedby="arena-room-error">
+          <button type="submit">参加する</button>
+        </div>
+        <p id="arena-room-error" class="arena-entry-error" data-race-entry-error aria-live="polite"></p>
+      </form>
     </section>
 
-    <section class="arena-status" aria-live="polite">
-      <span class="arena-status-dot"></span>
-      <p data-race-status>対戦サーバーへ接続しています</p>
-    </section>
+    <div class="arena-lobby" data-race-lobby hidden>
+      <section class="arena-room" aria-labelledby="room-heading">
+        <div>
+          <p class="arena-kicker">ROOM CODE</p>
+          <h1 id="room-heading" data-race-room-code>------</h1>
+          <p class="arena-share-note">この6文字を参加者に伝える</p>
+        </div>
+      </section>
 
-    <section class="arena-players" aria-labelledby="players-heading">
-      <div class="arena-section-heading">
-        <h2 id="players-heading">参加者</h2>
-        <span data-race-player-count>0</span>
-      </div>
-      <ol data-race-player-list></ol>
-    </section>
+      <section class="arena-status" aria-live="polite">
+        <span class="arena-status-dot"></span>
+        <p data-race-status>対戦サーバーへ接続しています</p>
+      </section>
 
-    <section class="arena-actions">
-      <button type="button" class="arena-ready" data-race-ready disabled>準備OK</button>
-      <button type="button" class="arena-start" data-race-start hidden disabled>対戦開始</button>
-      <a href="../tutorial/index.html" class="arena-tutorial">操作練習</a>
-      <button type="button" class="arena-name" data-race-change-name>名前を変更</button>
-    </section>
+      <section class="arena-players" aria-labelledby="players-heading">
+        <div class="arena-section-heading">
+          <h2 id="players-heading">参加者</h2>
+          <span data-race-player-count>0 / 4</span>
+        </div>
+        <ol data-race-player-list></ol>
+      </section>
 
-    <p class="arena-rule">2〜4人対戦。写真だけを頼りに目的地を探し、最初に現地の旗を取ったプレイヤーの勝ち。勝者は1ポイント。</p>
+      <section class="arena-actions">
+        <button type="button" class="arena-ready" data-race-ready disabled>準備OK</button>
+        <button type="button" class="arena-start" data-race-start hidden disabled>対戦開始</button>
+        <a href="../tutorial/index.html" class="arena-tutorial">操作練習</a>
+        <button type="button" class="arena-name" data-race-change-name>名前を変更</button>
+        <button type="button" class="arena-change-room" data-race-change-room>別の部屋へ</button>
+      </section>
+
+      <p class="arena-rule">1〜4人でプレイ可能。写真だけを頼りに目的地を探し、最初に現地の旗を取ったプレイヤーの勝ち。到着タイムと自己ベストを記録し、勝者は1ポイント。</p>
+    </div>
   </main>
 
-  <script src="../game/race-config.js?v=3041541eec82"></script>
-  <script defer src="../game/race-client.js?v=3041541eec82"></script>
+  <script src="../game/race-config.js?v=27f2fe81ea0e"></script>
+  <script defer src="../game/race-client.js?v=27f2fe81ea0e"></script>
 </body>
 </html>

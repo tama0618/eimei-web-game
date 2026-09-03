@@ -42,6 +42,9 @@
     raceGrappleAcceleration: 3400,
     raceGrappleMaximumSpeed: 720,
     raceGrappleHoldSeconds: 0.42,
+    raceWispCount: 8,
+    raceWispRadius: 23,
+    raceWispMinimumSpacing: 150,
     hatchMinimumSurfaceWidth: 300,
     navigationFlightSpeed: 760,
     navigationMinimumRise: 30,
@@ -421,6 +424,10 @@
     missingRoutePage: null,
     remotePlayers: new Map(),
     incomingGrapples: new Map(),
+    wisps: [],
+    wispPlacementKey: null,
+    claimedWispIds: new Set(),
+    pendingWispClaims: new Map(),
     remoteRenderCount: 0,
     remoteRenderStyle: "full-character",
     lastRemoteRenderAt: -Infinity
@@ -1075,7 +1082,20 @@
         }
       }
       remapMission(previousGoal, previousRoute, previousGuide);
+      // Tutorial checkpoints have an authored order and an exact DOM target.
+      // Generic remapping can choose a neighbouring dash after a rebuild,
+      // leaving the visible lesson without its flag. Rebind the current order
+      // without clearing the action the player has already performed.
+      if (tutorial.active && mission.initialized) {
+        setTutorialStep(tutorial.step, {
+          launchFromPlayer: false,
+          resetActions: false,
+          preserveTransition: true,
+          announce: false
+        });
+      }
     }
+    if (race.active && race.configured) generateRaceWisps({ force: true });
     refreshHatchCandidate({ force: true });
     if (!isPlanningDocument && mission.initialized && mission.goalKind === "portal" && mission.portalAnchor) {
       // Image/layout rebuilds can coincide with opening a guided dropdown.
@@ -1197,6 +1217,17 @@
     }
     player.navigationBody = supportingMapBody();
     if (mission.initialized) remapMission(previousGoal, previousRoute, previousGuide, { preservePlannedRoute: true });
+    // Menu opening rebuilds only part of the map. Tutorial goals still need the
+    // same authored-order repair used by a full rebuild, otherwise the current
+    // flag can remain attached to a removed text fragment.
+    if (tutorial.active && mission.initialized) {
+      setTutorialStep(tutorial.step, {
+        launchFromPlayer: false,
+        resetActions: false,
+        preserveTransition: true,
+        announce: false
+      });
+    }
     refreshHatchCandidate({ force: true });
     if (mission.initialized && mission.goalKind === "portal" && mission.portalAnchor) {
       // A dropdown rebuild replaces the parent-tab proxy and its body objects.
@@ -1556,6 +1587,12 @@
 
   function tutorialBodyForElement(element) {
     if (!element) return null;
+    const solidFloor = element.closest?.("[data-eimei-solid-floor]") ||
+      element.querySelector?.("[data-eimei-solid-floor]");
+    if (solidFloor) {
+      const lineBody = state.lineBodies.find((body) => body.sourceElement === solidFloor);
+      if (lineBody) return lineBody;
+    }
     const rect = element.getBoundingClientRect();
     const centerX = rect.left + window.scrollX + rect.width * 0.5;
     const centerY = rect.top + window.scrollY + rect.height * 0.5;
@@ -3366,7 +3403,13 @@
   }
 
   function tutorialCheckpoints() {
-    return [...document.querySelectorAll("[data-eimei-tutorial-checkpoint]")];
+    return [...document.querySelectorAll("[data-eimei-tutorial-checkpoint]")]
+      .toSorted((first, second) => {
+        const firstOrder = Number(first.dataset.eimeiTutorialOrder);
+        const secondOrder = Number(second.dataset.eimeiTutorialOrder);
+        return (Number.isFinite(firstOrder) ? firstOrder : Number.MAX_SAFE_INTEGER) -
+          (Number.isFinite(secondOrder) ? secondOrder : Number.MAX_SAFE_INTEGER);
+      });
   }
 
   function tutorialCurrentCheckpoint() {
@@ -3426,7 +3469,12 @@
     return true;
   }
 
-  function setTutorialStep(index, { launchFromPlayer = true } = {}) {
+  function setTutorialStep(index, {
+    launchFromPlayer = true,
+    resetActions = true,
+    preserveTransition = false,
+    announce = true
+  } = {}) {
     const checkpoints = tutorialCheckpoints();
     const checkpoint = checkpoints[index];
     if (!checkpoint) return false;
@@ -3439,8 +3487,8 @@
     if (!goalBody) return false;
 
     tutorial.step = index;
-    tutorial.transitioning = false;
-    resetTutorialActions();
+    if (!preserveTransition) tutorial.transitioning = false;
+    if (resetActions) resetTutorialActions();
     for (const element of checkpoints) element.classList.remove("is-current");
     checkpoint.classList.add("is-current");
 
@@ -3487,9 +3535,11 @@
     setKeypointGuide({ launchFromPlayer });
     refreshHatchCandidate({ force: true });
     document.documentElement.dataset.eimeiTutorialStep = String(index);
-    window.dispatchEvent(new CustomEvent("eimei-tutorial-step", {
-      detail: { index, requirement: checkpoint.dataset.require || "reach" }
-    }));
+    if (announce) {
+      window.dispatchEvent(new CustomEvent("eimei-tutorial-step", {
+        detail: { index, requirement: checkpoint.dataset.require || "reach" }
+      }));
+    }
     return true;
   }
 
@@ -3675,6 +3725,144 @@
     const preferredX = Number.isFinite(Number(target?.x)) ? Number(target.x) : (left + right) * 0.5;
     return pool.toSorted((a, b) => Math.abs(a - preferredX) - Math.abs(b - preferredX))[0] ??
       Math.max(body.x + player.width * 0.5, Math.min(preferredX, body.x + body.width - player.width * 0.5));
+  }
+
+  function stableRaceHash(value) {
+    const text = String(value ?? "");
+    let hash = 2166136261;
+    for (let index = 0; index < text.length; index += 1) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  function raceWispId(index, page = pageIdentity(), roundId = race.roundId) {
+    return `w_${stableRaceHash(`${roundId}|${page}|${index}`).toString(36)}_${index}`;
+  }
+
+  function raceWispRandom(seedText) {
+    let seed = stableRaceHash(seedText);
+    return () => {
+      seed += 0x6d2b79f5;
+      let value = seed;
+      value = Math.imul(value ^ value >>> 15, value | 1);
+      value ^= value + Math.imul(value ^ value >>> 7, value | 61);
+      return ((value ^ value >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function raceWispBodyIsStable(body) {
+    if (
+      !body?.navigationXs?.length ||
+      body.menuLedge ||
+      body.width < Math.max(42, player.width * 2.2) ||
+      body.y < player.height + CONFIG.raceWispRadius ||
+      body.y > state.documentHeight - 24
+    ) return false;
+    return !(body.sourceRegions || []).some((region) =>
+      region.element?.closest?.("header ul ul, nav ul ul, #side, #side-wide, #tabbed")
+    );
+  }
+
+  function generateRaceWisps({ force = false } = {}) {
+    if (!race.active || !race.configured || !race.roundId || state.bodies.length === 0) {
+      race.wisps = [];
+      race.wispPlacementKey = null;
+      return [];
+    }
+    const page = pageIdentity();
+    const geometryKey = `${Math.round(state.documentWidth / 20)}:${Math.round(state.documentHeight / 20)}:${state.bodies.length}`;
+    const placementKey = `${race.roundId}|${page}|${geometryKey}`;
+    if (!force && race.wispPlacementKey === placementKey && race.wisps.length > 0) return race.wisps;
+
+    const candidates = navigationBodies().filter(raceWispBodyIsStable);
+    if (candidates.length === 0) {
+      race.wisps = [];
+      race.wispPlacementKey = placementKey;
+      return [];
+    }
+
+    const random = raceWispRandom(`${race.roundId}|${page}|blue-wisps`);
+    const chosenBodies = new Set();
+    const placed = [];
+    const spawnX = Number.isFinite(player.spawnX) ? player.spawnX + player.width * 0.5 : player.x + player.width * 0.5;
+    const spawnY = Number.isFinite(player.spawnY) ? player.spawnY + player.height * 0.5 : player.y + player.height * 0.5;
+    const goalX = page === race.course?.goal?.page ? Number(race.course.goal.x) : NaN;
+    const goalY = page === race.course?.goal?.page ? Number(race.course.goal.y) : NaN;
+
+    for (let index = 0; index < CONFIG.raceWispCount; index += 1) {
+      const desiredX = state.documentWidth * (0.08 + random() * 0.84);
+      const desiredY = state.documentHeight * ((index + 0.18 + random() * 0.64) / CONFIG.raceWispCount);
+      const available = candidates.filter((body) => !chosenBodies.has(body));
+      const pool = available.length > 0 ? available : candidates;
+      const body = pool.toSorted((first, second) => {
+        const score = (candidate) => {
+          const center = bodyCenterX(candidate);
+          const nearSpawn = Math.hypot(center - spawnX, candidate.y - spawnY) < CONFIG.raceWispMinimumSpacing;
+          const nearGoal = Number.isFinite(goalX + goalY) &&
+            Math.hypot(center - goalX, candidate.y - goalY) < CONFIG.raceWispMinimumSpacing;
+          const nearPlaced = placed.some((wisp) =>
+            Math.hypot(center - wisp.x, candidate.y - wisp.y) < CONFIG.raceWispMinimumSpacing
+          );
+          return Math.abs(candidate.y - desiredY) * 1.35 +
+            Math.abs(center - desiredX) * 0.34 +
+            Number(nearSpawn) * 1200 +
+            Number(nearGoal) * 900 +
+            Number(nearPlaced) * 720;
+        };
+        return score(first) - score(second);
+      })[0];
+      if (!body) continue;
+      chosenBodies.add(body);
+      const centers = body.navigationXs.map((x) => x + player.width * 0.5);
+      const x = centers.toSorted((first, second) =>
+        Math.abs(first - desiredX) - Math.abs(second - desiredX)
+      )[0] ?? bodyCenterX(body);
+      placed.push({
+        id: raceWispId(index, page, race.roundId),
+        index,
+        page,
+        x,
+        y: body.y - player.height * 0.48,
+        radius: CONFIG.raceWispRadius,
+        body
+      });
+    }
+    race.wisps = placed;
+    race.wispPlacementKey = placementKey;
+    return placed;
+  }
+
+  function setRaceWispClaims(ids = []) {
+    if (!race.active) return false;
+    race.claimedWispIds = new Set(
+      Array.isArray(ids) ? ids.filter((id) => /^w_[a-z0-9]+_[0-7]$/.test(String(id))) : []
+    );
+    for (const id of race.claimedWispIds) race.pendingWispClaims.delete(id);
+    return true;
+  }
+
+  function checkRaceWispCollection(nowSeconds = performance.now() / 1000) {
+    if (!race.active || !race.configured || race.frozen || race.finished || race.finishPending) return false;
+    for (const [id, claimedAt] of race.pendingWispClaims) {
+      if (nowSeconds - claimedAt > 2.4) race.pendingWispClaims.delete(id);
+    }
+    const centerX = player.x + player.width * 0.5;
+    const centerY = player.y + player.height * 0.48;
+    const wisp = race.wisps.find((candidate) =>
+      !race.claimedWispIds.has(candidate.id) &&
+      !race.pendingWispClaims.has(candidate.id) &&
+      Math.hypot(centerX - candidate.x, centerY - candidate.y) <= candidate.radius + player.width * 0.48
+    );
+    if (!wisp) return false;
+    race.pendingWispClaims.set(wisp.id, nowSeconds);
+    const accepted = window.dispatchEvent(new CustomEvent("eimei-race-wisp", {
+      cancelable: true,
+      detail: { roundId: race.roundId, page: wisp.page, wispId: wisp.id, index: wisp.index }
+    }));
+    if (!accepted) race.pendingWispClaims.delete(wisp.id);
+    return accepted;
   }
 
   function setPlayerPalette(value = {}) {
@@ -3994,6 +4182,10 @@
     if (roundChanged) {
       race.finishPending = false;
       race.finishReportedAt = -Infinity;
+      race.wisps = [];
+      race.wispPlacementKey = null;
+      race.claimedWispIds.clear();
+      race.pendingWispClaims.clear();
       mission.completed = false;
       mission.completedAt = -Infinity;
     }
@@ -4014,6 +4206,7 @@
       player.spawnY = player.y;
     }
     configureRaceMissionTarget({ launchFromPlayer: true });
+    generateRaceWisps({ force: roundChanged });
     window.dispatchEvent(new CustomEvent("eimei-race-map-ready", {
       detail: { roundId: race.roundId, page: pageIdentity() }
     }));
@@ -6885,23 +7078,27 @@
     if (updateLadderTraversal(dt, nowSeconds)) {
       updateNavigation(dt, nowSeconds);
       player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
+      checkRaceWispCollection(nowSeconds);
       return;
     }
     if (updateDropHatch(dt, nowSeconds)) {
       updateNavigation(dt, nowSeconds);
       player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
+      checkRaceWispCollection(nowSeconds);
       return;
     }
     if (updateWebMantle(dt, nowSeconds)) {
       updatePlayerInteractions(dt, nowSeconds);
       updateNavigation(dt, nowSeconds);
       player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
+      checkRaceWispCollection(nowSeconds);
       return;
     }
     if (updateWebHatch(dt)) {
       updatePlayerInteractions(dt, nowSeconds);
       updateNavigation(dt, nowSeconds);
       player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
+      checkRaceWispCollection(nowSeconds);
       return;
     }
 
@@ -6909,6 +7106,7 @@
       updateLadderTraversal(dt, nowSeconds);
       updateNavigation(dt, nowSeconds);
       player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
+      checkRaceWispCollection(nowSeconds);
       return;
     }
 
@@ -6963,6 +7161,7 @@
     updateNavigation(dt, nowSeconds);
 
     player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
+    checkRaceWispCollection(nowSeconds);
     if (player.y > state.documentHeight + window.innerHeight * 0.35) respawn();
   }
 
@@ -7283,6 +7482,49 @@
         0.96
       );
     }
+  }
+
+  function drawRaceWisps(scrollX, scrollY) {
+    if (!race.active || !race.configured || race.finished || race.wisps.length === 0) return;
+    const time = performance.now() / 1000;
+    const moteCount = isLowPowerDevice() ? 4 : 6;
+    context.save();
+    for (const wisp of race.wisps) {
+      if (race.claimedWispIds.has(wisp.id) || race.pendingWispClaims.has(wisp.id)) continue;
+      const x = wisp.x - scrollX;
+      const y = wisp.y - scrollY;
+      const radius = wisp.radius * (0.94 + Math.sin(time * 2.1 + wisp.index) * 0.06);
+      if (x + radius < -8 || x - radius > state.viewportWidth + 8 || y + radius < -8 || y - radius > state.viewportHeight + 8) continue;
+
+      context.fillStyle = "rgba(38, 151, 235, .09)";
+      context.beginPath();
+      context.arc(x, y, radius * 1.28, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = "rgba(29, 134, 230, .15)";
+      context.beginPath();
+      context.arc(x, y, radius * 0.88, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = "rgba(94, 202, 255, .24)";
+      context.beginPath();
+      context.arc(x - radius * 0.13, y - radius * 0.08, radius * 0.5, 0, Math.PI * 2);
+      context.fill();
+
+      for (let index = 0; index < moteCount; index += 1) {
+        const angle = time * (0.62 + index * 0.055) + index * 2.39996 + wisp.index * 0.7;
+        const orbit = radius * (0.58 + (index % 3) * 0.18);
+        context.fillStyle = `rgba(90, 207, 255, ${0.42 + (index % 2) * 0.16})`;
+        context.beginPath();
+        context.arc(
+          x + Math.cos(angle) * orbit,
+          y + Math.sin(angle * 1.17) * orbit * 0.56,
+          index % 3 === 0 ? 2.2 : 1.45,
+          0,
+          Math.PI * 2
+        );
+        context.fill();
+      }
+    }
+    context.restore();
   }
 
   function portalGuideIsCurrent() {
@@ -8828,6 +9070,7 @@
     context.clearRect(0, 0, state.viewportWidth, state.viewportHeight);
     drawBodies(window.scrollX, window.scrollY);
     drawLadders(window.scrollX, window.scrollY);
+    drawRaceWisps(window.scrollX, window.scrollY);
     drawNavigation(window.scrollX, window.scrollY);
     drawAvailableHatch(window.scrollX, window.scrollY);
     drawIncomingRaceGrapples(window.scrollX, window.scrollY);
@@ -9051,6 +9294,9 @@
     configureRaceRound,
     setRaceNavigationEnabled,
     setRaceFrozen,
+    setRaceWispClaims,
+    regenerateRaceWisps: () => generateRaceWisps({ force: true }),
+    raceWispId,
     setPlayerPalette,
     setRaceRemotePlayer,
     removeRaceRemotePlayer,
