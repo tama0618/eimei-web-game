@@ -528,7 +528,11 @@
   }
 
   function categoryKeyFor(page) {
-    return page.split("/").filter(Boolean)[0] || "index";
+    const parts = page.split("/").filter(Boolean);
+    if (parts[0] === "info-course") {
+      return parts[1] && parts[1] !== "index.html" ? parts[1] : "about";
+    }
+    return parts[0] || "index";
   }
 
   function categoryFor(page) {
@@ -537,7 +541,7 @@
       information: "学校案内",
       news: "ニュース",
       club: "部活動",
-      career: "進路指導",
+      career: "進路",
       openschool: "入試・オープンスクール",
       entrance: "入試案内",
       schedule: "行事予定",
@@ -546,6 +550,12 @@
       meiyu: "卒業生向け情報",
       restaurant: "英明レストラン",
       correspondencecourse: "通信制課程",
+      about: "情報コース",
+      learning: "学び",
+      environment: "学習環境",
+      qualifications: "資格・実績",
+      activities: "活動記録",
+      history: "コース史",
       "index.html": "学校トップ",
       "copyright.html": "サイト案内",
       "recruit.html": "採用情報",
