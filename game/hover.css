@@ -1,7 +1,9 @@
 /* Generated from every mirrored :hover rule. Do not edit by hand. */
 
 /* info-course/assets/info-course.css */
-a.eimei-player-hover { color: var(--orange); }
+a.eimei-player-hover { color: var(--red); }
+.local-nav a.eimei-player-hover { background: #df2f1b; }
+.link-grid a.eimei-player-hover { background: var(--accent-soft); }
 
 /* style-format.css */
 .img_shadow.eimei-player-hover { filter: brightness(70%); }
