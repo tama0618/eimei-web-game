@@ -1554,7 +1554,13 @@
     }
   }
 
-  function ladderCandidateBetween(lowerBody, upperBody, obstacleIndex = null, maximumHeightOverride = null) {
+  function ladderCandidateBetween(
+    lowerBody,
+    upperBody,
+    obstacleIndex = null,
+    maximumHeightOverride = null,
+    ignoredObstaclePredicate = null
+  ) {
     const topY = upperBody.y + upperBody.height;
     const bottomY = lowerBody.y;
     const height = bottomY - topY;
@@ -1588,6 +1594,7 @@
       const blocked = obstacles.some((body) =>
         body !== lowerBody &&
         body !== upperBody &&
+        !ignoredObstaclePredicate?.(body) &&
         intersects(corridor, body)
       );
       if (blocked) continue;
@@ -1692,12 +1699,31 @@
 
   function collectStructuralLadderCandidates(bodies, obstacleIndex) {
     const candidates = [];
+    const transitions = [];
     for (const upperSection of document.querySelectorAll(".collection-summary-photos")) {
       let lowerSection = upperSection.nextElementSibling;
       while (lowerSection && !lowerSection.matches(".collection-directory")) {
         lowerSection = lowerSection.nextElementSibling;
       }
       if (!lowerSection) continue;
+
+      transitions.push({ upperSection, lowerSection, kind: "collection" });
+    }
+    for (const lowerSection of document.querySelectorAll(".learning-path, .guidance-section")) {
+      const upperSection = lowerSection.previousElementSibling;
+      const isCourseTransition =
+        (lowerSection.matches(".learning-path") && upperSection?.matches(".topic-fact-grid")) ||
+        (lowerSection.matches(".guidance-section") && upperSection?.matches(".learning-path"));
+      if (isCourseTransition) {
+        transitions.push({
+          upperSection,
+          lowerSection,
+          kind: lowerSection.matches(".learning-path") ? "facts-to-learning" : "learning-to-guidance"
+        });
+      }
+    }
+
+    for (const { upperSection, lowerSection, kind } of transitions) {
 
       const upperRect = upperSection.getBoundingClientRect();
       const lowerRect = lowerSection.getBoundingClientRect();
@@ -1724,9 +1750,20 @@
       for (const lowerBody of lowerBodies) {
         for (const upperBody of upperBodies) {
           if (upperBody.y >= lowerBody.y) continue;
-          const candidate = ladderCandidateBetween(lowerBody, upperBody, obstacleIndex, 620);
+          // Paragraphs inside a coloured section often wrap into several
+          // closely stacked collision lines.  Those lines are one visual
+          // landing, not a reason to reject the only ladder across the large
+          // whitespace after the section.  Unrelated content still blocks it.
+          const candidate = ladderCandidateBetween(
+            lowerBody,
+            upperBody,
+            obstacleIndex,
+            620,
+            (body) => bodyBelongsToElement(body, upperSection)
+          );
           if (!candidate) continue;
           candidate.structuralConnector = true;
+          candidate.structuralKind = kind;
           options.push(candidate);
         }
       }
@@ -8036,11 +8073,39 @@
     const normalX = -directionY;
     const normalY = directionX;
     const finalGoalGuide = mission.goalKind === "text" && mission.guideBody === mission.goalBody;
-    const streamParticleCount = particleCount(finalGoalGuide ? 30 : 14, finalGoalGuide ? 10 : 5);
+    const streamParticleCount = particleCount(finalGoalGuide ? 34 : 18, finalGoalGuide ? 14 : 7);
     const visibleLength = Math.min(
       distance - 8,
       Math.max(210, Math.min(finalGoalGuide ? 540 : 430, window.innerWidth * (finalGoalGuide ? 0.5 : 0.38)))
     );
+
+    // A small number of isolated particles was easy to lose over photographs
+    // and white space. Two animated dashed strokes make the direction legible
+    // at a glance and cost much less than multiplying blurred particles.
+    const startScreenX = startX - scrollX;
+    const startScreenY = startY - scrollY;
+    const endScreenX = startScreenX + directionX * visibleLength;
+    const endScreenY = startScreenY + directionY * visibleLength;
+    context.save();
+    context.lineCap = "round";
+    context.strokeStyle = finalGoalGuide ? "rgba(255, 177, 0, .48)" : "rgba(255, 190, 0, .4)";
+    context.lineWidth = finalGoalGuide ? 5.2 : 4;
+    context.setLineDash(finalGoalGuide ? [11, 10] : [8, 11]);
+    context.lineDashOffset = -time * (finalGoalGuide ? 82 : 68);
+    context.beginPath();
+    context.moveTo(startScreenX + directionX * 15, startScreenY + directionY * 15);
+    context.lineTo(endScreenX, endScreenY);
+    context.stroke();
+    context.strokeStyle = "rgba(255, 244, 156, .9)";
+    context.lineWidth = finalGoalGuide ? 1.9 : 1.5;
+    context.setLineDash([2.5, finalGoalGuide ? 18 : 20]);
+    context.lineDashOffset = -time * 96;
+    context.beginPath();
+    context.moveTo(startScreenX + directionX * 15, startScreenY + directionY * 15);
+    context.lineTo(endScreenX, endScreenY);
+    context.stroke();
+    context.restore();
+
     for (let index = 0; index < streamParticleCount; index += 1) {
       const phase = (time * (finalGoalGuide ? 0.58 : 0.42) + index / streamParticleCount) % 1;
       const along = 18 + phase * visibleLength;
@@ -8051,8 +8116,8 @@
         startY + directionY * along + normalY * wiggle - scrollY,
         index,
         time,
-        (finalGoalGuide ? 1.65 : 1.35) + (index % 4 === 0 ? 0.65 : 0),
-        0.62 + phase * 0.34
+        (finalGoalGuide ? 2.05 : 1.8) + (index % 4 === 0 ? 0.8 : 0),
+        0.76 + phase * 0.22
       );
     }
   }
@@ -8078,6 +8143,26 @@
     const normalY = directionX;
     const edgeX = Math.max(margin, Math.min(targetX, state.viewportWidth - margin));
     const edgeY = Math.max(margin, Math.min(targetY, state.viewportHeight - margin));
+    const arrowPulse = 0.82 + Math.sin(time * 4.2) * 0.18;
+    context.save();
+    context.translate(edgeX, edgeY);
+    context.rotate(Math.atan2(directionY, directionX));
+    context.fillStyle = `rgba(255, 198, 18, ${0.2 + arrowPulse * 0.18})`;
+    context.beginPath();
+    context.arc(0, 0, 18 + arrowPulse * 4, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = `rgba(255, 215, 38, ${0.84 + arrowPulse * 0.12})`;
+    context.strokeStyle = "rgba(80, 58, 4, .72)";
+    context.lineWidth = 1.5;
+    context.beginPath();
+    context.moveTo(13, 0);
+    context.lineTo(-8, -8);
+    context.lineTo(-3, 0);
+    context.lineTo(-8, 8);
+    context.closePath();
+    context.fill();
+    context.stroke();
+    context.restore();
     for (let index = 0; index < particleCount(11, 4); index += 1) {
       const tail = (index % 5) * 5.5;
       const spread = (Math.floor(index / 5) - 1) * (4 + index % 4);
@@ -8248,12 +8333,20 @@
     const left = Math.max(-18, zone.left - scrollX);
     const right = Math.min(state.viewportWidth + 18, zone.right - scrollX);
     if (right <= left) return;
-    const pulse = 0.34 + (Math.sin(time * 2.6) + 1) * 0.08;
+    const pulse = 0.64 + (Math.sin(time * 3.1) + 1) * 0.12;
     context.save();
-    context.strokeStyle = `rgba(255, 205, 32, ${pulse})`;
-    context.lineWidth = 1.15;
     context.lineCap = "round";
-    context.setLineDash([1.5, 7]);
+    context.strokeStyle = `rgba(255, 177, 0, ${pulse * 0.34})`;
+    context.lineWidth = 7;
+    context.setLineDash([9, 9]);
+    context.beginPath();
+    context.moveTo(left, y);
+    context.lineTo(right, y);
+    context.stroke();
+    context.strokeStyle = `rgba(255, 218, 44, ${pulse})`;
+    context.lineWidth = 2.4;
+    context.setLineDash([7, 9]);
+    context.lineDashOffset = -time * 44;
     context.beginPath();
     context.moveTo(left, y);
     context.lineTo(right, y);
@@ -8261,8 +8354,8 @@
     context.setLineDash([]);
     for (const edge of [left, right]) {
       context.beginPath();
-      context.moveTo(edge, y - 10);
-      context.lineTo(edge, y + 7);
+      context.moveTo(edge, y - 13);
+      context.lineTo(edge, y + 9);
       context.stroke();
     }
     context.restore();
