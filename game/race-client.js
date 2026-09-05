@@ -65,6 +65,12 @@
     privateHints: [],
     privateHintRoot: null,
     privateHintRoundId: null,
+    debuffRoot: null,
+    debuffSignature: "",
+    debuffItems: new Map(),
+    debuffToast: null,
+    debuffToastTimer: 0,
+    lastDebuffEventKey: null,
     countdown: null,
     result: null,
     ghosts: new Map(),
@@ -344,6 +350,10 @@
       receivePrivateHint(message);
       return;
     }
+    if (message.type === "debuff_event") {
+      receiveDebuffEvent(message);
+      return;
+    }
     if (message.type === "pong") {
       const receivedAt = Date.now();
       const sentAt = Number(message.clientNow) || receivedAt;
@@ -383,6 +393,8 @@
     if (!room || room.code !== race.roomCode) return;
     race.room = room;
     window.EimeiMap?.setRaceWispClaims?.(room.claimedWispIds || []);
+    window.EimeiMap?.setRaceDebuffClaims?.(room.claimedDebuffIds || []);
+    updateDebuffPresentation();
     if (isArena) updateArena();
     else configureMapRound();
   }
@@ -480,9 +492,10 @@
     return result;
   }
 
-  function raceWispPages(playable, course, count = 8) {
-    const random = seededRandom(stableTextHash(`${course.id}|${course.seed}|site-wide-wisps`));
-    const eligible = playable.filter((page) => page.page !== course.goal.page);
+  function raceCollectiblePages(playable, course, count, salt, excludedPages = []) {
+    const random = seededRandom(stableTextHash(`${course.id}|${course.seed}|${salt}`));
+    const excluded = new Set(excludedPages);
+    const eligible = playable.filter((page) => page.page !== course.goal.page && !excluded.has(page.page));
     const buckets = new Map();
     for (const page of eligible) {
       const category = categoryKeyFor(page.page);
@@ -507,6 +520,14 @@
       if (selected.length === count) break;
     }
     return selected;
+  }
+
+  function raceWispPages(playable, course, count = 8) {
+    return raceCollectiblePages(playable, course, count, "site-wide-blue-wisps");
+  }
+
+  function raceDebuffPages(playable, course, excludedPages = []) {
+    return raceCollectiblePages(playable, course, 16, "site-wide-red-debuffs", excludedPages);
   }
 
   function shortestRoute(pageMap, start, goal, maximumDepth = 8) {
@@ -663,6 +684,40 @@
     return race.catalogPromise;
   }
 
+  function chooseBalancedGoalCandidate(candidates, recentGoalCategories = [], random = Math.random) {
+    const balancedCandidates = Array.isArray(candidates) ? candidates.filter(Boolean) : [];
+    if (balancedCandidates.length === 0) return null;
+    const availableCategories = new Set(balancedCandidates.map((candidate) => categoryKeyFor(candidate.goal.page)));
+    const categoryHistory = (Array.isArray(recentGoalCategories) ? recentGoalCategories : [])
+      .filter((category) => availableCategories.has(category));
+    const neverUsedCandidates = balancedCandidates.filter((candidate) =>
+      !categoryHistory.includes(categoryKeyFor(candidate.goal.page))
+    );
+    const newsCandidate = balancedCandidates.find((candidate) => categoryKeyFor(candidate.goal.page) === "news") || null;
+    // News is one section, not hundreds of extra lottery tickets. Still, it
+    // must actually appear: if the first two rounds both miss it, round three
+    // reserves the news candidate, then it is guaranteed again after four
+    // consecutive non-news destinations.
+    const recentWindow = categoryHistory.slice(-4);
+    const newsDue = Boolean(newsCandidate) && !recentWindow.includes("news") && (
+      categoryHistory.length >= 2 || (categoryHistory.length > 0 && neverUsedCandidates.length === 1)
+    );
+    let selected = newsDue ? newsCandidate : null;
+    if (!selected && neverUsedCandidates.length > 0) {
+      selected = neverUsedCandidates[Math.floor(random() * neverUsedCandidates.length)] || null;
+    }
+    if (!selected) {
+      const oldestUse = Math.min(...balancedCandidates.map((candidate) =>
+        categoryHistory.lastIndexOf(categoryKeyFor(candidate.goal.page))
+      ));
+      const oldestCandidates = balancedCandidates.filter((candidate) =>
+        categoryHistory.lastIndexOf(categoryKeyFor(candidate.goal.page)) === oldestUse
+      );
+      selected = oldestCandidates[Math.floor(random() * oldestCandidates.length)] || null;
+    }
+    return selected;
+  }
+
   async function provideCourse({ seed, recentGoalIds = [], recentGoalCategories = [] }) {
     try {
       const catalog = await loadCatalog();
@@ -674,10 +729,29 @@
         String(target.label || "").trim() &&
         Number.isFinite(Number(target.x)) && Number.isFinite(Number(target.y))
       );
+      const sceneKey = (target) => `${String(target?.selector || "").trim()}|${String(target?.context || "")
+        .normalize("NFC").replace(/\s+/gu, " ").trim()}`;
+      const sceneOwners = new Map();
+      for (const page of catalog.pages) {
+        for (const target of page.targets.filter(usableTarget)) {
+          const key = sceneKey(target);
+          if (!sceneOwners.has(key)) sceneOwners.set(key, new Set());
+          sceneOwners.get(key).add(page.page);
+        }
+      }
       const playable = catalog.pages
-        .map((page) => ({ ...page, targets: page.targets.filter(usableTarget) }))
+        // A screenshot must identify one real destination. Several overview
+        // and detail pages intentionally reuse the same section and image; a
+        // flag on only one of those pages turns the round into guesswork.
+        .map((page) => ({
+          ...page,
+          targets: page.targets.filter((target) =>
+            usableTarget(target) && sceneOwners.get(sceneKey(target))?.size === 1
+          )
+        }))
         .filter((page) => !page.page.endsWith("/index.html") && page.targets.length > 0 && page.height >= 420);
       const recent = new Set(recentGoalIds);
+      const recentGoalPages = new Set(recentGoalIds.map((id) => String(id || "").split(":", 1)[0]).filter(Boolean));
       const random = seededRandom(seed);
       const pageBuckets = new Map();
       for (const page of playable) {
@@ -697,7 +771,9 @@
         const sweep = Math.floor(attempt / categories.length);
         const goalCategory = categories[goalIndex];
         const startCategory = categories[(goalIndex + 1 + sweep) % categories.length];
-        const goalPages = pageBuckets.get(goalCategory) || [];
+        const categoryGoalPages = pageBuckets.get(goalCategory) || [];
+        const unusedGoalPages = categoryGoalPages.filter((page) => !recentGoalPages.has(page.page));
+        const goalPages = unusedGoalPages.length > 0 ? unusedGoalPages : categoryGoalPages;
         const startPages = pageBuckets.get(startCategory) || playable;
         const startPage = startPages[Math.floor(random() * startPages.length)];
         const goalPage = goalPages[Math.floor(random() * goalPages.length)];
@@ -744,16 +820,15 @@
         if (candidatesByGoalCategory.size === categories.length && attempt >= categories.length * 2) break;
       }
       const balancedCandidates = [...candidatesByGoalCategory.values()];
-      const recentlyUsedCategories = new Set(recentGoalCategories.slice(-3));
-      const freshCategoryCandidates = balancedCandidates.filter((candidate) =>
-        !recentlyUsedCategories.has(categoryKeyFor(candidate.goal.page))
-      );
-      const drawPool = freshCategoryCandidates.length > 0 ? freshCategoryCandidates : balancedCandidates;
-      const selected = drawPool[Math.floor(random() * drawPool.length)] || null;
+      const selected = chooseBalancedGoalCandidate(balancedCandidates, recentGoalCategories, random);
       if (!selected) throw new Error("no_course");
       selected.wispPages = raceWispPages(playable, selected);
       if (selected.wispPages.length !== 8 || new Set(selected.wispPages).size !== 8) {
         throw new Error("no_wisp_pages");
+      }
+      selected.debuffPages = raceDebuffPages(playable, selected, selected.wispPages);
+      if (selected.debuffPages.length !== 16 || new Set(selected.debuffPages).size !== 16) {
+        throw new Error("no_debuff_pages");
       }
       send({ type: "course", course: selected });
     } catch (error) {
@@ -834,6 +909,8 @@
       finished: room.phase === "finished"
     });
     map.setRaceWispClaims?.(room.claimedWispIds || []);
+    map.setRaceDebuffClaims?.(room.claimedDebuffIds || []);
+    updateDebuffPresentation();
     loadPrivateHints(room.roundId);
     race.navigationCourseKey = stage >= 4 && finalGuideReady(map)
       ? `${room.roundId}:${currentPage}`
@@ -1027,24 +1104,39 @@
     const goalCopy = `${goal.label || ""} ${goal.context || ""}`;
     const canonicalEntry = canonicalEntryForGoal(goal);
     const canonicalLabel = canonicalEntry?.label || "";
-    if (canonicalLabel === "授業・科目" || section === "learning" || (section === "course" && filename === "common-learning.html")) {
-      return "授業・科目";
-    }
-    if (/^(?:情報システム系|情報クリエイト系)$/u.test(canonicalLabel) || (section === "course" && /^(?:system|creative)\.html?$/i.test(filename))) return "2つの系";
-    if (/^(?:情報教室と授業支援|制作・開発環境)$/u.test(canonicalLabel) || section === "environment" || (section === "campus" && /^(?:classrooms|tools)\.html?$/i.test(filename))) {
-      return "学習環境";
-    }
+    const canonicalMenu = new Map([
+      ["3年間の学び方", "情報コース"],
+      ["受験前に知っておきたいこと", "情報コース"],
+      ["授業・科目", "授業・科目"],
+      ["情報システム系", "2つの系"],
+      ["情報クリエイト系", "2つの系"],
+      ["情報教室と授業支援", "学習環境"],
+      ["制作・開発環境", "学習環境"],
+      ["資格・検定", "資格・実績"],
+      ["大会・作品発表", "資格・実績"],
+      ["在校生・卒業生の声", "進路・卒業生"],
+      ["大学・短期大学への進学", "進路・卒業生"],
+      ["専門学校・職業教育への進学", "進路・卒業生"],
+      ["就職と業界理解", "進路・卒業生"],
+      ["歩み", "歩み"],
+      ["過去のニュース", "過去のニュース"]
+    ]).get(canonicalLabel);
+    if (canonicalMenu) return canonicalMenu;
+
+    // Fallbacks cover a catalog entry added before its canonical route is
+    // registered. A known canonical entrance always wins over its broad
+    // section name, otherwise specialist subjects would be mislabeled as the
+    // common-learning menu.
+    if (section === "learning" || (section === "course" && filename === "common-learning.html")) return "授業・科目";
+    if (section === "environment" || (section === "campus" && /^(?:classrooms|tools)\.html?$/i.test(filename))) return "学習環境";
     if (
-      /^(?:資格・検定|大会・作品発表)$/u.test(canonicalLabel) ||
       section === "qualifications" ||
       (section === "campus" && /^(?:certifications|competitions)\.html?$/i.test(filename)) ||
       (section === "campus" && /(?:資格・検定|大会・作品発表)/u.test(goalCopy))
-    ) {
-      return "資格・実績";
-    }
-    if (/^(?:在校生・卒業生の声|大学・短期大学への進学|専門学校・職業教育への進学|就職と業界理解)$/u.test(canonicalLabel) || section === "future" || section === "career") return "進路・卒業生";
-    if (canonicalLabel === "歩み" || section === "history" || (section === "story" && filename === "history.html")) return "歩み";
-    if (canonicalLabel === "過去のニュース" || section === "news") return "過去のニュース";
+    ) return "資格・実績";
+    if (section === "future" || section === "career") return "進路・卒業生";
+    if (section === "history" || (section === "story" && filename === "history.html")) return "歩み";
+    if (section === "news") return "過去のニュース";
     return "情報コース";
   }
 
@@ -1193,6 +1285,110 @@
     renderPrivateHints(true);
   }
 
+  const debuffLabels = Object.freeze({
+    "grapple-lock": "グラップル封印",
+    "slow-run": "移動速度低下",
+    "reverse-input": "左右入力反転",
+    "double-jump-lock": "二段ジャンプ封印",
+    "hatch-lock": "上下貫通封印",
+    "ladder-slow": "梯子速度低下",
+    "photo-jam": "目的地写真ジャミング",
+    "vertical-warp": "ランダム高度へ転送"
+  });
+
+  function activeSelfDebuffs(now = serverNow()) {
+    const strongestByKind = new Map();
+    for (const effect of currentPlayer()?.debuffs || []) {
+      if (!debuffLabels[effect?.kind] || Number(effect.endsAt) <= now) continue;
+      const previous = strongestByKind.get(effect.kind);
+      if (!previous || Number(effect.endsAt) > Number(previous.endsAt)) {
+        strongestByKind.set(effect.kind, effect);
+      }
+    }
+    return [...strongestByKind.values()].toSorted((first, second) =>
+      Number(first.endsAt) - Number(second.endsAt) || String(first.kind).localeCompare(String(second.kind))
+    );
+  }
+
+  function ensureDebuffPanel() {
+    if (race.debuffRoot?.isConnected) return race.debuffRoot;
+    const root = document.createElement("aside");
+    root.className = "eimei-race-debuffs";
+    root.hidden = true;
+    root.innerHTML = `<p><span>RED HAZE</span> 妨害発動中</p><ul></ul>`;
+    document.documentElement.append(root);
+    race.debuffRoot = root;
+    return root;
+  }
+
+  function updateDebuffPresentation() {
+    if (isArena) return;
+    const now = serverNow();
+    const effects = activeSelfDebuffs(now);
+    window.EimeiMap?.setRaceDebuffs?.(effects, now);
+    race.photo?.root.classList.toggle("is-jammed", effects.some((effect) => effect.kind === "photo-jam"));
+
+    const root = ensureDebuffPanel();
+    root.hidden = effects.length === 0;
+    const signature = effects.map((effect) => `${effect.id}:${effect.kind}:${effect.appliedAt}:${effect.endsAt}`).join("|");
+    if (signature !== race.debuffSignature) {
+      race.debuffSignature = signature;
+      race.debuffItems.clear();
+      const items = effects.map((effect) => {
+        const item = document.createElement("li");
+        item.dataset.debuffId = String(effect.id || "");
+        const label = document.createElement("span");
+        label.textContent = debuffLabels[effect.kind];
+        const meter = document.createElement("i");
+        item.append(label, meter);
+        race.debuffItems.set(String(effect.id || effect.kind), item);
+        return item;
+      });
+      root.querySelector("ul").replaceChildren(...items);
+    }
+    for (const effect of effects) {
+      const item = race.debuffItems.get(String(effect.id || effect.kind));
+      if (!item) continue;
+      const duration = Math.max(1, Number(effect.endsAt) - Number(effect.appliedAt));
+      const remaining = Math.max(0, Math.min(1, (Number(effect.endsAt) - now) / duration));
+      item.style.setProperty("--debuff-remaining", String(remaining));
+    }
+  }
+
+  function showDebuffToast(text, mode = "") {
+    window.clearTimeout(race.debuffToastTimer);
+    race.debuffToast?.remove();
+    const root = document.createElement("div");
+    root.className = "eimei-race-debuff-toast";
+    if (mode) root.classList.add(`is-${mode}`);
+    root.textContent = text;
+    document.documentElement.append(root);
+    race.debuffToast = root;
+    race.debuffToastTimer = window.setTimeout(() => {
+      if (race.debuffToast === root) race.debuffToast = null;
+      root.remove();
+    }, 2800);
+  }
+
+  function receiveDebuffEvent(message) {
+    if (!race.room?.roundId || message.roundId !== race.room.roundId) return;
+    const eventKey = `${message.roundId}:${message.pickupId}:${message.targetId || "none"}`;
+    if (race.lastDebuffEventKey === eventKey) return;
+    race.lastDebuffEventKey = eventKey;
+    const source = race.room.players.find((player) => player.id === message.sourceId);
+    const target = race.room.players.find((player) => player.id === message.targetId);
+    const label = debuffLabels[message.kind] || "妨害";
+    if (!target) {
+      showDebuffToast("赤い光を取得　対戦相手がいないため不発", "miss");
+    } else if (message.targetId === race.playerId) {
+      showDebuffToast(`妨害を受けた：${label}`, "target");
+    } else if (message.sourceId === race.playerId) {
+      showDebuffToast(`赤い光 → ${target.nickname} に ${label}`, "source");
+    } else {
+      showDebuffToast(`${source?.nickname || "PLAYER"} → ${target.nickname}：${label}`, "other");
+    }
+  }
+
   function photoScale(photo, expanded) {
     if (expanded) {
       return Math.min(
@@ -1328,6 +1524,7 @@
       preparationTimer: 0,
       prepared: false
     };
+    updateDebuffPresentation();
     const currentPhoto = race.photo;
     currentPhoto.introTimer = window.setTimeout(() => {
       if (race.photo !== currentPhoto) return;
@@ -1388,6 +1585,7 @@
     if (!isArena) {
       updateRaceHud();
       updateHints();
+      updateDebuffPresentation();
       updateCountdown();
       expireGhosts();
       if (window.EimeiMap?.race?.finishPending && race.room.phase !== "finished") {
@@ -1515,8 +1713,12 @@
       page: pageIdentity(),
       x: (map.player.x + map.player.width * .5) / width,
       y: (map.player.y + map.player.height) / height,
+      vx: Number(map.player.velocityX) / Math.max(1, Number(map.config.maxRunSpeed) || 1),
+      vy: Number(map.player.velocityY) / Math.max(1, Number(map.config.maxFallSpeed) || 1),
       facing: map.player.facing
     };
+    const positionAnchor = map.racePositionAnchor?.();
+    if (positionAnchor) message.anchor = positionAnchor;
     if (map.web.active && Number.isFinite(map.web.anchorX + map.web.anchorY)) {
       message.web = {
         x: unit(map.web.anchorX / width),
@@ -1556,14 +1758,18 @@
       race.ghosts.set(message.playerId, ghost);
     }
     ghost.lastAt = performance.now();
-    const remoteX = Number(message.x) * map.state.documentWidth;
-    const remoteY = Number(message.y) * map.state.documentHeight - map.player.height * .55;
+    const fallbackX = Number(message.x) * map.state.documentWidth;
+    const fallbackFeetY = Number(message.y) * map.state.documentHeight;
+    const projected = map.resolveRacePositionAnchor?.(message.anchor);
+    const remoteX = Number.isFinite(projected?.x) ? projected.x : fallbackX;
+    const remoteFeetY = Number.isFinite(projected?.feetY) ? projected.feetY : fallbackFeetY;
+    const remoteY = remoteFeetY - map.player.height * .55;
     const remoteLeft = remoteX - map.player.width * .5;
-    const remoteTop = Number(message.y) * map.state.documentHeight - map.player.height;
+    const remoteTop = remoteFeetY - map.player.height;
     const localCenterX = map.player.x + map.player.width * .5;
     const localFeetY = map.player.y + map.player.height;
     const overlapsLocal = Math.abs(remoteX - localCenterX) < map.player.width * 1.15 &&
-      Math.abs(Number(message.y) * map.state.documentHeight - localFeetY) < map.player.height * .8;
+      Math.abs(remoteFeetY - localFeetY) < map.player.height * .8;
     const remotePlayer = race.room.players.find((player) => player.id === message.playerId);
     const colorIndex = Number(remotePlayer?.colorIndex) || 0;
     const overlapDirection = colorIndex % 2 === 0 ? -1 : 1;
@@ -1584,6 +1790,13 @@
       x: remoteX,
       y: remoteY,
       facing: message.facing,
+      velocityX: Number.isFinite(Number(message.vx))
+        ? Number(message.vx) * Math.max(1, Number(map.config.maxRunSpeed) || 1)
+        : null,
+      velocityY: Number.isFinite(Number(message.vy))
+        ? Number(message.vy) * Math.max(1, Number(map.config.maxFallSpeed) || 1)
+        : null,
+      networkAgeSeconds: Math.max(0, Math.min(0.5, (serverNow() - Number(message.sentAt || serverNow())) / 1000)),
       visualOffsetX: overlapOffset,
       palette: paletteFor(race.room.players.find((player) => player.id === message.playerId)),
       web: message.web ? {
@@ -1802,6 +2015,16 @@
         index: detail.index
       })) event.preventDefault();
     });
+    window.addEventListener("eimei-race-debuff-pickup", (event) => {
+      const detail = event.detail || {};
+      if (!send({
+        type: "debuff_pickup",
+        roundId: detail.roundId,
+        page: detail.page,
+        debuffId: detail.debuffId,
+        index: detail.index
+      })) event.preventDefault();
+    });
     window.addEventListener("eimei-portal-warm", (event) => warmUrl(event.detail?.href));
     window.addEventListener("eimei-portal-entering", cancelWarmRequests);
     window.addEventListener("resize", sizePhoto);
@@ -1827,6 +2050,10 @@
   race.topMenuAreaHint = topMenuAreaHint;
   race.firstHintChoices = firstHintChoices;
   race.routeOrPositionHint = routeOrPositionHint;
+  race.chooseBalancedGoalCandidate = chooseBalancedGoalCandidate;
+  race.debuffLabels = debuffLabels;
+  race.updateDebuffPresentation = updateDebuffPresentation;
+  race.receiveDebuffEvent = receiveDebuffEvent;
   window.EimeiRace = race;
   boot();
 })();

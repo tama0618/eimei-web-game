@@ -48,6 +48,8 @@
     raceWispCount: 8,
     raceWispRadius: 23,
     raceWispMinimumSpacing: 150,
+    raceDebuffCount: 16,
+    raceDebuffRadius: 21,
     hatchMinimumSurfaceWidth: 300,
     navigationFlightSpeed: 760,
     navigationMinimumRise: 30,
@@ -439,6 +441,12 @@
     wispPlacementKey: null,
     claimedWispIds: new Set(),
     pendingWispClaims: new Map(),
+    debuffWisps: [],
+    debuffPlacementKey: null,
+    claimedDebuffIds: new Set(),
+    pendingDebuffClaims: new Map(),
+    activeDebuffs: new Map(),
+    appliedVerticalWarpIds: new Set(),
     remoteRenderCount: 0,
     remoteWebRenderCount: 0,
     remoteTraversalRenderCount: 0,
@@ -693,24 +701,12 @@
       centerY >= overlay.rect.top &&
       centerY <= overlay.rect.bottom
     )) return false;
-
-    const viewportLeft = Math.max(0, rect.left);
-    const viewportRight = Math.min(window.innerWidth, rect.right);
-    const viewportTop = Math.max(0, rect.top);
-    const viewportBottom = Math.min(window.innerHeight, rect.bottom);
-    if (viewportRight <= viewportLeft || viewportBottom <= viewportTop) return true;
-
-    const sampleY = viewportTop + (viewportBottom - viewportTop) * 0.55;
-    const sampleXs = [0.25, 0.5, 0.75].map((ratio) =>
-      viewportLeft + (viewportRight - viewportLeft) * ratio
-    );
-    return sampleXs.some((sampleX) => {
-      const topElement = document.elementFromPoint(sampleX, sampleY);
-      return Boolean(
-        topElement &&
-        (topElement === element || element.contains(topElement) || topElement.contains(element))
-      );
-    });
+    // Only authored dropdowns are game overlays. elementFromPoint() made the
+    // collision map depend on the current scroll position: a glyph clipped by
+    // the bottom edge of the viewport could be rejected during the first
+    // build and never become a platform or portal after scrolling. The known
+    // overlay rectangles above are sufficient and remain deterministic.
+    return true;
   }
 
   function collectCharacterRects(root = document.body, hoverOverlays = visibleHoverOverlays()) {
@@ -1138,7 +1134,10 @@
         });
       }
     }
-    if (race.active && race.configured) generateRaceWisps({ force: true });
+    if (race.active && race.configured) {
+      generateRaceWisps({ force: true });
+      generateRaceDebuffWisps({ force: true });
+    }
     refreshHatchCandidate({ force: true });
     if (!isPlanningDocument && mission.initialized && mission.goalKind === "portal" && mission.portalAnchor) {
       // Image/layout rebuilds can coincide with opening a guided dropdown.
@@ -1777,6 +1776,133 @@
     return candidates;
   }
 
+  function collectVerticalGapLadderCandidates(bodies, obstacleIndex) {
+    const sorted = bodies
+      .filter((body) => body.navigationXs?.length && !body.menuLedge)
+      .toSorted((a, b) => a.y - b.y || a.x - b.x);
+    if (sorted.length < 2) return [];
+
+    // A page can contain a tall photo or intentional breathing room between
+    // two text sections. Those pixels are visually useful, but no amount of
+    // jumping creates an anchor inside a completely empty band. Split the map
+    // wherever the next platform lies beyond normal grapple traversal, then
+    // reserve one physical connector across each split.
+    const naturalVerticalReach = Math.min(
+      CONFIG.webRange - CONFIG.webMinimumLength,
+      window.innerHeight * CONFIG.navigationMaximumRiseViewport
+    );
+    const splitThreshold = Math.max(390, naturalVerticalReach * 0.86);
+    const bands = [];
+    let current = { bodies: [sorted[0]], top: sorted[0].y, bottom: sorted[0].y + sorted[0].height };
+    for (const body of sorted.slice(1)) {
+      if (body.y - current.bottom > splitThreshold) {
+        bands.push(current);
+        current = { bodies: [body], top: body.y, bottom: body.y + body.height };
+        continue;
+      }
+      current.bodies.push(body);
+      current.bottom = Math.max(current.bottom, body.y + body.height);
+    }
+    bands.push(current);
+
+    const candidates = [];
+    for (let index = 1; index < bands.length; index += 1) {
+      const upperBand = bands[index - 1];
+      const lowerBand = bands[index];
+      const gap = lowerBand.top - upperBand.bottom;
+      if (gap <= splitThreshold || gap > 1450) continue;
+      const upperBodies = upperBand.bodies.filter((body) =>
+        body.y + body.height >= upperBand.bottom - 210
+      );
+      const lowerBodies = bands.slice(index)
+        .filter((band) => band.top - upperBand.bottom <= 1450)
+        // Wide photo grids stagger captions by a little over 200px. Treat the
+        // first two visual rows as the entrance to the lower band; choosing
+        // only its very first caption can connect the right column while the
+        // actual article continues down the left, splitting the page in two.
+        .flatMap((band) => band.bodies.filter((body) => body.y <= band.top + 360));
+      const centerX = state.documentWidth * 0.5;
+      const options = [];
+      for (const lowerBody of lowerBodies) {
+        for (const upperBody of upperBodies) {
+          let candidate = ladderCandidateBetween(
+            lowerBody,
+            upperBody,
+            obstacleIndex,
+            1500
+          );
+          // A tall image band may contain captions or separator rules that
+          // form tiny, mutually isolated islands. In that case a continuous
+          // rail is intentionally allowed to pass their floor lines; the
+          // player can simply dismount there or continue through. Without
+          // this fallback the ladder lottery connects island A to B and B to
+          // C at incompatible X positions, leaving the page split in two.
+          if (!candidate) {
+            candidate = ladderCandidateBetween(
+              lowerBody,
+              upperBody,
+              obstacleIndex,
+              1500,
+              (body) => body.kind === "text" || body.kind === "line"
+            );
+          }
+          if (!candidate) continue;
+          candidate.structuralConnector = true;
+          candidate.structuralKind = "vertical-gap";
+          candidate.verticalGapConnector = true;
+          options.push(candidate);
+        }
+      }
+      const selected = options.toSorted((a, b) =>
+        b.bottomY - a.bottomY ||
+        Number(b.directAccess) - Number(a.directAccess) ||
+        Math.abs(a.x - centerX) - Math.abs(b.x - centerX) ||
+        a.height - b.height
+      )[0];
+      if (selected) candidates.push(selected);
+    }
+    return candidates;
+  }
+
+  function collectLocalNavigationLadders(bodies) {
+    return [...document.querySelectorAll(".local-nav")]
+      .filter((element) => isElementVisible(element))
+      .map((element, index) => {
+        const rect = element.getBoundingClientRect();
+        const navigationBodies = bodies
+          .filter((body) => bodyBelongsToElement(body, element))
+          .toSorted((a, b) => a.y - b.y || a.x - b.x);
+        if (rect.height < 90 || navigationBodies.length < 2) return null;
+        const upperBody = navigationBodies[0];
+        const lowerBody = navigationBodies.at(-1);
+        // The local menu occupies the right side of this edge. Put the rail in
+        // the otherwise unused white gutter, with its right stile touching the
+        // red panel so every row is a natural right-hand dismount.
+        const x = rect.left + window.scrollX - 11;
+        const topY = Math.min(upperBody.y, rect.top + window.scrollY);
+        const bottomY = Math.max(lowerBody.y, rect.bottom + window.scrollY - player.height);
+        return {
+          id: `local-navigation-ladder-${index}`,
+          x,
+          width: 22,
+          topY,
+          bottomY,
+          height: Math.max(0, bottomY - topY),
+          playerX: x - player.width * 0.5,
+          lowerBody,
+          upperBody,
+          directAccess: true,
+          rescue: false,
+          menu: true,
+          menuSide: 1,
+          localNavigation: true,
+          overlayElement: element,
+          visualColor: "#111111"
+        };
+      })
+      .filter(Boolean);
+  }
+
   function collectLadders() {
     if (isTutorialDocument) return collectTutorialLadders();
     const bodyBelongsToHeader = (body) => Boolean(
@@ -1790,7 +1916,9 @@
     );
     const candidates = [];
     const obstacleIndex = verticalBodyIndex(state.bodies);
-    const maximumHeight = Math.min(CONFIG.webRange * 0.94, window.innerHeight * CONFIG.ladderMaximumHeightViewport);
+    const maximumHeight = isRaceDocument
+      ? CONFIG.webRange * 0.94
+      : Math.min(CONFIG.webRange * 0.94, window.innerHeight * CONFIG.ladderMaximumHeightViewport);
     for (const lowerBody of bodies) {
       const potentialUppers = obstacleIndex.query(
         lowerBody.y - maximumHeight - 96,
@@ -1810,7 +1938,9 @@
     const headerBottom = Math.max(0, ...headerBodies.map((body) => body.y + body.height));
     const longHeaderMaximum = Math.min(
       1200,
-      Math.max(900, CONFIG.webRange * 1.55, window.innerHeight * 1.05)
+      isRaceDocument
+        ? Math.max(900, CONFIG.webRange * 1.55)
+        : Math.max(900, CONFIG.webRange * 1.55, window.innerHeight * 1.05)
     );
     const firstContentY = Math.min(
       Infinity,
@@ -1841,9 +1971,13 @@
         }
       }
     }
-    const structuralCandidates = collectStructuralLadderCandidates(bodies, obstacleIndex);
+    const structuralCandidates = [
+      ...collectStructuralLadderCandidates(bodies, obstacleIndex),
+      ...collectVerticalGapLadderCandidates(bodies, obstacleIndex)
+    ];
+    const localNavigationLadders = collectLocalNavigationLadders(bodies);
     candidates.push(...structuralCandidates);
-    if (candidates.length === 0) return [];
+    if (candidates.length === 0) return localNavigationLadders;
 
     const baseScore = (candidate) =>
       (candidate.directAccess ? -180 : 0) +
@@ -1861,7 +1995,12 @@
     }
     for (const candidate of candidates) candidate.rescue = Boolean(candidate.rescue);
 
-    const desiredCount = Math.max(2, Math.min(6, Math.round(state.documentHeight / 1600) + 1));
+    const baseDesiredCount = isRaceDocument
+      ? Math.max(7, Math.min(10, Math.round(state.documentHeight / 1800) + 5))
+      : Math.max(3, Math.min(8, Math.round(state.documentHeight / 1500) + 2));
+    // Required gap connectors are not optional decoration. Leave two ordinary
+    // slots as well, while keeping the total bounded for lightweight devices.
+    const desiredCount = Math.min(14, Math.max(baseDesiredCount, structuralCandidates.length + 2));
     const score = (candidate) =>
       (candidate.rescue ? -1000 : 0) +
       (candidate.directAccess ? -180 : 0) +
@@ -1888,7 +2027,9 @@
     // floor. Ordinary scoring favours short decorative ladders and can omit the
     // only obvious way back to that menu. Reserve one slot for a long, usable
     // header connector whenever such a gap exists.
-    const headerConnectorMinimumHeight = Math.max(150, Math.min(300, window.innerHeight * 0.24));
+    const headerConnectorMinimumHeight = isRaceDocument
+      ? 180
+      : Math.max(150, Math.min(300, window.innerHeight * 0.24));
     const headerConnector = candidates
       .filter((candidate) =>
         candidate.height >= headerConnectorMinimumHeight &&
@@ -1910,75 +2051,62 @@
     }
     for (const candidate of sorted) addCandidate(candidate);
 
-    return selected.map((ladder, index) => ({
+    return [...selected, ...localNavigationLadders].map((ladder, index) => ({
       ...ladder,
-      id: `ladder-${index}`
+      id: ladder.id || `ladder-${index}`
     }));
   }
 
-  function ensureGuideRescueLadder(support, guide) {
+  function ensureGuideRescueLadder(_support, guide) {
     if (
       isTutorialDocument ||
-      !support ||
       !guide ||
       mission.goalKind !== "text" ||
-      guide !== mission.goalBody ||
-      !player.grounded
+      guide !== mission.goalBody
     ) return;
     // Never pull a ladder out from under a character who has already grabbed
     // it. It can be reconsidered after the next landing.
     if (ladderTraversal.phase !== "none" && ladderTraversal.ladder?.guideRescue) return;
 
     const existing = state.ladders.find((ladder) => ladder.guideRescue);
-    const riseToGuide = support.y - guide.y;
-    if (riseToGuide < CONFIG.ladderMinimumHeight) {
+    const obstacleIndex = verticalBodyIndex(state.bodies);
+    const maximumHeight = Math.min(1100, Math.max(CONFIG.webRange * 1.35, 900));
+    const candidates = state.bodies
+      .filter((body) =>
+        body !== guide &&
+        body.navigationXs?.length &&
+        body.y - guide.y >= CONFIG.ladderMinimumHeight &&
+        body.y - guide.y <= maximumHeight
+      )
+      .map((body) => ladderCandidateBetween(body, guide, obstacleIndex, maximumHeight))
+      .filter(Boolean)
+      .toSorted((first, second) =>
+        Number(second.directAccess) - Number(first.directAccess) ||
+        Math.abs(first.height - 260) - Math.abs(second.height - 260) ||
+        Math.abs(first.x - mission.goalPoint.x) - Math.abs(second.x - mission.goalPoint.x) ||
+        first.bottomY - second.bottomY ||
+        first.x - second.x
+      );
+    const candidate = candidates[0] || null;
+
+    const permanentConnection = candidate && state.ladders.some((ladder) =>
+      !ladder.guideRescue &&
+      bodiesDescribeSamePlatform(ladder.lowerBody, candidate.lowerBody) &&
+      bodiesDescribeSamePlatform(ladder.upperBody, guide)
+    );
+    if (permanentConnection) {
       if (existing) {
         state.ladders = state.ladders.filter((ladder) => !ladder.guideRescue);
         state.normalRouteCache.clear();
       }
       return;
     }
+
     if (
-      existing &&
-      bodiesDescribeSamePlatform(existing.lowerBody, support) &&
+      existing && candidate &&
+      bodiesDescribeSamePlatform(existing.lowerBody, candidate.lowerBody) &&
       bodiesDescribeSamePlatform(existing.upperBody, guide)
     ) return;
-
-    const permanentConnection = state.ladders.some((ladder) =>
-      !ladder.guideRescue &&
-      bodiesDescribeSamePlatform(ladder.lowerBody, support) &&
-      bodiesDescribeSamePlatform(ladder.upperBody, guide)
-    );
-    if (permanentConnection) {
-      if (existing) state.ladders = state.ladders.filter((ladder) => !ladder.guideRescue);
-      return;
-    }
-
-    const obstacleIndex = verticalBodyIndex(state.bodies);
-    const maximumHeight = Math.min(
-      1100,
-      Math.max(CONFIG.webRange * 1.35, window.innerHeight * 1.25)
-    );
-    let candidate = ladderCandidateBetween(support, guide, obstacleIndex, maximumHeight);
-    if (!candidate) {
-      // If the goal itself is offset, bridge to the highest clear platform in
-      // the same upward direction. On the next landing this function can add
-      // the following single bridge, so the screen never fills with ladders.
-      candidate = state.bodies
-        .filter((body) =>
-          body !== support &&
-          body !== guide &&
-          body.navigationXs?.length &&
-          body.y < support.y - CONFIG.ladderMinimumHeight &&
-          body.y >= Math.max(guide.y, support.y - maximumHeight)
-        )
-        .map((body) => ladderCandidateBetween(support, body, obstacleIndex, maximumHeight))
-        .filter(Boolean)
-        .toSorted((a, b) =>
-          Math.abs(a.upperBody.y - guide.y) - Math.abs(b.upperBody.y - guide.y) ||
-          a.height - b.height
-        )[0] || null;
-    }
 
     state.ladders = state.ladders.filter((ladder) => !ladder.guideRescue);
     if (!candidate) return;
@@ -2134,14 +2262,13 @@
     return cachedTraversalResult(state.downwardTraversalCache, from, to, () => {
       const sourceCenters = sampledNavigationCenters(from);
       return sampledNavigationCenters(to).some((targetX) => {
-        if (!sourceCenters.some((sourceX) => Math.abs(sourceX - targetX) <= Math.min(190, window.innerWidth * 0.16))) return false;
-        return !state.bodies.some((obstacle) =>
-          obstacle !== from &&
-          obstacle !== to &&
-          obstacle.y > from.y + CONFIG.navigationHorizontalTolerancePx &&
-          obstacle.y < to.y - CONFIG.navigationHorizontalTolerancePx &&
-          targetX >= obstacle.x - player.width * 0.35 &&
-          targetX <= obstacle.x + obstacle.width + player.width * 0.35
+        // Every authored floor is intentionally one-way when Down is held.
+        // Intermediate text rows therefore are optional landings, not solid
+        // ceilings that invalidate a descent to the row below. Requiring an
+        // empty vertical corridor made downward travel fail while the reverse
+        // ladder route worked, most visibly in compact two-column indexes.
+        return sourceCenters.some((sourceX) =>
+          Math.abs(sourceX - targetX) <= Math.min(190, window.innerWidth * 0.16)
         );
       });
     });
@@ -2164,7 +2291,14 @@
           rise <= maximumRise &&
           gap <= maximumHorizontalGap &&
           Math.hypot(gap, rise) <= CONFIG.webRange * 0.9 &&
-          upwardTraversalIsClear(body, candidate)
+          (
+            upwardTraversalIsClear(body, candidate) ||
+            // A clear descent in the reverse direction describes a valid
+            // route even when the upward face itself blocks a mantle. The
+            // navigation system can then expose the authored up-through hatch
+            // on that immediate step instead of declaring the region lost.
+            (hatchSurfaceIsEligible(candidate) && downwardTraversalIsClear(candidate, body))
+          )
         );
       });
     const ladderTargets = state.ladders
@@ -2196,7 +2330,13 @@
           drop <= maximumDrop &&
           gap <= maximumHorizontalGap &&
           Math.hypot(gap, drop) <= CONFIG.webRange * 0.9 &&
-          downwardTraversalIsClear(body, candidate)
+          (
+            downwardTraversalIsClear(body, candidate) ||
+            // If the lower platform has a verified clear grapple/mantle path
+            // back to this one, descending the same span is always possible:
+            // fall, steer, and drop through any intermediate thin floor.
+            normalWebMantleBetween(candidate, body)
+          )
         );
       });
     const ladderTargets = state.ladders
@@ -2553,7 +2693,7 @@
     }
     return verticalDifference >= CONFIG.navigationMinimumRise &&
       verticalDifference <= maximumVertical &&
-      downwardTraversalIsClear(from, to);
+      (downwardTraversalIsClear(from, to) || normalWebMantleBetween(to, from));
   }
 
   function routeIsPhysicallyConnected(route) {
@@ -4144,6 +4284,10 @@
     return `w_${stableRaceHash(`${roundId}|${page}|${index}`).toString(36)}_${index}`;
   }
 
+  function raceDebuffId(index, page = pageIdentity(), roundId = race.roundId) {
+    return `r_${stableRaceHash(`${roundId}|${page}|red|${index}`).toString(36)}_${index}`;
+  }
+
   function raceWispRandom(seedText) {
     let seed = stableRaceHash(seedText);
     return () => {
@@ -4247,12 +4391,212 @@
     return placed;
   }
 
+  function generateRaceDebuffWisps({ force = false } = {}) {
+    if (!race.active || !race.configured || !race.roundId || state.bodies.length === 0) {
+      race.debuffWisps = [];
+      race.debuffPlacementKey = null;
+      return [];
+    }
+    const page = pageIdentity();
+    const slots = Array.isArray(race.course?.debuffPages)
+      ? race.course.debuffPages
+        .map((assignedPage, index) => assignedPage === page ? index : -1)
+        .filter((index) => index >= 0 && index < CONFIG.raceDebuffCount)
+      : [];
+    const geometryKey = `${Math.round(state.documentWidth / 20)}:${Math.round(state.documentHeight / 20)}:${state.bodies.length}`;
+    const placementKey = `${race.roundId}|${page}|${slots.join(",")}|${geometryKey}`;
+    if (!force && race.debuffPlacementKey === placementKey) return race.debuffWisps;
+    if (slots.length === 0) {
+      race.debuffWisps = [];
+      race.debuffPlacementKey = placementKey;
+      return [];
+    }
+
+    const candidates = navigationBodies().filter(raceWispBodyIsStable);
+    const semanticCandidates = new Map();
+    for (const body of candidates) {
+      const element = checkpointSourceElement(body, bodyCenterX(body));
+      const selector = raceElementSelector(element);
+      if (!selector) continue;
+      if (!semanticCandidates.has(selector)) semanticCandidates.set(selector, []);
+      semanticCandidates.get(selector).push(body);
+    }
+    const keys = [...semanticCandidates.keys()].toSorted();
+    if (keys.length === 0) {
+      race.debuffWisps = [];
+      race.debuffPlacementKey = placementKey;
+      return [];
+    }
+
+    const placed = [];
+    for (const index of slots) {
+      const random = raceWispRandom(`${race.roundId}|${page}|red-debuff|${index}`);
+      const startIndex = Math.floor(random() * keys.length);
+      let body = null;
+      for (let offset = 0; offset < keys.length; offset += 1) {
+        const group = semanticCandidates.get(keys[(startIndex + offset) % keys.length]) || [];
+        const candidate = group.toSorted((first, second) => first.y - second.y)[Math.floor(random() * group.length)];
+        if (!candidate) continue;
+        const center = bodyCenterX(candidate);
+        const spawnX = Number.isFinite(player.spawnX) ? player.spawnX + player.width * 0.5 : player.x + player.width * 0.5;
+        const spawnY = Number.isFinite(player.spawnY) ? player.spawnY + player.height * 0.5 : player.y + player.height * 0.5;
+        const nearSpawn = Math.hypot(center - spawnX, candidate.y - spawnY) < CONFIG.raceWispMinimumSpacing;
+        const nearGoal = page === race.course?.goal?.page &&
+          Math.hypot(center - Number(race.course.goal.x), candidate.y - Number(race.course.goal.y)) < CONFIG.raceWispMinimumSpacing;
+        if (!nearSpawn && !nearGoal) {
+          body = candidate;
+          break;
+        }
+        body ||= candidate;
+      }
+      if (!body) continue;
+      const centers = body.navigationXs.map((x) => x + player.width * 0.5);
+      const x = centers[Math.floor(random() * centers.length)] ?? bodyCenterX(body);
+      placed.push({
+        id: raceDebuffId(index, page, race.roundId),
+        index,
+        page,
+        x,
+        y: body.y - player.height * 0.48,
+        radius: CONFIG.raceDebuffRadius,
+        body
+      });
+    }
+    race.debuffWisps = placed;
+    race.debuffPlacementKey = placementKey;
+    return placed;
+  }
+
   function setRaceWispClaims(ids = []) {
     if (!race.active) return false;
     race.claimedWispIds = new Set(
       Array.isArray(ids) ? ids.filter((id) => /^w_[a-z0-9]+_[0-7]$/.test(String(id))) : []
     );
     for (const id of race.claimedWispIds) race.pendingWispClaims.delete(id);
+    return true;
+  }
+
+  function setRaceDebuffClaims(ids = []) {
+    if (!race.active) return false;
+    race.claimedDebuffIds = new Set(
+      Array.isArray(ids) ? ids.filter((id) => /^r_[a-z0-9]+_(?:[0-9]|1[0-5])$/.test(String(id))) : []
+    );
+    for (const id of race.claimedDebuffIds) race.pendingDebuffClaims.delete(id);
+    return true;
+  }
+
+  function raceDebuffActive(kind, nowSeconds = performance.now() / 1000) {
+    const effect = race.activeDebuffs.get(kind);
+    if (!effect) return false;
+    if (effect.untilSeconds <= nowSeconds) {
+      race.activeDebuffs.delete(kind);
+      return false;
+    }
+    return true;
+  }
+
+  function verticalWarpStorageKey(id) {
+    return `eimei-race-debuff-warp:${race.roomCode}:${race.roundId}:${id}`;
+  }
+
+  function applyRaceVerticalWarp(effect) {
+    if (!effect?.id || state.bodies.length === 0) return false;
+    if (race.appliedVerticalWarpIds?.has(effect.id)) return false;
+    const storageKey = verticalWarpStorageKey(effect.id);
+    try {
+      if (sessionStorage.getItem(storageKey) === "1") {
+        race.appliedVerticalWarpIds.add(effect.id);
+        return false;
+      }
+    } catch {
+      // Storage can be unavailable in an embedded/private context. The effect
+      // still works once for this page instance via the in-memory set below.
+    }
+    const currentY = player.y + player.height;
+    const stableBodies = navigationBodies().filter((body) =>
+      raceWispBodyIsStable(body) && body !== mission.goalBody
+    );
+    const distantBodies = stableBodies.filter((body) =>
+      Math.abs(body.y - currentY) >= Math.max(220, window.innerHeight * 0.28)
+    );
+    const candidates = distantBodies.length > 0 ? distantBodies : stableBodies;
+    if (candidates.length === 0) return false;
+    const ordered = candidates.toSorted((first, second) => {
+      const firstElement = checkpointSourceElement(first, bodyCenterX(first));
+      const secondElement = checkpointSourceElement(second, bodyCenterX(second));
+      const firstKey = `${raceElementSelector(firstElement)}:${Math.round(first.y)}`;
+      const secondKey = `${raceElementSelector(secondElement)}:${Math.round(second.y)}`;
+      return firstKey.localeCompare(secondKey);
+    });
+    const seed = stableRaceHash(`${effect.seed}|${effect.id}|${pageIdentity()}|vertical-warp`);
+    const body = ordered[seed % ordered.length];
+    const positions = body.navigationXs || [];
+    const targetX = positions.length > 0
+      ? positions[(seed >>> 8) % positions.length]
+      : bodyCenterX(body) - player.width * 0.5;
+
+    detachWeb({ force: true });
+    cancelDropHatch();
+    cancelLadderTraversal();
+    player.x = Math.max(0, Math.min(state.documentWidth - player.width, targetX));
+    player.y = body.y - player.height - 1;
+    player.velocityX = 0;
+    player.velocityY = 0;
+    player.grounded = true;
+    player.groundedAt = performance.now() / 1000;
+    player.airJumpsRemaining = raceDebuffActive("double-jump-lock") ? 0 : 1;
+    player.standingBody = body.kind === "text" ? body : null;
+    player.navigationBody = body;
+    recordLandingCheckpoint(body);
+    window.scrollTo({
+      left: Math.max(0, player.x - window.innerWidth * 0.5),
+      top: Math.max(0, player.y - window.innerHeight * 0.48),
+      behavior: "instant"
+    });
+    race.appliedVerticalWarpIds ||= new Set();
+    race.appliedVerticalWarpIds.add(effect.id);
+    try {
+      sessionStorage.setItem(storageKey, "1");
+    } catch {
+      // The in-memory marker above still prevents a repeated warp.
+    }
+    window.dispatchEvent(new CustomEvent("eimei-race-vertical-warp", { detail: { id: effect.id } }));
+    return true;
+  }
+
+  function setRaceDebuffs(effects = [], serverNowMilliseconds = Date.now()) {
+    if (!race.active) return false;
+    const nowSeconds = performance.now() / 1000;
+    const allowed = new Set([
+      "grapple-lock", "slow-run", "reverse-input", "double-jump-lock",
+      "hatch-lock", "ladder-slow", "photo-jam", "vertical-warp"
+    ]);
+    const active = [];
+    for (const effect of Array.isArray(effects) ? effects : []) {
+      if (!effect?.id || !allowed.has(effect.kind)) continue;
+      const remainingMilliseconds = Number(effect.endsAt) - Number(serverNowMilliseconds);
+      if (!Number.isFinite(remainingMilliseconds) || remainingMilliseconds <= 0) continue;
+      const normalized = {
+        ...effect,
+        untilSeconds: nowSeconds + remainingMilliseconds / 1000
+      };
+      active.push(normalized);
+      const previous = race.activeDebuffs.get(effect.kind);
+      if (!previous || normalized.untilSeconds > previous.untilSeconds) {
+        race.activeDebuffs.set(effect.kind, normalized);
+      }
+    }
+    for (const [kind, effect] of race.activeDebuffs) {
+      if (!active.some((candidate) => candidate.kind === kind) || effect.untilSeconds <= nowSeconds) {
+        race.activeDebuffs.delete(kind);
+      }
+    }
+    if (raceDebuffActive("grapple-lock") && web.active) detachWeb({ force: true });
+    const warp = active.find((effect) => effect.kind === "vertical-warp");
+    if (warp) {
+      const alreadyAppliedInMemory = race.appliedVerticalWarpIds?.has(warp.id);
+      if (!alreadyAppliedInMemory) applyRaceVerticalWarp(warp);
+    }
     return true;
   }
 
@@ -4278,6 +4622,34 @@
     return accepted;
   }
 
+  function checkRaceDebuffCollection(nowSeconds = performance.now() / 1000) {
+    if (!race.active || !race.configured || race.frozen || race.finished || race.finishPending) return false;
+    for (const [id, claimedAt] of race.pendingDebuffClaims) {
+      if (nowSeconds - claimedAt > 2.4) race.pendingDebuffClaims.delete(id);
+    }
+    const centerX = player.x + player.width * 0.5;
+    const centerY = player.y + player.height * 0.48;
+    const wisp = race.debuffWisps.find((candidate) =>
+      !race.claimedDebuffIds.has(candidate.id) &&
+      !race.pendingDebuffClaims.has(candidate.id) &&
+      Math.hypot(centerX - candidate.x, centerY - candidate.y) <= candidate.radius + player.width * 0.48
+    );
+    if (!wisp) return false;
+    race.pendingDebuffClaims.set(wisp.id, nowSeconds);
+    const accepted = window.dispatchEvent(new CustomEvent("eimei-race-debuff-pickup", {
+      cancelable: true,
+      detail: { roundId: race.roundId, page: wisp.page, debuffId: wisp.id, index: wisp.index }
+    }));
+    if (!accepted) race.pendingDebuffClaims.delete(wisp.id);
+    return accepted;
+  }
+
+  function checkRaceCollectibles(nowSeconds = performance.now() / 1000) {
+    const hintCollected = checkRaceWispCollection(nowSeconds);
+    const debuffCollected = checkRaceDebuffCollection(nowSeconds);
+    return hintCollected || debuffCollected;
+  }
+
   function setPlayerPalette(value = {}) {
     const fallback = player.palette;
     player.palette = {
@@ -4294,6 +4666,9 @@
     x,
     y,
     facing = 1,
+    velocityX = null,
+    velocityY = null,
+    networkAgeSeconds = 0,
     palette = null,
     visualOffsetX = 0,
     web: remoteWeb = null,
@@ -4309,15 +4684,21 @@
     const updateSeconds = Math.max(1 / 120, nowSeconds - (existing.updatedAt || nowSeconds));
     const measuredVelocityX = (nextX - previousX) / updateSeconds;
     const measuredVelocityY = (nextY - previousY) / updateSeconds;
+    const nextVelocityX = Number.isFinite(Number(velocityX)) ? Number(velocityX) : measuredVelocityX;
+    const nextVelocityY = Number.isFinite(Number(velocityY)) ? Number(velocityY) : measuredVelocityY;
+    const positionJump = Math.hypot(nextX - previousX, nextY - previousY);
+    const snapPosition = !Number.isFinite(existing.renderX + existing.renderY) ||
+      positionJump > Math.max(180, Math.min(state.viewportWidth, state.viewportHeight) * 0.28);
     race.remotePlayers.set(String(id), {
       ...existing,
       id: String(id),
       x: nextX,
       y: nextY,
-      renderX: Number.isFinite(existing.renderX) ? existing.renderX : nextX,
-      renderY: Number.isFinite(existing.renderY) ? existing.renderY : nextY,
-      velocityX: Math.max(-CONFIG.maxRunSpeed * 1.4, Math.min(CONFIG.maxRunSpeed * 1.4, measuredVelocityX)),
-      velocityY: Math.max(-CONFIG.maxFallSpeed, Math.min(CONFIG.maxFallSpeed, measuredVelocityY)),
+      renderX: snapPosition ? nextX : existing.renderX,
+      renderY: snapPosition ? nextY : existing.renderY,
+      velocityX: Math.max(-CONFIG.maxRunSpeed * 1.8, Math.min(CONFIG.maxRunSpeed * 1.8, nextVelocityX)),
+      velocityY: Math.max(-CONFIG.maxFallSpeed * 1.2, Math.min(CONFIG.maxFallSpeed * 1.2, nextVelocityY)),
+      networkAgeSeconds: Math.max(0, Math.min(0.5, Number(networkAgeSeconds) || 0)),
       facing: Number(facing) < 0 ? -1 : 1,
       palette: palette || existing.palette || null,
       visualOffsetX: Number.isFinite(Number(visualOffsetX)) ? Number(visualOffsetX) : 0,
@@ -4753,6 +5134,12 @@
       race.wispPlacementKey = null;
       race.claimedWispIds.clear();
       race.pendingWispClaims.clear();
+      race.debuffWisps = [];
+      race.debuffPlacementKey = null;
+      race.claimedDebuffIds.clear();
+      race.pendingDebuffClaims.clear();
+      race.activeDebuffs.clear();
+      race.appliedVerticalWarpIds.clear();
       race.incomingGrapples.clear();
       race.grappleLockouts.clear();
       grappleInterruption.phase = "none";
@@ -4779,6 +5166,7 @@
     }
     configureRaceMissionTarget({ launchFromPlayer: true });
     generateRaceWisps({ force: roundChanged });
+    generateRaceDebuffWisps({ force: roundChanged });
     window.dispatchEvent(new CustomEvent("eimei-race-map-ready", {
       detail: { roundId: race.roundId, page: pageIdentity() }
     }));
@@ -5626,6 +6014,10 @@
       triggerGrappleInterruption("drop-through", incomingGrapple);
       return false;
     }
+    if (recentDownPress && raceDebuffActive("hatch-lock", nowSeconds)) {
+      input.downPressedAt = -Infinity;
+      return false;
+    }
     if (
       !recentDownPress ||
       !player.grounded ||
@@ -5828,7 +6220,8 @@
     const candidates = [];
     for (const body of state.bodies) {
       if (
-        (ladder.menu && !body.menuLedge) ||
+        (ladder.menu && !ladder.localNavigation && !body.menuLedge) ||
+        (ladder.localNavigation && !bodyBelongsToElement(body, ladder.overlayElement)) ||
         !body.navigationXs?.length ||
         body.y < feet - 4 ||
         body.y - feet > maximumVerticalSnap
@@ -5927,14 +6320,14 @@
         Math.abs(player.y - tutorial.ladderStartY) >= 64
       ) tutorial.actions.ladderClimb = true;
       if (input.space) {
-        const jumpDirection = Number(input.right) - Number(input.left) || player.facing || 1;
+        const jumpDirection = raceHorizontalInputDirection(nowSeconds) || player.facing || 1;
         cancelLadderTraversal();
         player.velocityX = jumpDirection * CONFIG.maxRunSpeed * 0.72;
         player.velocityY = -CONFIG.jumpSpeed * 0.72;
         input.jumpPressedAt = -Infinity;
         return true;
       }
-      const horizontalDirection = Number(input.right) - Number(input.left);
+      const horizontalDirection = raceHorizontalInputDirection();
       if (horizontalDirection === 0) ladderTraversal.sideDismountArmed = true;
       if (
         ladderTraversal.sideDismountArmed &&
@@ -5983,7 +6376,8 @@
       // Advance the pose from actual climb input instead of wall-clock time.
       // Releasing both keys now holds the current hand and foot positions.
       ladderTraversal.climbCycle += climbDirection * CONFIG.ladderClimbSpeed * dt * 0.11;
-      player.y += climbDirection * CONFIG.ladderClimbSpeed * dt;
+      const ladderSpeedMultiplier = raceDebuffActive("ladder-slow", nowSeconds) ? 0.45 : 1;
+      player.y += climbDirection * CONFIG.ladderClimbSpeed * ladderSpeedMultiplier * dt;
       const bottomY = ladder.bottomY - player.height;
       if (player.y >= bottomY) {
         if (ladder.menu) {
@@ -6114,6 +6508,113 @@
       if (linkA !== linkB) return linkA ? -1 : 1;
       return (a.right - a.left) - (b.right - b.left);
     })[0].element;
+  }
+
+  function raceElementSelector(element) {
+    if (!(element instanceof Element) || !element.isConnected) return "";
+    if (
+      /^[A-Za-z][A-Za-z0-9_-]*$/u.test(element.id || "") &&
+      document.querySelectorAll(`#${CSS.escape(element.id)}`).length === 1
+    ) return `#${CSS.escape(element.id)}`;
+    const parts = [];
+    let current = element;
+    while (current && current !== document.body && parts.length < 12) {
+      const tag = current.localName;
+      if (!tag || !current.parentElement) return "";
+      const siblings = [...current.parentElement.children].filter((candidate) => candidate.localName === tag);
+      const position = siblings.indexOf(current) + 1;
+      if (position < 1) return "";
+      parts.unshift(`${tag}${siblings.length > 1 ? `:nth-of-type(${position})` : ""}`);
+      current = current.parentElement;
+    }
+    return current === document.body && parts.length > 0 ? `body>${parts.join(">")}` : "";
+  }
+
+  function raceAnchorParts(body, centerX) {
+    if (!body || !state.bodies.includes(body)) return null;
+    if (body.kind === "text") {
+      const region = (body.sourceRegions || []).toSorted((first, second) => {
+        const firstDistance = centerX < first.left ? first.left - centerX : centerX > first.right ? centerX - first.right : 0;
+        const secondDistance = centerX < second.left ? second.left - centerX : centerX > second.right ? centerX - second.right : 0;
+        return firstDistance - secondDistance || (first.right - first.left) - (second.right - second.left);
+      })[0];
+      if (region?.element) return { element: region.element, left: region.left, right: region.right };
+    }
+    if (body.sourceElement) {
+      return { element: body.sourceElement, left: body.x, right: body.x + body.width };
+    }
+    return null;
+  }
+
+  // Global page percentages drift whenever two players use different viewport
+  // widths because the same paragraph wraps onto different lines. Describe the
+  // last real floor instead, then let each client project that semantic floor
+  // into its own layout. Air movement remains an offset from that floor.
+  function racePositionAnchor() {
+    if (!race.active) return null;
+    const centerX = player.x + player.width * 0.5;
+    const feetY = player.y + player.height;
+    const body = [player.navigationBody, supportingMapBody(), player.checkpointBody]
+      .find((candidate) => candidate && state.bodies.includes(candidate)) || null;
+    const parts = raceAnchorParts(body, centerX);
+    if (!body || !parts) return null;
+    const selector = raceElementSelector(parts.element);
+    if (!selector || selector.length > 700) return null;
+    const elementRect = parts.element.getBoundingClientRect();
+    const elementTop = elementRect.top + window.scrollY;
+    const elementHeight = Math.max(1, elementRect.height);
+    const regionWidth = Math.max(1, parts.right - parts.left);
+    return {
+      selector,
+      kind: body.kind === "line" ? "line" : "text",
+      line: Math.max(0, Math.min(1, (body.y - elementTop) / elementHeight)),
+      bodyY: Math.max(0, Math.min(1, body.y / Math.max(1, state.documentHeight))),
+      u: Math.max(-12, Math.min(12, (centerX - parts.left) / regionWidth)),
+      dx: Math.max(-5000, Math.min(5000, centerX - (parts.left + parts.right) * 0.5)),
+      v: Math.max(-5000, Math.min(5000, feetY - body.y))
+    };
+  }
+
+  function resolveRacePositionAnchor(anchor) {
+    if (!race.active || !anchor || typeof anchor !== "object") return null;
+    const selector = String(anchor.selector || "");
+    if (!selector || selector.length > 700) return null;
+    let element;
+    try {
+      element = document.querySelector(selector);
+    } catch {
+      return null;
+    }
+    if (!element) return null;
+    const kind = anchor.kind === "line" ? "line" : "text";
+    const candidates = kind === "line"
+      ? state.lineBodies.filter((body) => body.sourceElement === element)
+      : state.textBodies.filter((body) => body.sourceRegions?.some((region) => region.element === element));
+    if (candidates.length === 0) return null;
+    const rect = element.getBoundingClientRect();
+    const elementTop = rect.top + window.scrollY;
+    const elementHeight = Math.max(1, rect.height);
+    const line = Math.max(0, Math.min(1, Number(anchor.line) || 0));
+    const bodyY = Math.max(0, Math.min(1, Number(anchor.bodyY) || 0)) * Math.max(1, state.documentHeight);
+    const body = candidates.toSorted((first, second) => {
+      const firstLine = (first.y - elementTop) / elementHeight;
+      const secondLine = (second.y - elementTop) / elementHeight;
+      return Math.abs(firstLine - line) * elementHeight + Math.abs(first.y - bodyY) * 0.04 -
+        (Math.abs(secondLine - line) * elementHeight + Math.abs(second.y - bodyY) * 0.04);
+    })[0];
+    const region = kind === "line"
+      ? { left: body.x, right: body.x + body.width }
+      : body.sourceRegions.find((candidate) => candidate.element === element);
+    if (!region) return null;
+    const u = Math.max(-12, Math.min(12, Number(anchor.u) || 0));
+    const dx = Math.max(-5000, Math.min(5000, Number(anchor.dx) || 0));
+    const v = Math.max(-5000, Math.min(5000, Number(anchor.v) || 0));
+    const regionWidth = Math.max(1, region.right - region.left);
+    const centerX = u >= -0.5 && u <= 1.5
+      ? region.left + u * regionWidth
+      : (region.left + region.right) * 0.5 + dx;
+    if (!Number.isFinite(centerX + body.y + v)) return null;
+    return { x: centerX, feetY: body.y + v, body };
   }
 
   function sidePortalAtPlayer() {
@@ -6501,7 +7002,7 @@
   function chooseWebAnchor() {
     const centerX = player.x + player.width * 0.5;
     const centerY = player.y + player.height * 0.45;
-    const desiredDirection = Number(input.right) - Number(input.left) || player.facing || 1;
+    const desiredDirection = raceHorizontalInputDirection() || player.facing || 1;
     let best = null;
     let bestScore = Infinity;
     refreshHatchCandidate();
@@ -6648,6 +7149,7 @@
   }
 
   function attachWeb() {
+    if (raceDebuffActive("grapple-lock")) return false;
     const incomingGrapple = activeIncomingRaceGrapple();
     if (incomingGrapple) {
       triggerGrappleInterruption("grapple", incomingGrapple);
@@ -6721,11 +7223,15 @@
       .toSorted((a, b) => Math.abs(a - preferredX) - Math.abs(b - preferredX));
 
     return candidates.find((x) => {
+      // Use exactly the same standing envelope as
+      // prepareNavigationSurfaces(). A wider hatch-only envelope rejected
+      // otherwise valid paragraph lines by two pixels, so the route planner
+      // could select the surface while the hatch refused to create an exit.
       const standingClearance = {
-        x: x - 1,
-        y: body.y - player.height - 4,
-        width: player.width + 2,
-        height: player.height + 3
+        x,
+        y: body.y - player.height - 2,
+        width: player.width,
+        height: player.height + 1
       };
       return !state.bodies.some((other) => other !== body && intersects(standingClearance, other));
     }) ?? null;
@@ -6737,7 +7243,7 @@
     const surfaceGap = player.y - bodyBottom;
     if (surfaceGap < -5 || surfaceGap > 58) return null;
     const playerCenterX = player.x + player.width * 0.5;
-    const direction = Number(input.right) - Number(input.left);
+    const direction = raceHorizontalInputDirection();
     const sides = [-1, 1].map((side) => {
       const edgeX = side < 0 ? body.x : body.x + body.width;
       const targetX = side < 0 ? body.x + 2 : body.x + body.width - player.width - 2;
@@ -6857,6 +7363,10 @@
     if (!web.active || !web.anchorBody || web.hatchPhase !== "none") return;
     const body = web.anchorBody;
     const nowSeconds = performance.now() / 1000;
+    if (raceDebuffActive("hatch-lock", nowSeconds)) {
+      web.hatchDeniedUntil = nowSeconds + 0.28;
+      return;
+    }
     if (nowSeconds < web.hatchDeniedUntil) return;
     if (!allowUnplannedCeiling && !hatchIsAvailableFor(body)) {
       web.hatchDeniedUntil = nowSeconds + 0.18;
@@ -7022,7 +7532,7 @@
       }
     }
 
-    const direction = Number(input.right) - Number(input.left);
+    const direction = raceHorizontalInputDirection();
     if (direction !== 0) {
       const tangentX = -normalY;
       const tangentY = normalX;
@@ -7168,7 +7678,7 @@
         mission.guidePoint = { x: mission.goalPoint.x, y: body.y - 9 };
         return;
       }
-      if (Math.abs(centerX - mission.goalPoint.x) <= Math.max(24, player.width * 1.5)) {
+      if (Math.abs(centerX - mission.goalPoint.x) <= Math.max(54, player.width * 3.2)) {
         completeTutorialStep(nowSeconds);
       }
       return;
@@ -7275,7 +7785,10 @@
     const sameSurface = bodiesDescribeSamePlatform(support, body) || Boolean(
       Math.abs(feet - body.y) <= 7 && centerX >= body.x - 3 && centerX <= body.x + body.width + 3
     );
-    return sameSurface && Math.abs(centerX - mission.goalPoint.x) <= Math.max(24, player.width * 1.5);
+    const pickupRadius = tutorial.active
+      ? Math.max(54, player.width * 3.2)
+      : Math.max(24, player.width * 1.5);
+    return sameSurface && Math.abs(centerX - mission.goalPoint.x) <= pickupRadius;
   }
 
   function isPlayerOnTutorialRelease(support) {
@@ -7795,6 +8308,11 @@
     }
   }
 
+  function raceHorizontalInputDirection(nowSeconds = performance.now() / 1000) {
+    const direction = Number(input.right) - Number(input.left);
+    return raceDebuffActive("reverse-input", nowSeconds) ? -direction : direction;
+  }
+
   function updatePhysics(dt, nowSeconds) {
     updateGrappleInterruption(dt);
     if (race.active && (race.frozen || race.finished || race.finishPending)) {
@@ -7822,27 +8340,27 @@
     if (updateLadderTraversal(dt, nowSeconds)) {
       updateNavigation(dt, nowSeconds);
       player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
-      checkRaceWispCollection(nowSeconds);
+      checkRaceCollectibles(nowSeconds);
       return;
     }
     if (updateDropHatch(dt, nowSeconds)) {
       updateNavigation(dt, nowSeconds);
       player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
-      checkRaceWispCollection(nowSeconds);
+      checkRaceCollectibles(nowSeconds);
       return;
     }
     if (updateWebMantle(dt, nowSeconds)) {
       updatePlayerInteractions(dt, nowSeconds);
       updateNavigation(dt, nowSeconds);
       player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
-      checkRaceWispCollection(nowSeconds);
+      checkRaceCollectibles(nowSeconds);
       return;
     }
     if (updateWebHatch(dt)) {
       updatePlayerInteractions(dt, nowSeconds);
       updateNavigation(dt, nowSeconds);
       player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
-      checkRaceWispCollection(nowSeconds);
+      checkRaceCollectibles(nowSeconds);
       return;
     }
 
@@ -7850,17 +8368,22 @@
       updateLadderTraversal(dt, nowSeconds);
       updateNavigation(dt, nowSeconds);
       player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
-      checkRaceWispCollection(nowSeconds);
+      checkRaceCollectibles(nowSeconds);
       return;
     }
 
     tryDropThrough(nowSeconds);
 
-    const direction = Number(input.right) - Number(input.left);
+    const direction = raceHorizontalInputDirection(nowSeconds);
     if (direction !== 0) {
       player.facing = direction;
       const acceleration = player.grounded ? CONFIG.runAcceleration : CONFIG.airAcceleration;
-      player.velocityX = approach(player.velocityX, direction * CONFIG.maxRunSpeed, acceleration * dt);
+      const runMultiplier = raceDebuffActive("slow-run", nowSeconds) ? 0.52 : 1;
+      player.velocityX = approach(
+        player.velocityX,
+        direction * CONFIG.maxRunSpeed * runMultiplier,
+        acceleration * runMultiplier * dt
+      );
     } else if (player.grounded) {
       player.velocityX = approach(player.velocityX, 0, CONFIG.groundFriction * dt);
     }
@@ -7876,6 +8399,7 @@
       bufferedJump &&
       !player.grounded &&
       !web.active &&
+      !raceDebuffActive("double-jump-lock", nowSeconds) &&
       player.airJumpsRemaining > 0
     ) {
       player.velocityY = -CONFIG.airJumpSpeed;
@@ -7897,7 +8421,7 @@
 
     if (player.grounded && !web.active) {
       web.charges = CONFIG.webMaximumCharges;
-      player.airJumpsRemaining = 1;
+      player.airJumpsRemaining = raceDebuffActive("double-jump-lock", nowSeconds) ? 0 : 1;
       player.airJumpAt = -Infinity;
     }
     updatePlayerInteractions(dt, nowSeconds);
@@ -7905,7 +8429,7 @@
     updateNavigation(dt, nowSeconds);
 
     player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
-    checkRaceWispCollection(nowSeconds);
+    checkRaceCollectibles(nowSeconds);
     if (player.y > state.documentHeight + window.innerHeight * 0.35) respawn({ fromFall: true });
   }
 
@@ -8310,6 +8834,49 @@
           x + Math.cos(angle) * orbit,
           y + Math.sin(angle * 1.17) * orbit * 0.56,
           index % 3 === 0 ? 2.2 : 1.45,
+          0,
+          Math.PI * 2
+        );
+        context.fill();
+      }
+    }
+    context.restore();
+  }
+
+  function drawRaceDebuffWisps(scrollX, scrollY) {
+    if (!race.active || !race.configured || race.finished || race.debuffWisps.length === 0) return;
+    const time = performance.now() / 1000;
+    const moteCount = isLowPowerDevice() ? 4 : 7;
+    context.save();
+    for (const wisp of race.debuffWisps) {
+      if (race.claimedDebuffIds.has(wisp.id) || race.pendingDebuffClaims.has(wisp.id)) continue;
+      const x = wisp.x - scrollX;
+      const y = wisp.y - scrollY;
+      const radius = wisp.radius * (0.93 + Math.sin(time * 2.8 + wisp.index) * 0.07);
+      if (x + radius < -8 || x - radius > state.viewportWidth + 8 || y + radius < -8 || y - radius > state.viewportHeight + 8) continue;
+
+      context.fillStyle = "rgba(221, 38, 47, .10)";
+      context.beginPath();
+      context.arc(x, y, radius * 1.42, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = "rgba(218, 34, 45, .24)";
+      context.beginPath();
+      context.arc(x, y, radius * 0.9, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = "rgba(255, 103, 91, .42)";
+      context.beginPath();
+      context.arc(x - radius * 0.12, y - radius * 0.1, radius * 0.48, 0, Math.PI * 2);
+      context.fill();
+
+      for (let index = 0; index < moteCount; index += 1) {
+        const angle = -time * (0.8 + index * 0.045) + index * 2.39996 + wisp.index * 0.61;
+        const orbit = radius * (0.66 + (index % 3) * 0.19);
+        context.fillStyle = `rgba(255, 77, 66, ${0.5 + (index % 2) * 0.2})`;
+        context.beginPath();
+        context.arc(
+          x + Math.cos(angle) * orbit,
+          y + Math.sin(angle * 1.12) * orbit * 0.62,
+          index % 3 === 0 ? 2.35 : 1.5,
           0,
           Math.PI * 2
         );
@@ -9025,9 +9592,13 @@
 
     for (const remote of race.remotePlayers.values()) {
       const elapsed = Math.max(1 / 240, Math.min(0.08, nowSeconds - (remote.renderedAt || nowSeconds)));
-      const blend = 1 - Math.exp(-elapsed * 18);
-      remote.renderX += (remote.x - remote.renderX) * blend;
-      remote.renderY += (remote.y - remote.renderY) * blend;
+      const packetAge = Math.max(0, nowSeconds - (remote.updatedAt || nowSeconds)) + (remote.networkAgeSeconds || 0);
+      const predictionSeconds = Math.min(0.12, packetAge);
+      const targetX = remote.x + (remote.velocityX || 0) * predictionSeconds;
+      const targetY = remote.y + (remote.velocityY || 0) * predictionSeconds;
+      const blend = 1 - Math.exp(-elapsed * 28);
+      remote.renderX += (targetX - remote.renderX) * blend;
+      remote.renderY += (targetY - remote.renderY) * blend;
       remote.renderedAt = nowSeconds;
       const speedRatio = Math.min(1, Math.abs(remote.velocityX || 0) / CONFIG.maxRunSpeed);
       remote.runPhase = (remote.runPhase || 0) + elapsed * (5 + speedRatio * 13);
@@ -10222,6 +10793,7 @@
     drawBodies(window.scrollX, window.scrollY);
     drawLadders(window.scrollX, window.scrollY);
     drawRaceWisps(window.scrollX, window.scrollY);
+    drawRaceDebuffWisps(window.scrollX, window.scrollY);
     drawNavigation(window.scrollX, window.scrollY);
     drawAvailableHatch(window.scrollX, window.scrollY);
     drawIncomingRaceGrapples(window.scrollX, window.scrollY);
@@ -10445,6 +11017,10 @@
     portalBodyForAnchor,
     portalTarget,
     raceTargetCenter,
+    // Kept as a small public diagnostic seam so the still-photo/camera
+    // regression can be exercised without starting or mutating a live room.
+    beginMissionPreview,
+    updateCamera,
     refreshHatchCandidate,
     configureRaceRound,
     setRaceNavigationEnabled,
@@ -10452,7 +11028,14 @@
     setRaceWispClaims,
     regenerateRaceWisps: () => generateRaceWisps({ force: true }),
     raceWispId,
+    setRaceDebuffClaims,
+    setRaceDebuffs,
+    raceDebuffActive,
+    regenerateRaceDebuffWisps: () => generateRaceDebuffWisps({ force: true }),
+    raceDebuffId,
     setPlayerPalette,
+    racePositionAnchor,
+    resolveRacePositionAnchor,
     setRaceRemotePlayer,
     removeRaceRemotePlayer,
     applyRaceGrapple,
@@ -10466,6 +11049,10 @@
     normalRouteForCurrent() {
       const support = player.navigationBody || supportingMapBody();
       return support && mission.goalBody ? normalRouteFromTo(support, mission.goalBody) : [];
+    },
+    generalRouteForCurrent() {
+      const support = player.navigationBody || supportingMapBody();
+      return support && mission.goalBody ? generalRouteFromTo(support, mission.goalBody) : [];
     },
     webMantleExit,
     setDebug(value) {

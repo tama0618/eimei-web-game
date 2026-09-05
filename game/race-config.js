@@ -12,6 +12,6 @@
     titleHintMilliseconds: 90_000,
     contextHintMilliseconds: 120_000,
     navigationHintMilliseconds: 150_000,
-    positionIntervalMilliseconds: 180
+    positionIntervalMilliseconds: 90
   });
 })();

@@ -117,6 +117,55 @@
   100% { transform: none; }
 }
 
+.eimei-race-debuffs {
+  position: fixed;
+  z-index: 2147483330;
+  left: 14px;
+  bottom: 14px;
+  width: min(280px, 38vw);
+  padding: 10px 12px;
+  border: 1px solid #8f2730;
+  border-left: 5px solid #df3341;
+  color: #4b151a;
+  background: rgba(255, 246, 242, .96);
+  box-shadow: 4px 5px 0 rgba(86, 17, 24, .18);
+  pointer-events: none;
+  font: 12px/1.35 "Yu Gothic", system-ui, sans-serif;
+}
+.eimei-race-debuffs[hidden] { display: none; }
+.eimei-race-debuffs > p { margin: 0 0 7px; font-weight: 900; }
+.eimei-race-debuffs > p span { margin-right: 6px; color: #d52b3a; font: 900 9px/1 system-ui,sans-serif; letter-spacing: .14em; }
+.eimei-race-debuffs ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.eimei-race-debuffs li { display: grid; gap: 3px; font-weight: 800; }
+.eimei-race-debuffs li > i { position: relative; display: block; height: 3px; overflow: hidden; background: rgba(143,39,48,.16); }
+.eimei-race-debuffs li > i::before { content: ""; position: absolute; inset: 0; background: #d93643; transform: scaleX(var(--debuff-remaining,1)); transform-origin: left center; }
+
+.eimei-race-debuff-toast {
+  position: fixed;
+  z-index: 2147483430;
+  top: 100px;
+  left: 50%;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 11px 18px;
+  border: 2px solid #7f2029;
+  color: #fff;
+  background: #c72f3c;
+  box-shadow: 6px 7px 0 rgba(35,15,18,.24);
+  transform: translateX(-50%);
+  pointer-events: none;
+  font: 900 14px/1.4 "Yu Gothic",system-ui,sans-serif;
+  text-align: center;
+  animation: eimei-race-debuff-toast 2.8s ease both;
+}
+.eimei-race-debuff-toast.is-source { border-color: #782327; background: #a92431; }
+.eimei-race-debuff-toast.is-miss { border-color: #777; background: #555d66; }
+.eimei-race-debuff-toast.is-other { border-color: #66383c; background: #765057; }
+@keyframes eimei-race-debuff-toast {
+  0% { transform: translate(-50%,-16px) scale(.92); opacity: 0; }
+  12%, 78% { transform: translate(-50%,0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%,5px) scale(.98); opacity: 0; }
+}
+
 .eimei-race-photo {
   --photo-scale: .235;
   position: fixed;
@@ -143,6 +192,10 @@
 .eimei-race-photo.is-expanded,
 .eimei-race-photo.is-intro { z-index: 2147483440; right: 50%; bottom: 50%; transform: translate(50%,50%); box-shadow: 0 0 0 100vmax rgba(18,22,27,.67), 10px 12px 0 rgba(0,0,0,.28); }
 .eimei-race-photo.is-intro .eimei-race-photo-key { display: none; }
+.eimei-race-photo.is-jammed iframe { opacity: .13; filter: grayscale(1) contrast(.55); }
+.eimei-race-photo.is-jammed::after { content: "SIGNAL LOST"; position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; color: #fff; background: repeating-linear-gradient(0deg,rgba(74,7,14,.94) 0 7px,rgba(129,18,29,.9) 7px 10px); font: 900 14px/1 system-ui,sans-serif; letter-spacing: .18em; }
+.eimei-race-photo.is-jammed .eimei-race-photo-marker { visibility: hidden; }
+.eimei-race-photo.is-jammed .eimei-race-photo-key { z-index: 3; }
 
 .eimei-race-countdown {
   position: fixed;
@@ -190,7 +243,7 @@
 .eimei-race-result .eimei-race-result-card > button { all: unset; box-sizing: border-box; display: inline-block; padding: 13px 24px; border: 2px solid #252b34; color: #fff; background: #223f70; font: 800 14px/1.2 "Yu Gothic",system-ui,sans-serif; cursor: pointer; }
 .eimei-race-result .eimei-race-result-card > button:focus-visible { outline: 3px solid #e0a828; outline-offset: 3px; }
 
-.eimei-race-ghost { position: absolute; z-index: 2147483004; width: 18px; height: 25px; transform: translateX(var(--race-overlap-offset,0)); pointer-events: none; transition: left .1s linear, top .1s linear, transform .12s ease-out, opacity .08s linear; }
+.eimei-race-ghost { position: absolute; z-index: 2147483004; width: 18px; height: 25px; transform: translateX(var(--race-overlap-offset,0)); pointer-events: none; transition: left .085s linear, top .085s linear, transform .1s ease-out, opacity .08s linear; }
 .eimei-race-ghost.is-traversing { opacity: 0; }
 .eimei-race-ghost.is-overlapping .eimei-race-ghost-name { color: #fff; background: var(--race-player-color, #42536e); }
 .eimei-race-ghost-name { position: absolute; left: 50%; top: -17px; max-width: 110px; padding: 1px 4px; transform: translateX(-50%); overflow: hidden; color: #202832; background: rgba(255,253,246,.88); font: 700 10px/1.3 system-ui,sans-serif; white-space: nowrap; text-overflow: ellipsis; }
@@ -200,5 +253,7 @@
   .eimei-race-hud { width: 42vw; }
   .eimei-race-hints { left: auto; right: 12px; width: 48vw; transform: none; text-align: right; }
   .eimei-race-private-hints { top: 106px; right: 10px; width: min(330px, 72vw); }
+  .eimei-race-debuffs { left: 10px; bottom: 10px; width: min(270px, 58vw); }
+  .eimei-race-debuff-toast { top: 132px; }
   .eimei-race-result-players { grid-template-columns: 1fr; }
 }

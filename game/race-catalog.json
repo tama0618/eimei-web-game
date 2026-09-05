@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-04T17:12:10.132Z",
+  "generatedAt": "2026-09-05T14:20:47.383Z",
   "viewport": {
     "width": 1365,
     "height": 768
@@ -9,8 +9,8 @@
     {
       "page": "/info-course/about/course-data.html",
       "title": "コースデータ - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7095,
+      "width": 1456,
+      "height": 7145,
       "targets": [
         {
           "id": "/info-course/about/course-data.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -118,8 +118,8 @@
     {
       "page": "/info-course/about/creative-track.html",
       "title": "情報クリエイト系 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7210,
+      "width": 1456,
+      "height": 7260,
       "targets": [
         {
           "id": "/info-course/about/creative-track.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -231,8 +231,8 @@
     {
       "page": "/info-course/about/overview.html",
       "title": "情報コースとは - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7229,
+      "width": 1456,
+      "height": 7279,
       "targets": [
         {
           "id": "/info-course/about/overview.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -340,8 +340,8 @@
     {
       "page": "/info-course/about/questions.html",
       "title": "よくある質問 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7250,
+      "width": 1456,
+      "height": 7300,
       "targets": [
         {
           "id": "/info-course/about/questions.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -450,8 +450,8 @@
     {
       "page": "/info-course/about/system-track.html",
       "title": "情報システム系 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7258,
+      "width": 1456,
+      "height": 7307,
       "targets": [
         {
           "id": "/info-course/about/system-track.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -564,8 +564,8 @@
     {
       "page": "/info-course/about/three-years.html",
       "title": "3年間の流れ - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8112,
+      "width": 1456,
+      "height": 8162,
       "targets": [
         {
           "id": "/info-course/about/three-years.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -673,8 +673,8 @@
     {
       "page": "/info-course/about/two-teachers.html",
       "title": "2人教員制授業 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7118,
+      "width": 1456,
+      "height": 7168,
       "targets": [
         {
           "id": "/info-course/about/two-teachers.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -783,8 +783,8 @@
     {
       "page": "/info-course/admissions/before-enrollment.html",
       "title": "入学前に知っておきたいこと - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8265,
+      "width": 1456,
+      "height": 8315,
       "targets": [
         {
           "id": "/info-course/admissions/before-enrollment.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -895,8 +895,8 @@
     {
       "page": "/info-course/admissions/beginner-support.html",
       "title": "PC初心者への支援 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8079,
+      "width": 1456,
+      "height": 8129,
       "targets": [
         {
           "id": "/info-course/admissions/beginner-support.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -1007,8 +1007,8 @@
     {
       "page": "/info-course/admissions/course-data.html",
       "title": "募集と授業の基本情報 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8079,
+      "width": 1456,
+      "height": 8128,
       "targets": [
         {
           "id": "/info-course/admissions/course-data.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -1119,8 +1119,8 @@
     {
       "page": "/info-course/admissions/fit.html",
       "title": "情報コースで伸ばせる興味 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8265,
+      "width": 1456,
+      "height": 8315,
       "targets": [
         {
           "id": "/info-course/admissions/fit.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -1231,8 +1231,8 @@
     {
       "page": "/info-course/admissions/open-school.html",
       "title": "体験入学で確かめること - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8187,
+      "width": 1456,
+      "height": 8237,
       "targets": [
         {
           "id": "/info-course/admissions/open-school.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -1343,8 +1343,8 @@
     {
       "page": "/info-course/admissions/parents.html",
       "title": "保護者の方へ - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7998,
+      "width": 1456,
+      "height": 8048,
       "targets": [
         {
           "id": "/info-course/admissions/parents.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -1455,8 +1455,8 @@
     {
       "page": "/info-course/admissions/questions-to-ask.html",
       "title": "見学で聞いておきたい質問 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8157,
+      "width": 1456,
+      "height": 8207,
       "targets": [
         {
           "id": "/info-course/admissions/questions-to-ask.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -1567,8 +1567,8 @@
     {
       "page": "/info-course/admissions/three-year-choice.html",
       "title": "3年間の選び方 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8011,
+      "width": 1456,
+      "height": 8061,
       "targets": [
         {
           "id": "/info-course/admissions/three-year-choice.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -1679,8 +1679,8 @@
     {
       "page": "/info-course/campus/certifications.html",
       "title": "資格・検定 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4612,
+      "width": 1456,
+      "height": 4662,
       "targets": [
         {
           "id": "/info-course/campus/certifications.html:0:body>div>main>section:nth-of-type(1)>div>p",
@@ -1790,8 +1790,8 @@
     {
       "page": "/info-course/campus/classrooms.html",
       "title": "情報教室と授業支援 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 3497,
+      "width": 1456,
+      "height": 3547,
       "targets": [
         {
           "id": "/info-course/campus/classrooms.html:0:body>div>main>section>article:nth-of-type(1)>h2",
@@ -1889,8 +1889,8 @@
     {
       "page": "/info-course/campus/competitions.html",
       "title": "大会・作品発表 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 3946,
+      "width": 1456,
+      "height": 3996,
       "targets": [
         {
           "id": "/info-course/campus/competitions.html:0:body>div>main>section>article:nth-of-type(1)>h2",
@@ -1991,8 +1991,8 @@
     {
       "page": "/info-course/campus/index.html",
       "title": "環境と成果 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4209,
+      "width": 1456,
+      "height": 4259,
       "targets": [
         {
           "id": "/info-course/campus/index.html:0:body>div>main>nav>div:nth-of-type(1)>span",
@@ -2096,8 +2096,8 @@
     {
       "page": "/info-course/campus/tools.html",
       "title": "制作・開発環境 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4016,
+      "width": 1456,
+      "height": 4066,
       "targets": [
         {
           "id": "/info-course/campus/tools.html:0:body>div>main>section>article:nth-of-type(1)>h2",
@@ -2197,8 +2197,8 @@
     {
       "page": "/info-course/career/choosing-next-step.html",
       "title": "進学先を比べる視点 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8053,
+      "width": 1456,
+      "height": 8103,
       "targets": [
         {
           "id": "/info-course/career/choosing-next-step.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -2306,8 +2306,8 @@
     {
       "page": "/info-course/career/creator.html",
       "title": "Webデザイナー・CGクリエイター - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7776,
+      "width": 1456,
+      "height": 7826,
       "targets": [
         {
           "id": "/info-course/career/creator.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -2416,8 +2416,8 @@
     {
       "page": "/info-course/career/destination-list.html",
       "title": "主な進学先一覧 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 9374,
+      "width": 1456,
+      "height": 9424,
       "targets": [
         {
           "id": "/info-course/career/destination-list.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(2)>h2",
@@ -2525,8 +2525,8 @@
     {
       "page": "/info-course/career/employment.html",
       "title": "就職 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8426,
+      "width": 1456,
+      "height": 8476,
       "targets": [
         {
           "id": "/info-course/career/employment.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -2634,8 +2634,8 @@
     {
       "page": "/info-course/career/game-field.html",
       "title": "ゲーム分野への接続 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7631,
+      "width": 1456,
+      "height": 7681,
       "targets": [
         {
           "id": "/info-course/career/game-field.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -2743,8 +2743,8 @@
     {
       "page": "/info-course/career/industry-learning.html",
       "title": "業界を知る学び - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7468,
+      "width": 1456,
+      "height": 7518,
       "targets": [
         {
           "id": "/info-course/career/industry-learning.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -2853,8 +2853,8 @@
     {
       "page": "/info-course/career/junior-college.html",
       "title": "短期大学への進学 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8141,
+      "width": 1456,
+      "height": 8191,
       "targets": [
         {
           "id": "/info-course/career/junior-college.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -2962,8 +2962,8 @@
     {
       "page": "/info-course/career/school-tours.html",
       "title": "大学・専門学校見学ツアー - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7704,
+      "width": 1456,
+      "height": 7754,
       "targets": [
         {
           "id": "/info-course/career/school-tours.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -3071,8 +3071,8 @@
     {
       "page": "/info-course/career/student-voices.html",
       "title": "在校生・卒業生の声 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 9570,
+      "width": 1456,
+      "height": 9620,
       "targets": [
         {
           "id": "/info-course/career/student-voices.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -3182,8 +3182,8 @@
     {
       "page": "/info-course/career/system-engineer.html",
       "title": "プログラマー・システムエンジニア - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7852,
+      "width": 1456,
+      "height": 7902,
       "targets": [
         {
           "id": "/info-course/career/system-engineer.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -3292,8 +3292,8 @@
     {
       "page": "/info-course/career/universities.html",
       "title": "大学への進学 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8087,
+      "width": 1456,
+      "height": 8137,
       "targets": [
         {
           "id": "/info-course/career/universities.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -3400,8 +3400,8 @@
     {
       "page": "/info-course/career/vocational.html",
       "title": "専門学校・職業教育への進学 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8531,
+      "width": 1456,
+      "height": 8581,
       "targets": [
         {
           "id": "/info-course/career/vocational.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -3510,8 +3510,8 @@
     {
       "page": "/info-course/career/web-design.html",
       "title": "Web・デザイン分野への接続 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7739,
+      "width": 1456,
+      "height": 7789,
       "targets": [
         {
           "id": "/info-course/career/web-design.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -3619,8 +3619,8 @@
     {
       "page": "/info-course/course/common-learning.html",
       "title": "専門科目の共通学習 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4829,
+      "width": 1456,
+      "height": 4879,
       "targets": [
         {
           "id": "/info-course/course/common-learning.html:0:body>div>main>section:nth-of-type(1)>h2",
@@ -3730,8 +3730,8 @@
     {
       "page": "/info-course/course/creative.html",
       "title": "情報クリエイト系 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 3838,
+      "width": 1456,
+      "height": 3888,
       "targets": [
         {
           "id": "/info-course/course/creative.html:0:body>div>main>section>article:nth-of-type(1)>h2",
@@ -3831,8 +3831,8 @@
     {
       "page": "/info-course/course/index.html",
       "title": "コースと授業 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4173,
+      "width": 1456,
+      "height": 4223,
       "targets": [
         {
           "id": "/info-course/course/index.html:0:body>div>main>nav>div:nth-of-type(1)>span",
@@ -3936,8 +3936,8 @@
     {
       "page": "/info-course/course/system.html",
       "title": "情報システム系 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 3854,
+      "width": 1456,
+      "height": 3904,
       "targets": [
         {
           "id": "/info-course/course/system.html:0:body>div>main>section>article:nth-of-type(1)>h2",
@@ -4038,8 +4038,8 @@
     {
       "page": "/info-course/course/three-years.html",
       "title": "3年間の学び方 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4521,
+      "width": 1456,
+      "height": 4571,
       "targets": [
         {
           "id": "/info-course/course/three-years.html:0:body>div>main>section:nth-of-type(1)>h2",
@@ -4147,8 +4147,8 @@
     {
       "page": "/info-course/environment/creative-cloud.html",
       "title": "Adobe Creative Cloud - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7550,
+      "width": 1456,
+      "height": 7600,
       "targets": [
         {
           "id": "/info-course/environment/creative-cloud.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -4259,8 +4259,8 @@
     {
       "page": "/info-course/environment/first-room.html",
       "title": "第1情報教室 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7156,
+      "width": 1456,
+      "height": 7205,
       "targets": [
         {
           "id": "/info-course/environment/first-room.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -4368,8 +4368,8 @@
     {
       "page": "/info-course/environment/intermediate-monitors.html",
       "title": "中間モニター - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7156,
+      "width": 1456,
+      "height": 7205,
       "targets": [
         {
           "id": "/info-course/environment/intermediate-monitors.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -4478,8 +4478,8 @@
     {
       "page": "/info-course/environment/legacy-equipment.html",
       "title": "設備の変遷 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7095,
+      "width": 1456,
+      "height": 7145,
       "targets": [
         {
           "id": "/info-course/environment/legacy-equipment.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -4589,8 +4589,8 @@
     {
       "page": "/info-course/environment/mm-room.html",
       "title": "MM教室 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 6980,
+      "width": 1456,
+      "height": 7030,
       "targets": [
         {
           "id": "/info-course/environment/mm-room.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -4698,8 +4698,8 @@
     {
       "page": "/info-course/environment/office.html",
       "title": "Microsoft Office - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7227,
+      "width": 1456,
+      "height": 7277,
       "targets": [
         {
           "id": "/info-course/environment/office.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -4809,8 +4809,8 @@
     {
       "page": "/info-course/environment/personal-creative-tools.html",
       "title": "自分のPCでも使える制作環境 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7713,
+      "width": 1456,
+      "height": 7763,
       "targets": [
         {
           "id": "/info-course/environment/personal-creative-tools.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -4920,8 +4920,8 @@
     {
       "page": "/info-course/environment/room-renewal.html",
       "title": "情報教室アップデート史 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7639,
+      "width": 1456,
+      "height": 7689,
       "targets": [
         {
           "id": "/info-course/environment/room-renewal.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -5031,8 +5031,8 @@
     {
       "page": "/info-course/environment/three-d-printer.html",
       "title": "3Dプリンター - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 6932,
+      "width": 1456,
+      "height": 6982,
       "targets": [
         {
           "id": "/info-course/environment/three-d-printer.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -5142,8 +5142,8 @@
     {
       "page": "/info-course/environment/two-rooms.html",
       "title": "2つの情報教室 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7188,
+      "width": 1456,
+      "height": 7238,
       "targets": [
         {
           "id": "/info-course/environment/two-rooms.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -5251,8 +5251,8 @@
     {
       "page": "/info-course/environment/visual-studio.html",
       "title": "Visual Studio - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7134,
+      "width": 1456,
+      "height": 7184,
       "targets": [
         {
           "id": "/info-course/environment/visual-studio.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -5362,8 +5362,8 @@
     {
       "page": "/info-course/future/employment.html",
       "title": "就職と業界理解 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4090,
+      "width": 1456,
+      "height": 4140,
       "targets": [
         {
           "id": "/info-course/future/employment.html:0:body>div>main>section:nth-of-type(1)>h2",
@@ -5470,8 +5470,8 @@
     {
       "page": "/info-course/future/index.html",
       "title": "進路と卒業生 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4221,
+      "width": 1456,
+      "height": 4271,
       "targets": [
         {
           "id": "/info-course/future/index.html:0:body>div>main>nav>div:nth-of-type(1)>span",
@@ -5575,8 +5575,8 @@
     {
       "page": "/info-course/future/universities.html",
       "title": "大学・短期大学への進学 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4335,
+      "width": 1456,
+      "height": 4385,
       "targets": [
         {
           "id": "/info-course/future/universities.html:0:body>div>main>section:nth-of-type(1)>h2",
@@ -5683,8 +5683,8 @@
     {
       "page": "/info-course/future/vocational.html",
       "title": "専門学校・職業教育への進学 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4325,
+      "width": 1456,
+      "height": 4374,
       "targets": [
         {
           "id": "/info-course/future/vocational.html:0:body>div>main>section:nth-of-type(1)>h2",
@@ -5791,8 +5791,8 @@
     {
       "page": "/info-course/future/voices.html",
       "title": "在校生・卒業生の声 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 5237,
+      "width": 1456,
+      "height": 5287,
       "targets": [
         {
           "id": "/info-course/future/voices.html:0:body>div>main>section:nth-of-type(1)>div:nth-of-type(1)>span",
@@ -5901,8 +5901,8 @@
     {
       "page": "/info-course/history/business-system-era.html",
       "title": "ビジネス系・システム系の時代 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7799,
+      "width": 1456,
+      "height": 7849,
       "targets": [
         {
           "id": "/info-course/history/business-system-era.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -6016,8 +6016,8 @@
     {
       "page": "/info-course/history/collaboration-2024.html",
       "title": "2024年 進路・業界・情報モラル - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7786,
+      "width": 1456,
+      "height": 7836,
       "targets": [
         {
           "id": "/info-course/history/collaboration-2024.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -6131,8 +6131,8 @@
     {
       "page": "/info-course/history/competition-2014.html",
       "title": "2014年 中四国大会での実績 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7854,
+      "width": 1456,
+      "height": 7903,
       "targets": [
         {
           "id": "/info-course/history/competition-2014.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -6246,8 +6246,8 @@
     {
       "page": "/info-course/history/confirmed-2004.html",
       "title": "情報コースの原点 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7546,
+      "width": 1456,
+      "height": 7595,
       "targets": [
         {
           "id": "/info-course/history/confirmed-2004.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -6361,8 +6361,8 @@
     {
       "page": "/info-course/history/current-2026.html",
       "title": "2026年 現在の情報コース - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7732,
+      "width": 1456,
+      "height": 7782,
       "targets": [
         {
           "id": "/info-course/history/current-2026.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -6476,8 +6476,8 @@
     {
       "page": "/info-course/history/curriculum-2004.html",
       "title": "2004年版カリキュラム - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7613,
+      "width": 1456,
+      "height": 7663,
       "targets": [
         {
           "id": "/info-course/history/curriculum-2004.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -6591,8 +6591,8 @@
     {
       "page": "/info-course/history/expansion-2018.html",
       "title": "2018年 学びと資格の広がり - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7752,
+      "width": 1456,
+      "height": 7801,
       "targets": [
         {
           "id": "/info-course/history/expansion-2018.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -6706,8 +6706,8 @@
     {
       "page": "/info-course/history/national-exams-2019.html",
       "title": "2019年 国家試験と進路体験 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7786,
+      "width": 1456,
+      "height": 7836,
       "targets": [
         {
           "id": "/info-course/history/national-exams-2019.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -6821,8 +6821,8 @@
     {
       "page": "/info-course/history/remote-2020.html",
       "title": "2020年 オンライン支援と大会 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7834,
+      "width": 1456,
+      "height": 7884,
       "targets": [
         {
           "id": "/info-course/history/remote-2020.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -6936,8 +6936,8 @@
     {
       "page": "/info-course/history/renewal-2017.html",
       "title": "2017年 西館マルチメディア教室更新 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8118,
+      "width": 1456,
+      "height": 8168,
       "targets": [
         {
           "id": "/info-course/history/renewal-2017.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -7051,8 +7051,8 @@
     {
       "page": "/info-course/history/structure-2016.html",
       "title": "2つの専門分野へ - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7526,
+      "width": 1456,
+      "height": 7576,
       "targets": [
         {
           "id": "/info-course/history/structure-2016.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -7166,8 +7166,8 @@
     {
       "page": "/info-course/index.html",
       "title": "英明高等学校 情報コース - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 8814,
+      "width": 1456,
+      "height": 8864,
       "targets": [
         {
           "id": "/info-course/index.html:0:body>div>main>section:nth-of-type(1)>div>p:nth-of-type(1)",
@@ -7275,8 +7275,8 @@
     {
       "page": "/info-course/learning/algorithms.html",
       "title": "アルゴリズム - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7024,
+      "width": 1456,
+      "height": 7073,
       "targets": [
         {
           "id": "/info-course/learning/algorithms.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -7387,8 +7387,8 @@
     {
       "page": "/info-course/learning/c-language.html",
       "title": "C言語 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 6790,
+      "width": 1456,
+      "height": 6840,
       "targets": [
         {
           "id": "/info-course/learning/c-language.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -7500,8 +7500,8 @@
     {
       "page": "/info-course/learning/content-development.html",
       "title": "コンテンツの開発と設計 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7518,
+      "width": 1456,
+      "height": 7568,
       "targets": [
         {
           "id": "/info-course/learning/content-development.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -7611,8 +7611,8 @@
     {
       "page": "/info-course/learning/database.html",
       "title": "データベース - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7353,
+      "width": 1456,
+      "height": 7403,
       "targets": [
         {
           "id": "/info-course/learning/database.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -7723,8 +7723,8 @@
     {
       "page": "/info-course/learning/dtp.html",
       "title": "DTP - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7028,
+      "width": 1456,
+      "height": 7078,
       "targets": [
         {
           "id": "/info-course/learning/dtp.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -7834,8 +7834,8 @@
     {
       "page": "/info-course/learning/expression-management.html",
       "title": "情報の表現と管理 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7264,
+      "width": 1456,
+      "height": 7314,
       "targets": [
         {
           "id": "/info-course/learning/expression-management.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -7945,8 +7945,8 @@
     {
       "page": "/info-course/learning/first-year.html",
       "title": "1年次の学び - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7080,
+      "width": 1456,
+      "height": 7130,
       "targets": [
         {
           "id": "/info-course/learning/first-year.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -8056,8 +8056,8 @@
     {
       "page": "/info-course/learning/information-design.html",
       "title": "情報デザイン - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7132,
+      "width": 1456,
+      "height": 7182,
       "targets": [
         {
           "id": "/info-course/learning/information-design.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -8167,8 +8167,8 @@
     {
       "page": "/info-course/learning/information-industry.html",
       "title": "情報産業と社会 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7264,
+      "width": 1456,
+      "height": 7314,
       "targets": [
         {
           "id": "/info-course/learning/information-industry.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -8278,8 +8278,8 @@
     {
       "page": "/info-course/learning/information-practice.html",
       "title": "情報演習 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7007,
+      "width": 1456,
+      "height": 7057,
       "targets": [
         {
           "id": "/info-course/learning/information-practice.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -8389,8 +8389,8 @@
     {
       "page": "/info-course/learning/java.html",
       "title": "Java - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 6845,
+      "width": 1456,
+      "height": 6894,
       "targets": [
         {
           "id": "/info-course/learning/java.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -8501,8 +8501,8 @@
     {
       "page": "/info-course/learning/media-service.html",
       "title": "メディアとサービス - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7397,
+      "width": 1456,
+      "height": 7447,
       "targets": [
         {
           "id": "/info-course/learning/media-service.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -8613,8 +8613,8 @@
     {
       "page": "/info-course/learning/project-research.html",
       "title": "課題研究 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 6993,
+      "width": 1456,
+      "height": 7043,
       "targets": [
         {
           "id": "/info-course/learning/project-research.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -8725,8 +8725,8 @@
     {
       "page": "/info-course/learning/robot-programming.html",
       "title": "ロボットプログラミング - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7572,
+      "width": 1456,
+      "height": 7622,
       "targets": [
         {
           "id": "/info-course/learning/robot-programming.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -8838,8 +8838,8 @@
     {
       "page": "/info-course/learning/second-year.html",
       "title": "2年次の共通科目 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7210,
+      "width": 1456,
+      "height": 7260,
       "targets": [
         {
           "id": "/info-course/learning/second-year.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -8949,8 +8949,8 @@
     {
       "page": "/info-course/learning/system-design.html",
       "title": "システムの設計と開発 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7506,
+      "width": 1456,
+      "height": 7555,
       "targets": [
         {
           "id": "/info-course/learning/system-design.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -9061,8 +9061,8 @@
     {
       "page": "/info-course/learning/system-programming.html",
       "title": "情報システムのプログラミング - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7518,
+      "width": 1456,
+      "height": 7568,
       "targets": [
         {
           "id": "/info-course/learning/system-programming.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -9173,8 +9173,8 @@
     {
       "page": "/info-course/learning/third-year.html",
       "title": "2つの系で深める専門学習 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7464,
+      "width": 1456,
+      "height": 7513,
       "targets": [
         {
           "id": "/info-course/learning/third-year.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -9284,8 +9284,8 @@
     {
       "page": "/info-course/learning/three-d-graphics.html",
       "title": "3Dグラフィックス - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7181,
+      "width": 1456,
+      "height": 7230,
       "targets": [
         {
           "id": "/info-course/learning/three-d-graphics.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -9395,8 +9395,8 @@
     {
       "page": "/info-course/learning/web-production.html",
       "title": "Webページ制作 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7235,
+      "width": 1456,
+      "height": 7285,
       "targets": [
         {
           "id": "/info-course/learning/web-production.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -9506,8 +9506,8 @@
     {
       "page": "/info-course/news/2017/2017-07-25-school-tour.html",
       "title": "大阪・神戸 学校見学ツアー - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4650,
+      "width": 1456,
+      "height": 4699,
       "targets": [
         {
           "id": "/info-course/news/2017/2017-07-25-school-tour.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -9611,8 +9611,8 @@
     {
       "page": "/info-course/news/2017/2017-08-01-certifications.html",
       "title": "各種検定 1級合格 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4538,
+      "width": 1456,
+      "height": 4588,
       "targets": [
         {
           "id": "/info-course/news/2017/2017-08-01-certifications.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -9716,8 +9716,8 @@
     {
       "page": "/info-course/news/2017/2017-09-01-room-renewal.html",
       "title": "西館マルチメディア教室 機器更新 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4532,
+      "width": 1456,
+      "height": 4582,
       "targets": [
         {
           "id": "/info-course/news/2017/2017-09-01-room-renewal.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -9821,8 +9821,8 @@
     {
       "page": "/info-course/news/2017/2017-09-09-pc-koshien.html",
       "title": "パソコン甲子園2017 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4573,
+      "width": 1456,
+      "height": 4623,
       "targets": [
         {
           "id": "/info-course/news/2017/2017-09-09-pc-koshien.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -9926,8 +9926,8 @@
     {
       "page": "/info-course/news/2017/2017-09-15-eimei-festival.html",
       "title": "英明祭で作品発表 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4488,
+      "width": 1456,
+      "height": 4538,
       "targets": [
         {
           "id": "/info-course/news/2017/2017-09-15-eimei-festival.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -10031,8 +10031,8 @@
     {
       "page": "/info-course/news/2017/2017-10-21-open-school.html",
       "title": "3Dゲーム作り体験 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4576,
+      "width": 1456,
+      "height": 4626,
       "targets": [
         {
           "id": "/info-course/news/2017/2017-10-21-open-school.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -10136,8 +10136,8 @@
     {
       "page": "/info-course/news/2017/2017-11-03-hiraga-gennai.html",
       "title": "平賀源内甲子園 入賞 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4488,
+      "width": 1456,
+      "height": 4538,
       "targets": [
         {
           "id": "/info-course/news/2017/2017-11-03-hiraga-gennai.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -10241,8 +10241,8 @@
     {
       "page": "/info-course/news/2017/2018-02-01-character-award.html",
       "title": "大分キャラクター大賞 優秀賞 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4488,
+      "width": 1456,
+      "height": 4538,
       "targets": [
         {
           "id": "/info-course/news/2017/2018-02-01-character-award.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -10346,8 +10346,8 @@
     {
       "page": "/info-course/news/2017/2018-02-22-career-guidance.html",
       "title": "ゲームとWeb制作の進路ガイダンス - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4643,
+      "width": 1456,
+      "height": 4693,
       "targets": [
         {
           "id": "/info-course/news/2017/2018-02-22-career-guidance.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -10451,8 +10451,8 @@
     {
       "page": "/info-course/news/2017/2018-03-12-jken.html",
       "title": "情報活用試験 3名全員合格 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4496,
+      "width": 1456,
+      "height": 4545,
       "targets": [
         {
           "id": "/info-course/news/2017/2018-03-12-jken.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -10556,8 +10556,8 @@
     {
       "page": "/info-course/news/2017/2018-03-14-cpp-game.html",
       "title": "C++で2Dシューティング制作 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4525,
+      "width": 1456,
+      "height": 4575,
       "targets": [
         {
           "id": "/info-course/news/2017/2018-03-14-cpp-game.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -10661,8 +10661,8 @@
     {
       "page": "/info-course/news/2017/2018-03-20-year-end-certifications.html",
       "title": "初段1名・1級28名合格 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4562,
+      "width": 1456,
+      "height": 4612,
       "targets": [
         {
           "id": "/info-course/news/2017/2018-03-20-year-end-certifications.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -10766,8 +10766,8 @@
     {
       "page": "/info-course/news/2018/2018-04-10-new-students.html",
       "title": "情報コース30名で新年度 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4451,
+      "width": 1456,
+      "height": 4501,
       "targets": [
         {
           "id": "/info-course/news/2018/2018-04-10-new-students.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -10871,8 +10871,8 @@
     {
       "page": "/info-course/news/2018/2018-06-09-it-passport-june.html",
       "title": "ITパスポート 3名が基準点突破 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4496,
+      "width": 1456,
+      "height": 4545,
       "targets": [
         {
           "id": "/info-course/news/2018/2018-06-09-it-passport-june.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -10976,8 +10976,8 @@
     {
       "page": "/info-course/news/2018/2018-07-28-it-passport-july.html",
       "title": "ITパスポート 年度4人目 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4528,
+      "width": 1456,
+      "height": 4577,
       "targets": [
         {
           "id": "/info-course/news/2018/2018-07-28-it-passport-july.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -11081,8 +11081,8 @@
     {
       "page": "/info-course/news/2018/2018-11-01-open-school-series.html",
       "title": "3Dとロボットのオープンスクール - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4536,
+      "width": 1456,
+      "height": 4586,
       "targets": [
         {
           "id": "/info-course/news/2018/2018-11-01-open-school-series.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -11186,8 +11186,8 @@
     {
       "page": "/info-course/news/2018/2019-02-01-usa-character.html",
       "title": "『USAくん』優秀賞 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4573,
+      "width": 1456,
+      "height": 4623,
       "targets": [
         {
           "id": "/info-course/news/2018/2019-02-01-usa-character.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -11291,8 +11291,8 @@
     {
       "page": "/info-course/news/2018/2019-03-14-cpp-ship.html",
       "title": "C++で3Dの船を動かす - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4525,
+      "width": 1456,
+      "height": 4575,
       "targets": [
         {
           "id": "/info-course/news/2018/2019-03-14-cpp-ship.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -11396,8 +11396,8 @@
     {
       "page": "/info-course/news/2019/2019-04-09-new-students.html",
       "title": "情報コース47名で新年度 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4419,
+      "width": 1456,
+      "height": 4469,
       "targets": [
         {
           "id": "/info-course/news/2019/2019-04-09-new-students.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -11501,8 +11501,8 @@
     {
       "page": "/info-course/news/2019/2019-07-01-it-passport.html",
       "title": "ITパスポート 2名合格 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4528,
+      "width": 1456,
+      "height": 4577,
       "targets": [
         {
           "id": "/info-course/news/2019/2019-07-01-it-passport.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -11606,8 +11606,8 @@
     {
       "page": "/info-course/news/2019/2019-07-25-school-tour.html",
       "title": "神戸・流通科学 学校見学ツアー - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4490,
+      "width": 1456,
+      "height": 4540,
       "targets": [
         {
           "id": "/info-course/news/2019/2019-07-25-school-tour.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -11711,8 +11711,8 @@
     {
       "page": "/info-course/news/2019/2019-10-01-it-passport-autumn.html",
       "title": "ITパスポート 新たに1名合格 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4528,
+      "width": 1456,
+      "height": 4577,
       "targets": [
         {
           "id": "/info-course/news/2019/2019-10-01-it-passport-autumn.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -11816,8 +11816,8 @@
     {
       "page": "/info-course/news/2019/2019-11-01-security-management.html",
       "title": "本校初・情報セキュリティマネジメント合格 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4621,
+      "width": 1456,
+      "height": 4670,
       "targets": [
         {
           "id": "/info-course/news/2019/2019-11-01-security-management.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -11921,8 +11921,8 @@
     {
       "page": "/info-course/news/2020/2020-04-08-online-support.html",
       "title": "35名入学とオンライン支援 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4536,
+      "width": 1456,
+      "height": 4586,
       "targets": [
         {
           "id": "/info-course/news/2020/2020-04-08-online-support.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -12026,8 +12026,8 @@
     {
       "page": "/info-course/news/2020/2020-07-01-processing-championship.html",
       "title": "情報処理選手権 千葉工業大学賞 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4493,
+      "width": 1456,
+      "height": 4543,
       "targets": [
         {
           "id": "/info-course/news/2020/2020-07-01-processing-championship.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -12131,8 +12131,8 @@
     {
       "page": "/info-course/news/2023/2024-02-28-game-programming-guidance.html",
       "title": "進学ガイダンスでゲームプログラミングを体験 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4727,
+      "width": 1456,
+      "height": 4777,
       "targets": [
         {
           "id": "/info-course/news/2023/2024-02-28-game-programming-guidance.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -12236,8 +12236,8 @@
     {
       "page": "/info-course/news/2024/2024-07-22-kobe-tour.html",
       "title": "大学・専門学校見学ツアー - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4538,
+      "width": 1456,
+      "height": 4588,
       "targets": [
         {
           "id": "/info-course/news/2024/2024-07-22-kobe-tour.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -12341,8 +12341,8 @@
     {
       "page": "/info-course/news/2024/2024-09-06-industry-seminar.html",
       "title": "ゲーム業界セミナー - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4488,
+      "width": 1456,
+      "height": 4538,
       "targets": [
         {
           "id": "/info-course/news/2024/2024-09-06-industry-seminar.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -12446,8 +12446,8 @@
     {
       "page": "/info-course/news/2024/2024-09-10-information-morals.html",
       "title": "SNSと情報モラルの講演会 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4575,
+      "width": 1456,
+      "height": 4625,
       "targets": [
         {
           "id": "/info-course/news/2024/2024-09-10-information-morals.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -12551,8 +12551,8 @@
     {
       "page": "/info-course/news/2024/2024-09-21-festival-exhibition.html",
       "title": "英明祭で「EIMEI 校内あるきミッケ」 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4740,
+      "width": 1456,
+      "height": 4790,
       "targets": [
         {
           "id": "/info-course/news/2024/2024-09-21-festival-exhibition.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -12656,8 +12656,8 @@
     {
       "page": "/info-course/news/2025/2025-05-27-smartphone-safety.html",
       "title": "スマホ・ネット安全教室 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4480,
+      "width": 1456,
+      "height": 4530,
       "targets": [
         {
           "id": "/info-course/news/2025/2025-05-27-smartphone-safety.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -12761,8 +12761,8 @@
     {
       "page": "/info-course/news/2026/2026-05-19-course-selection.html",
       "title": "情報システム系・情報クリエイト系を紹介 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4777,
+      "width": 1456,
+      "height": 4827,
       "targets": [
         {
           "id": "/info-course/news/2026/2026-05-19-course-selection.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -12866,8 +12866,8 @@
     {
       "page": "/info-course/news/2026/2026-07-23-kochi-tech.html",
       "title": "高知工科大学を訪問 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 4573,
+      "width": 1456,
+      "height": 4623,
       "targets": [
         {
           "id": "/info-course/news/2026/2026-07-23-kochi-tech.html:0:body>div>main>article>section:nth-of-type(1)>h2",
@@ -12971,8 +12971,8 @@
     {
       "page": "/info-course/news/news.html",
       "title": "過去のニュース - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 9457,
+      "width": 1456,
+      "height": 9507,
       "targets": [
         {
           "id": "/info-course/news/news.html:0:body>div>main>section>div>p:nth-of-type(1)",
@@ -13068,8 +13068,8 @@
     {
       "page": "/info-course/qualifications/c-certification.html",
       "title": "C言語プログラミング能力認定試験 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7830,
+      "width": 1456,
+      "height": 7880,
       "targets": [
         {
           "id": "/info-course/qualifications/c-certification.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -13180,8 +13180,8 @@
     {
       "page": "/info-course/qualifications/design-awards.html",
       "title": "デザイン・キャラクターの受賞 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7789,
+      "width": 1456,
+      "height": 7839,
       "targets": [
         {
           "id": "/info-course/qualifications/design-awards.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -13292,8 +13292,8 @@
     {
       "page": "/info-course/qualifications/fundamental.html",
       "title": "基本情報技術者試験 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7535,
+      "width": 1456,
+      "height": 7585,
       "targets": [
         {
           "id": "/info-course/qualifications/fundamental.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -13403,8 +13403,8 @@
     {
       "page": "/info-course/qualifications/it-passport.html",
       "title": "ITパスポート試験 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7229,
+      "width": 1456,
+      "height": 7279,
       "targets": [
         {
           "id": "/info-course/qualifications/it-passport.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -13514,8 +13514,8 @@
     {
       "page": "/info-course/qualifications/jken.html",
       "title": "情報活用試験 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7210,
+      "width": 1456,
+      "height": 7260,
       "targets": [
         {
           "id": "/info-course/qualifications/jken.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -13625,8 +13625,8 @@
     {
       "page": "/info-course/qualifications/jpca.html",
       "title": "日本情報処理検定協会 各種検定 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7674,
+      "width": 1456,
+      "height": 7724,
       "targets": [
         {
           "id": "/info-course/qualifications/jpca.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -13736,8 +13736,8 @@
     {
       "page": "/info-course/qualifications/learning-system.html",
       "title": "検定合格へ向けた学習体制 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7751,
+      "width": 1456,
+      "height": 7801,
       "targets": [
         {
           "id": "/info-course/qualifications/learning-system.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -13847,8 +13847,8 @@
     {
       "page": "/info-course/qualifications/pc-koshien.html",
       "title": "パソコン甲子園 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7257,
+      "width": 1456,
+      "height": 7307,
       "targets": [
         {
           "id": "/info-course/qualifications/pc-koshien.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -13960,8 +13960,8 @@
     {
       "page": "/info-course/qualifications/processing-championship.html",
       "title": "情報処理選手権 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7372,
+      "width": 1456,
+      "height": 7422,
       "targets": [
         {
           "id": "/info-course/qualifications/processing-championship.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -14072,8 +14072,8 @@
     {
       "page": "/info-course/qualifications/security-management.html",
       "title": "情報セキュリティマネジメント試験 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 7789,
+      "width": 1456,
+      "height": 7839,
       "targets": [
         {
           "id": "/info-course/qualifications/security-management.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>h2",
@@ -14183,8 +14183,8 @@
     {
       "page": "/info-course/story/admissions.html",
       "title": "受験前に知っておきたいこと - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 5265,
+      "width": 1456,
+      "height": 5315,
       "targets": [
         {
           "id": "/info-course/story/admissions.html:0:body>div>main>section:nth-of-type(1)>div:nth-of-type(1)>span",
@@ -14295,8 +14295,8 @@
     {
       "page": "/info-course/story/history.html",
       "title": "情報コースの歩み - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 5960,
+      "width": 1456,
+      "height": 6009,
       "targets": [
         {
           "id": "/info-course/story/history.html:0:body>div>main>section:nth-of-type(1)>article:nth-of-type(1)>div>h2",
@@ -14410,8 +14410,8 @@
     {
       "page": "/info-course/story/index.html",
       "title": "歩みと活動 - 英明高等学校 情報コース",
-      "width": 1496,
-      "height": 2978,
+      "width": 1456,
+      "height": 3027,
       "targets": [
         {
           "id": "/info-course/story/index.html:0:body>div>main>nav>div:nth-of-type(1)>span",
