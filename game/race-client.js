@@ -527,6 +527,94 @@
     return [];
   }
 
+  function canonicalEntryForGoal(goal) {
+    const goalPage = String(typeof goal === "string" ? goal : goal?.page || "");
+    const parts = goalPage.split("/").filter(Boolean);
+    if (parts[0] !== "info-course") return null;
+    const section = parts[1] || "";
+    const filename = parts.at(-1) || "";
+    const entries = [
+      ["/info-course/course/three-years.html", "3年間の学び方"],
+      ["/info-course/story/admissions.html", "受験前に知っておきたいこと"],
+      ["/info-course/course/common-learning.html", "授業・科目"],
+      ["/info-course/course/system.html", "情報システム系"],
+      ["/info-course/course/creative.html", "情報クリエイト系"],
+      ["/info-course/campus/classrooms.html", "情報教室と授業支援"],
+      ["/info-course/campus/tools.html", "制作・開発環境"],
+      ["/info-course/campus/certifications.html", "資格・検定"],
+      ["/info-course/campus/competitions.html", "大会・作品発表"],
+      ["/info-course/future/voices.html", "在校生・卒業生の声"],
+      ["/info-course/future/universities.html", "大学・短期大学への進学"],
+      ["/info-course/future/vocational.html", "専門学校・職業教育への進学"],
+      ["/info-course/future/employment.html", "就職と業界理解"],
+      ["/info-course/story/history.html", "歩み"],
+      ["/info-course/news/news.html", "過去のニュース"]
+    ];
+    const result = (page) => {
+      const entry = entries.find(([candidate]) => candidate === page);
+      return entry ? { page: entry[0], label: entry[1] } : null;
+    };
+    const exact = result(goalPage);
+    if (exact) return exact;
+
+    // A destination can be linked from several overview pages. Give every
+    // destination one canonical entrance so route guidance and text hints can
+    // never disagree merely because BFS found a different cross-link first.
+    if (section === "news") return result("/info-course/news/news.html");
+    if (section === "history") return result("/info-course/story/history.html");
+    if (section === "admissions") return result("/info-course/story/admissions.html");
+    if (section === "about") {
+      if (filename === "system-track.html") return result("/info-course/course/system.html");
+      if (filename === "creative-track.html") return result("/info-course/course/creative.html");
+      return result("/info-course/course/three-years.html");
+    }
+    if (section === "learning") {
+      if (new Set([
+        "c-language.html", "java.html", "algorithms.html", "system-programming.html",
+        "system-design.html", "database.html", "robot-programming.html"
+      ]).has(filename)) return result("/info-course/course/system.html");
+      if (new Set([
+        "media-service.html", "web-production.html", "content-development.html",
+        "information-design.html", "dtp.html", "three-d-graphics.html"
+      ]).has(filename)) return result("/info-course/course/creative.html");
+      return result("/info-course/course/common-learning.html");
+    }
+    if (section === "environment") {
+      if (new Set([
+        "two-rooms.html", "mm-room.html", "first-room.html", "intermediate-monitors.html"
+      ]).has(filename)) return result("/info-course/campus/classrooms.html");
+      return result("/info-course/campus/tools.html");
+    }
+    if (section === "qualifications") {
+      if (new Set([
+        "pc-koshien.html", "design-awards.html", "processing-championship.html"
+      ]).has(filename)) return result("/info-course/campus/competitions.html");
+      return result("/info-course/campus/certifications.html");
+    }
+    if (section === "career") {
+      if (filename === "student-voices.html") return result("/info-course/future/voices.html");
+      if (new Set([
+        "universities.html", "junior-college.html", "destination-list.html", "choosing-next-step.html"
+      ]).has(filename)) return result("/info-course/future/universities.html");
+      if (new Set([
+        "vocational.html", "game-field.html", "web-design.html", "creator.html"
+      ]).has(filename)) return result("/info-course/future/vocational.html");
+      return result("/info-course/future/employment.html");
+    }
+    return null;
+  }
+
+  function canonicalRoute(pageMap, start, goal, maximumDepth = 8) {
+    if (start === goal) return [start];
+    const entry = canonicalEntryForGoal(goal);
+    if (entry && entry.page !== goal && pageMap.get(entry.page)?.links?.includes(goal)) {
+      const routeToEntry = shortestRoute(pageMap, start, entry.page, maximumDepth - 1);
+      const route = routeToEntry.length > 0 ? [...routeToEntry, goal] : [];
+      if (route.length >= 2 && route.length <= maximumDepth) return route;
+    }
+    return shortestRoute(pageMap, start, goal, maximumDepth);
+  }
+
   function categoryKeyFor(page) {
     const parts = page.split("/").filter(Boolean);
     if (parts[0] === "info-course") {
@@ -616,7 +704,7 @@
         if (!startPage || !goalPage || startPage.page === goalPage.page) continue;
         const goalPool = goalPage.targets.filter((target) => !recent.has(target.id));
         if (goalPool.length === 0) continue;
-        const routePages = shortestRoute(pageMap, startPage.page, goalPage.page);
+        const routePages = canonicalRoute(pageMap, startPage.page, goalPage.page);
         if (routePages.length < 2 || routePages.length > 8) continue;
         const start = startPage.targets[Math.floor(random() * startPage.targets.length)];
         const goal = goalPool[Math.floor(random() * goalPool.length)];
@@ -780,7 +868,7 @@
     try {
       const catalog = await loadCatalog();
       const pageMap = new Map(catalog.pages.map((page) => [page.page, page]));
-      const routePages = shortestRoute(pageMap, currentPage, course.goal.page, 12);
+      const routePages = canonicalRoute(pageMap, currentPage, course.goal.page, 12);
       return routePages.length >= 2 ? { ...course, routePages } : course;
     } catch {
       return course;
@@ -892,7 +980,8 @@
       value = `上のメニューでは「${topMenuAreaHint(goal)}」の仲間`;
     } else if (stage === 2) {
       label = "手掛かり 2 / 3　ページの役割";
-      value = `${pageStructureHint(goal)}｜${pageSizeHint(goal)}`;
+      const entry = submenuEntryHint(goal);
+      value = `${pageStructureHint(goal)}${entry ? `｜入口は「${entry}」` : ""}｜${pageSizeHint(goal)}`;
     } else if (stage === 3) {
       label = "手掛かり 3 / 3　目的ページと位置";
       value = positionHint(goal);
@@ -944,20 +1033,38 @@
     const parts = String(goal.page || "").split("/").filter(Boolean);
     const section = parts[1] || "";
     const filename = parts.at(-1) || "";
-    if (section === "learning" || (section === "course" && filename === "common-learning.html")) {
+    const goalCopy = `${goal.label || ""} ${goal.context || ""}`;
+    const canonicalEntry = canonicalEntryForGoal(goal);
+    const canonicalLabel = canonicalEntry?.label || "";
+    if (canonicalLabel === "授業・科目" || section === "learning" || (section === "course" && filename === "common-learning.html")) {
       return "授業・科目";
     }
-    if (section === "course" && /^(?:system|creative)\.html?$/i.test(filename)) return "2つの系";
-    if (section === "environment" || (section === "campus" && /^(?:classrooms|tools)\.html?$/i.test(filename))) {
+    if (/^(?:情報システム系|情報クリエイト系)$/u.test(canonicalLabel) || (section === "course" && /^(?:system|creative)\.html?$/i.test(filename))) return "2つの系";
+    if (/^(?:情報教室と授業支援|制作・開発環境)$/u.test(canonicalLabel) || section === "environment" || (section === "campus" && /^(?:classrooms|tools)\.html?$/i.test(filename))) {
       return "学習環境";
     }
-    if (section === "qualifications" || (section === "campus" && /^(?:certifications|competitions)\.html?$/i.test(filename))) {
+    if (
+      /^(?:資格・検定|大会・作品発表)$/u.test(canonicalLabel) ||
+      section === "qualifications" ||
+      (section === "campus" && /^(?:certifications|competitions)\.html?$/i.test(filename)) ||
+      (section === "campus" && /(?:資格・検定|大会・作品発表)/u.test(goalCopy))
+    ) {
       return "資格・実績";
     }
-    if (section === "future" || section === "career") return "進路・卒業生";
-    if (section === "history" || (section === "story" && filename === "history.html")) return "歩み";
-    if (section === "news") return "過去のニュース";
+    if (/^(?:在校生・卒業生の声|大学・短期大学への進学|専門学校・職業教育への進学|就職と業界理解)$/u.test(canonicalLabel) || section === "future" || section === "career") return "進路・卒業生";
+    if (canonicalLabel === "歩み" || section === "history" || (section === "story" && filename === "history.html")) return "歩み";
+    if (canonicalLabel === "過去のニュース" || section === "news") return "過去のニュース";
     return "情報コース";
+  }
+
+  function submenuEntryHint(goal) {
+    const goalPage = String(goal.page || "");
+    const goalCopy = `${goal.label || ""} ${goal.context || ""}`;
+    // A few overview pages contain two adjacent destination cards. Their live
+    // target text, not their shared page title, decides which card is meant.
+    if (/大会・作品発表/u.test(goalCopy)) return "大会・作品発表";
+    if (/資格・検定/u.test(goalCopy)) return "資格・検定";
+    return canonicalEntryForGoal(goalPage)?.label || "";
   }
 
   function pageStructureHint(goal) {
@@ -1736,6 +1843,8 @@
 
   race.sendPosition = sendPosition;
   race.updateHints = updateHints;
+  race.canonicalEntryForGoal = canonicalEntryForGoal;
+  race.canonicalRoute = canonicalRoute;
   window.EimeiRace = race;
   boot();
 })();

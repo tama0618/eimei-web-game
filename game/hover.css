@@ -73,3 +73,22 @@ summary.eimei-player-hover { background: #dcffff; }
 /* tutorial/tutorial.css */
 .tutorial-site-nav .menu > li.eimei-player-hover > ul,
 .tutorial-site-nav .menu > li.eimei-player-hover > ul { display: block; }
+/* Information-course navigation isolation */
+body[class*="theme-"] #main-nav .top-menu-item.eimei-player-hover {
+  background-color: transparent;
+}
+body[class*="theme-"] #main-nav .top-menu-item.eimei-player-hover > .menu-label,
+body[class*="theme-"] #main-nav .top-menu-item.direct-menu.eimei-player-hover > a {
+  background-color: #b3b3ff;
+}
+body[class*="theme-"] #main-nav .top-menu-item.is-current.eimei-player-hover > .menu-label,
+body[class*="theme-"] #main-nav .top-menu-item.is-current.direct-menu.eimei-player-hover > a {
+  color: #fff;
+  background-color: var(--navy);
+}
+body[class*="theme-"] #main-nav .top-menu-item > .submenu {
+  top: 100%;
+  left: 50%;
+  width: max-content;
+  transform: translateX(-50%);
+}

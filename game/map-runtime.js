@@ -3049,8 +3049,16 @@
         .map((x) => x + player.width * 0.5)
         .toSorted((a, b) => Math.abs(a - targetX) - Math.abs(b - targetX))[0]
       : null;
+    const exactRaceGoal = Boolean(
+      race.active &&
+      mission.goalKind === "text" &&
+      body === mission.goalBody &&
+      Number.isFinite(mission.goalPoint?.x)
+    );
     mission.guidePoint = body ? {
-      x: Number.isFinite(safeCenterX)
+      x: exactRaceGoal
+        ? targetX
+        : Number.isFinite(safeCenterX)
         ? safeCenterX
         : Math.max(body.x + 7, Math.min(targetX, body.x + body.width - 7)),
       y: body.y - 9
@@ -4044,15 +4052,45 @@
     const right = matchingRegions.length > 0
       ? Math.max(...matchingRegions.map((region) => region.right))
       : body.x + body.width;
+    // Catalog coordinates are measured at one desktop width. On a wider
+    // screen, sibling cards can merge into one physical text body while the
+    // old X coordinate still points at the card next door. The live region is
+    // authoritative: a flag for "大会・作品発表" must never land on the
+    // adjacent "資格・検定" tile.
+    const livePreferredX = matchingRegions.length > 0
+      ? (left + right) * 0.5
+      : Number.isFinite(Number(target?.x))
+        ? Number(target.x)
+        : (left + right) * 0.5;
     const centers = (body.navigationXs || [])
       .map((x) => x + player.width * 0.5)
       .filter((x) => x >= left && x <= right);
-    const pool = centers.length > 0
-      ? centers
-      : (body.navigationXs || []).map((x) => x + player.width * 0.5);
-    const preferredX = Number.isFinite(Number(target?.x)) ? Number(target.x) : (left + right) * 0.5;
-    return pool.toSorted((a, b) => Math.abs(a - preferredX) - Math.abs(b - preferredX))[0] ??
-      Math.max(body.x + player.width * 0.5, Math.min(preferredX, body.x + body.width - player.width * 0.5));
+    if (centers.length > 0) {
+      return centers.toSorted((a, b) => Math.abs(a - livePreferredX) - Math.abs(b - livePreferredX))[0];
+    }
+
+    const halfWidth = player.width * 0.5;
+    const bodyLeft = body.x + halfWidth + 2;
+    const bodyRight = body.x + body.width - halfWidth - 2;
+    const regionLeft = Math.max(bodyLeft, left);
+    const regionRight = Math.min(bodyRight, right);
+    const exactCenter = regionRight >= regionLeft
+      ? Math.max(regionLeft, Math.min(livePreferredX, regionRight))
+      : Math.max(bodyLeft, Math.min(livePreferredX, bodyRight));
+    const exactPlayerX = exactCenter - halfWidth;
+    const standingBox = {
+      x: exactPlayerX,
+      y: body.y - player.height - 2,
+      width: player.width,
+      height: player.height + 1
+    };
+    const blocked = state.bodies.some((other) => other !== body && intersects(standingBox, other));
+    if (!blocked && Number.isFinite(exactPlayerX)) {
+      body.navigationXs ||= [];
+      body.navigationXs.push(exactPlayerX);
+      body.navigationXs.sort((a, b) => a - b);
+    }
+    return exactCenter;
   }
 
   function stableRaceHash(value) {
@@ -10313,6 +10351,7 @@
     navigationEdgeDiagnostics,
     portalBodyForAnchor,
     portalTarget,
+    raceTargetCenter,
     refreshHatchCandidate,
     configureRaceRound,
     setRaceNavigationEnabled,

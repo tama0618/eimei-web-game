@@ -50,16 +50,16 @@ a:hover { color: var(--red); }
 .primary-nav .top-menu-item { position: relative; min-width: 0; color: #090909; font-size: 14px; font-weight: 600; text-align: center; }
 .primary-nav .top-menu-item + .top-menu-item::before { content: ""; position: absolute; z-index: 2; left: 0; top: 31%; height: 38%; border-left: 1px solid #999; }
 .primary-nav .menu-label,
-.primary-nav .direct-menu > a { display: block; padding: 18px 8px 16px; color: inherit; text-decoration: none; white-space: nowrap; }
+.primary-nav .direct-menu > a { display: flex; width: max-content; margin-inline: auto; padding: 18px 10px 16px; color: inherit; text-decoration: none; white-space: nowrap; }
 .primary-nav .top-menu-item.is-current > .menu-label,
 .primary-nav .top-menu-item.is-current.direct-menu > a { color: #fff; background: var(--navy); box-shadow: inset 0 -5px 0 var(--yellow); }
-.primary-nav .submenu { position: absolute; z-index: 30; top: 100%; left: 0; display: none; width: 100%; min-width: 218px; margin: 0; padding: 0; border: 1px solid #8b8ca8; border-top: 0; background: #b3b3ff; list-style: none; text-align: left; }
+.primary-nav .submenu { position: absolute; z-index: 30; top: 100%; left: 50%; display: none; width: max-content; min-width: 0; margin: 0; padding: 0; transform: translateX(-50%); border: 1px solid #8b8ca8; border-top: 0; background: #b3b3ff; list-style: none; text-align: left; }
 .primary-nav .has-submenu:hover > .submenu,
 .primary-nav .has-submenu:focus-within > .submenu,
 .primary-nav .has-submenu.eimei-player-hover > .submenu { display: block; }
 .primary-nav .submenu li { position: relative; min-height: 58px; border-bottom: 1px solid rgba(43, 44, 85, .32); }
 .primary-nav .submenu li:last-child { border-bottom: 0; }
-.primary-nav .submenu a { display: flex; min-height: 58px; align-items: center; padding: 12px 18px; color: #11122c; font-size: 14px; font-weight: 500; line-height: 1.45; text-decoration: none; }
+.primary-nav .submenu a { display: flex; min-height: 58px; align-items: center; padding: 12px 14px; color: #11122c; font-size: 14px; font-weight: 500; line-height: 1.45; white-space: nowrap; text-decoration: none; }
 .primary-nav .submenu a:hover,
 .primary-nav .submenu a.eimei-player-hover { background: #e6e6ff; }
 .primary-nav .submenu a[aria-current="page"] { color: #fff; background: var(--navy); }
