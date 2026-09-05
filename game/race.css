@@ -57,22 +57,35 @@
   text-align: center;
   font-family: "Yu Gothic", system-ui, sans-serif;
 }
-.eimei-race-hint-card { position: relative; display: inline-block; min-width: min(320px, 100%); max-width: 100%; padding: 9px 16px; border: 1px solid #343a42; border-top: 4px solid #d7a72c; background: rgba(255, 253, 246, .97); box-shadow: 4px 5px 0 rgba(25,31,40,.14); }
-.eimei-race-hint-card.is-updated { animation: eimei-race-hint-update .72s cubic-bezier(.2,.8,.2,1); }
-.eimei-race-hint-card.is-updated:not(.is-first-hint)::after { content: "HINT UPDATED"; position: absolute; left: 50%; top: calc(100% + 8px); padding: 4px 10px; transform: translateX(-50%); color: #fff; background: #272f38; font: 800 10px/1.2 system-ui,sans-serif; letter-spacing: .13em; white-space: nowrap; animation: eimei-race-hint-toast 2.4s ease both; }
+.eimei-race-hint-card { position: relative; isolation: isolate; display: inline-block; min-width: min(320px, 100%); max-width: 100%; padding: 9px 16px; border: 1px solid #343a42; border-top: 4px solid #d7a72c; background: rgba(255, 253, 246, .97); box-shadow: 4px 5px 0 rgba(25,31,40,.14); }
+.eimei-race-hint-card.is-updated { animation: eimei-race-hint-update 1.05s cubic-bezier(.18,.82,.2,1); }
+.eimei-race-hint-card.is-updated:not(.is-first-hint)::before { content: ""; position: absolute; inset: -9px; z-index: -1; border: 4px solid #f0b62d; background: rgba(255,214,84,.25); box-shadow: 0 0 28px 10px rgba(240,182,45,.46); pointer-events: none; animation: eimei-race-hint-ring 1.35s ease-out both; }
+.eimei-race-hint-card.is-updated:not(.is-first-hint)::after { content: "NEW HINT　ヒント更新"; position: absolute; left: 50%; top: calc(100% + 10px); padding: 7px 14px; transform: translateX(-50%); color: #202832; border: 2px solid #343a42; background: #f0bd3e; box-shadow: 4px 5px 0 rgba(25,31,40,.22); font: 900 12px/1.2 system-ui,sans-serif; letter-spacing: .1em; white-space: nowrap; animation: eimei-race-hint-toast 2.25s ease both; }
+.eimei-race-hint-card.is-updated:not(.is-first-hint) .eimei-race-hint-label,
+.eimei-race-hint-card.is-updated:not(.is-first-hint) .eimei-race-hint-value { animation: eimei-race-hint-copy .8s ease-out both; }
 .eimei-race-hint-label { display: block; margin-bottom: 3px; color: #777f89; font-size: 10px; letter-spacing: .18em; }
 .eimei-race-hint-value { display: block; overflow: hidden; font-size: 15px; font-weight: 800; white-space: nowrap; text-overflow: ellipsis; }
 .eimei-race-hint-progress { display: block; margin-top: 5px; color: #c28a22; font: 700 9px/1 system-ui,sans-serif; letter-spacing: .2em; }
 
 @keyframes eimei-race-hint-update {
-  0% { transform: translateY(-15px) scale(.96); background: #f3c94f; opacity: .25; }
-  55% { transform: translateY(2px) scale(1.025); }
-  100% { transform: none; background: rgba(255,253,246,.95); opacity: 1; }
+  0% { transform: translateY(-18px) scale(.94); border-color: #f0b62d; background: #f7d35d; opacity: .25; }
+  42% { transform: translateY(3px) scale(1.065); border-color: #b87800; background: #fff4bd; box-shadow: 0 0 0 7px rgba(240,182,45,.3), 8px 11px 0 rgba(25,31,40,.2); opacity: 1; }
+  72% { transform: translateY(-2px) scale(1.025); }
+  100% { transform: none; border-color: #343a42; border-top-color: #d7a72c; background: rgba(255,253,246,.97); box-shadow: 4px 5px 0 rgba(25,31,40,.14); opacity: 1; }
+}
+@keyframes eimei-race-hint-ring {
+  0% { transform: scale(.88); opacity: 0; }
+  22% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.16); opacity: 0; }
+}
+@keyframes eimei-race-hint-copy {
+  0%, 28% { transform: translateY(5px); opacity: 0; }
+  100% { transform: none; opacity: 1; }
 }
 @keyframes eimei-race-hint-toast {
-  0% { transform: translate(-50%, -8px); opacity: 0; }
-  12%, 72% { transform: translate(-50%, 0); opacity: 1; }
-  100% { transform: translate(-50%, 5px); opacity: 0; }
+  0% { transform: translate(-50%, -10px) scale(.86); opacity: 0; }
+  12%, 72% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, 7px) scale(.98); opacity: 0; }
 }
 
 .eimei-race-private-hints {

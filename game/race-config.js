@@ -9,9 +9,9 @@
       : "https://eimei-race.eimei-race-worker.workers.dev"),
     noHintMilliseconds: 45_000,
     categoryHintMilliseconds: 45_000,
-    titleHintMilliseconds: 75_000,
-    contextHintMilliseconds: 105_000,
-    navigationHintMilliseconds: 135_000,
+    titleHintMilliseconds: 90_000,
+    contextHintMilliseconds: 120_000,
+    navigationHintMilliseconds: 150_000,
     positionIntervalMilliseconds: 180
   });
 })();

@@ -976,12 +976,12 @@
     let label = "手掛かり 0 / 3";
     let value = "写真のみ｜時間経過でヒント解禁";
     if (stage === 1) {
-      label = "手掛かり 1 / 3　三択";
+      label = "手掛かり 1 / 3　最上部メニュー三択";
       const choices = firstHintChoices(goal, race.room.course);
-      value = `入口候補　① ${choices[0]}　② ${choices[1]}　③ ${choices[2]}`;
+      value = `ページ最上部の候補　① ${choices[0]}　② ${choices[1]}　③ ${choices[2]}`;
     } else if (stage === 2) {
-      label = "手掛かり 2 / 3　三択の答え";
-      value = `正解は「${topMenuAreaHint(goal)}」`;
+      label = "手掛かり 2 / 3　最上部メニュー";
+      value = `ページ最上部のメニュー「${topMenuAreaHint(goal)}」へ`;
     } else if (stage === 3) {
       label = "手掛かり 3 / 3　次の一手";
       value = routeOrPositionHint(goal);
@@ -1074,7 +1074,7 @@
     const { xRatio, yRatio } = catalogGoalGeometry(goal);
     const vertical = yRatio < .34 ? "上の方" : yRatio < .7 ? "中央付近" : "下の方";
     const horizontal = xRatio < .34 ? "左寄り" : xRatio < .67 ? "中央寄り" : "右寄り";
-    return `そのタブの${vertical}・${horizontal}`;
+    return `ページ最上部のメニュー「${topMenuAreaHint(goal)}」を開き、ページの${vertical}・${horizontal}へ`;
   }
 
   function routeOrPositionHint(goal) {
@@ -1089,7 +1089,7 @@
       }
     }
     if (portalNames.length > 0) {
-      return `派生ポータル　${portalNames.map((name) => `「${name}」`).join("→")}`;
+      return `ページ最上部のメニュー「${topMenu}」→ページ内の${portalNames.map((name) => `「${name}」`).join("→")}`;
     }
     return tabPositionHint(goal);
   }
