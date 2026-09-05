@@ -980,12 +980,11 @@
       const choices = firstHintChoices(goal, race.room.course);
       value = `入口候補　① ${choices[0]}　② ${choices[1]}　③ ${choices[2]}`;
     } else if (stage === 2) {
-      label = "手掛かり 2 / 3　ページの役割";
-      const entry = submenuEntryHint(goal);
-      value = `${pageStructureHint(goal)}${entry ? `｜入口は「${entry}」` : ""}｜${pageSizeHint(goal)}`;
+      label = "手掛かり 2 / 3　三択の答え";
+      value = `正解は「${topMenuAreaHint(goal)}」`;
     } else if (stage === 3) {
-      label = "手掛かり 3 / 3　目的ページと位置";
-      value = positionHint(goal);
+      label = "手掛かり 3 / 3　次の一手";
+      value = routeOrPositionHint(goal);
     } else if (stage >= 4) {
       label = "FINAL GUIDE　ナビ解禁";
       value = "黄色い光をたどって旗へ";
@@ -1019,15 +1018,6 @@
     const x = Math.max(0, Math.min(width, Number(target?.x) || 0));
     const y = Math.max(0, Math.min(height, Number(target?.y) || 0));
     return { page, target, width, height, x, y, xRatio: x / width, yRatio: y / height };
-  }
-
-  function pageSizeHint(goal) {
-    const { height } = catalogGoalGeometry(goal);
-    const screens = height / Math.max(560, window.innerHeight || 720);
-    if (screens < 1.8) return "1〜2画面ほどの短いページ";
-    if (screens < 3.8) return "数画面ぶん続く標準的なページ";
-    if (screens < 7) return "縦に長いページ";
-    return "かなり縦に長いページ";
   }
 
   function topMenuAreaHint(goal) {
@@ -1071,62 +1061,35 @@
     return shuffled([answer, ...decoys], random);
   }
 
-  function submenuEntryHint(goal) {
-    const goalPage = String(goal.page || "");
-    const goalCopy = `${goal.label || ""} ${goal.context || ""}`;
-    // A few overview pages contain two adjacent destination cards. Their live
-    // target text, not their shared page title, decides which card is meant.
-    if (/大会・作品発表/u.test(goalCopy)) return "大会・作品発表";
-    if (/資格・検定/u.test(goalCopy)) return "資格・検定";
-    return canonicalEntryForGoal(goalPage)?.label || "";
-  }
-
-  function pageStructureHint(goal) {
-    const parts = String(goal.page || "").split("/").filter(Boolean);
-    const filename = parts.at(-1) || "";
-    const informationArea = parts[0] === "info-course" ? parts[1] : "";
-    if (informationArea === "about") return "コース全体や3年間の仕組みを掘り下げたページ";
-    if (informationArea === "learning") return "一つの授業分野を掘り下げたページ";
-    if (informationArea === "environment") return "教室の設備や制作環境を一つ掘り下げたページ";
-    if (informationArea === "qualifications") return "資格・大会・制作成果を一つ掘り下げたページ";
-    if (informationArea === "career") return "進学先や仕事へのつながりを一つ掘り下げたページ";
-    if (informationArea === "history") return "過去から現在への変化を一つたどるページ";
-    if (informationArea === "admissions") return "入学前に確かめたい内容を一つ掘り下げたページ";
-    if (informationArea === "news") {
-      return filename === "news.html"
-        ? "年度と月から活動を選ぶ一覧ページ"
-        : "ある一日の授業や挑戦を写真で振り返る記事";
-    }
-    if (informationArea === "course") {
-      if (filename === "common-learning.html") return "共通科目と専門科目のつながりをまとめたページ";
-      if (filename === "system.html") return "処理と仕組みづくりを扱う専門分野のページ";
-      if (filename === "creative.html") return "画像・Web・DTP・3Dを扱う専門分野のページ";
-      return "情報コースの3年間をまとめたページ";
-    }
-    if (informationArea === "campus") {
-      if (/^(?:certifications|competitions)\.html?$/i.test(filename)) return "資格や作品発表の成果をまとめたページ";
-      return "授業を支える教室や機材をまとめたページ";
-    }
-    if (informationArea === "future") return "卒業後の進学や仕事への接続をまとめたページ";
-    if (informationArea === "story") {
-      return filename === "history.html"
-        ? "情報教育がどう変わってきたかをまとめたページ"
-        : "入学前に授業・環境・進路を確かめるページ";
-    }
-    if (/^(?:index|top)\.html?$/i.test(filename)) return "大きなエリアの入口ページ";
-    return "入口から一段進んだ個別ページ";
-  }
-
-  function positionHint(goal) {
-    const { page, target, xRatio, yRatio } = catalogGoalGeometry(goal);
-    const vertical = yRatio < .34 ? "上の方" : yRatio < .7 ? "中央付近" : "下の方";
-    const horizontal = xRatio < .34 ? "左寄り" : xRatio < .67 ? "中央寄り" : "右寄り";
-    const pageTitle = String(page?.title || target?.title || "")
+  function goalPageTitle(goal) {
+    const { page, target } = catalogGoalGeometry(goal);
+    return String(page?.title || target?.title || "")
       .replace(/\s*[-｜|]\s*英明高等学校(?:\s+情報コース)?\s*$/u, "")
       .trim();
-    return pageTitle
-      ? `「${pageTitle}」ページの${vertical}・${horizontal}`
-      : `目的ページの${vertical}・${horizontal}`;
+  }
+
+  function tabPositionHint(goal) {
+    const { xRatio, yRatio } = catalogGoalGeometry(goal);
+    const vertical = yRatio < .34 ? "上の方" : yRatio < .7 ? "中央付近" : "下の方";
+    const horizontal = xRatio < .34 ? "左寄り" : xRatio < .67 ? "中央寄り" : "右寄り";
+    return `そのタブの${vertical}・${horizontal}`;
+  }
+
+  function routeOrPositionHint(goal) {
+    const topMenu = topMenuAreaHint(goal);
+    const entry = canonicalEntryForGoal(goal);
+    const portalNames = [];
+    if (entry?.label && entry.label !== topMenu) portalNames.push(entry.label);
+    if (entry?.page && entry.page !== String(goal.page || "")) {
+      const destinationName = goalPageTitle(goal);
+      if (destinationName && destinationName !== topMenu && !portalNames.includes(destinationName)) {
+        portalNames.push(destinationName);
+      }
+    }
+    if (portalNames.length > 0) {
+      return `派生ポータル　${portalNames.map((name) => `「${name}」`).join("→")}`;
+    }
+    return tabPositionHint(goal);
   }
 
   function privateHintChoices(goal) {
@@ -1861,6 +1824,7 @@
   race.canonicalRoute = canonicalRoute;
   race.topMenuAreaHint = topMenuAreaHint;
   race.firstHintChoices = firstHintChoices;
+  race.routeOrPositionHint = routeOrPositionHint;
   window.EimeiRace = race;
   boot();
 })();
