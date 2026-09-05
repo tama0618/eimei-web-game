@@ -630,8 +630,20 @@
         const candidate = {
           id: `race-${(Number(seed) >>> 0).toString(36)}-${(identityHash >>> 0).toString(36)}`,
           seed: Number(seed),
-          start: { ...start, page: startPage.page, title: startPage.title },
-          goal: { ...goal, page: goalPage.page, title: goalPage.title },
+          start: {
+            ...start,
+            page: startPage.page,
+            title: startPage.title,
+            pageWidth: startPage.width,
+            pageHeight: startPage.height
+          },
+          goal: {
+            ...goal,
+            page: goalPage.page,
+            title: goalPage.title,
+            pageWidth: goalPage.width,
+            pageHeight: goalPage.height
+          },
           routePages
         };
         // One candidate per section gives news one ticket in the draw instead
@@ -912,8 +924,8 @@
   function catalogGoalGeometry(goal) {
     const page = race.catalogData?.pages?.find((candidate) => candidate.page === goal.page);
     const target = page?.targets?.find((candidate) => candidate.id === goal.id) || goal;
-    const width = Math.max(1, Number(page?.width) || Number(target?.x) * 2 || 1);
-    const height = Math.max(1, Number(page?.height) || Number(target?.y) * 2 || 1);
+    const width = Math.max(1, Number(page?.width) || Number(target?.pageWidth) || Number(target?.x) * 2 || 1);
+    const height = Math.max(1, Number(page?.height) || Number(target?.pageHeight) || Number(target?.y) * 2 || 1);
     const x = Math.max(0, Math.min(width, Number(target?.x) || 0));
     const y = Math.max(0, Math.min(height, Number(target?.y) || 0));
     return { page, target, width, height, x, y, xRatio: x / width, yRatio: y / height };
@@ -1083,15 +1095,6 @@
   async function receivePrivateHint(message) {
     if (!race.room?.course?.goal || message.roundId !== race.room.roundId) return;
     loadPrivateHints(message.roundId);
-    if (race.privateHints.some((hint) => hint.wispId === message.wispId)) return;
-    if (!race.catalogData) {
-      try {
-        await loadCatalog();
-      } catch {
-        // The goal coordinates still provide a coarse fallback if the catalog is unavailable.
-      }
-    }
-    if (!race.room?.course?.goal || message.roundId !== race.room.roundId) return;
     if (race.privateHints.some((hint) => hint.wispId === message.wispId)) return;
     const choices = privateHintChoices(race.room.course.goal);
     const hintNumber = Math.max(1, Number.parseInt(message.hintNumber, 10) || 1);
@@ -1326,6 +1329,16 @@
       width: unit(Number(actionWidth) / width)
     });
 
+    if (map.grappleInterruption?.phase === "staggering") {
+      return pack(
+        "grapple-fail",
+        "staggering",
+        map.grappleInterruption.time,
+        map.config.raceGrappleInterruptionSeconds,
+        { side: map.grappleInterruption.directionX < 0 ? -1 : 1 }
+      );
+    }
+
     if (map.web.hatchPhase !== "none") {
       const phase = map.web.hatchPhase;
       const duration = phase === "opening"
@@ -1425,7 +1438,10 @@
       };
     }
     message.action = traversalAction(map, width, height);
-    if (map.web.active && map.web.remotePlayerId) message.grappleTargetId = map.web.remotePlayerId;
+    if (map.web.active && map.web.remotePlayerId) {
+      message.grappleTargetId = map.web.remotePlayerId;
+      message.grappleLength = unit(map.web.length / Math.max(width, height));
+    }
     send(message);
   }
 
@@ -1512,6 +1528,9 @@
       attackerId: message.attackerId,
       x: Number(message.x) * map.state.documentWidth,
       y: Number(message.y) * map.state.documentHeight - map.player.height * .55,
+      length: Number.isFinite(Number(message.length))
+        ? Number(message.length) * Math.max(map.state.documentWidth, map.state.documentHeight)
+        : null,
       palette: paletteFor(race.room.players.find((player) => player.id === message.attackerId))
     });
   }

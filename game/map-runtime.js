@@ -42,6 +42,9 @@
     raceGrappleAcceleration: 3400,
     raceGrappleMaximumSpeed: 720,
     raceGrappleHoldSeconds: 0.42,
+    raceGrappleMaximumHoldSeconds: 3,
+    raceGrappleReleaseResetSeconds: 0.46,
+    raceGrappleInterruptionSeconds: 0.56,
     raceWispCount: 8,
     raceWispRadius: 23,
     raceWispMinimumSpacing: 150,
@@ -235,6 +238,11 @@
     facing: 1,
     spawnX: 0,
     spawnY: 0,
+    checkpointX: 0,
+    checkpointY: 0,
+    checkpointBody: null,
+    checkpointElement: null,
+    checkpointBodyY: 0,
     airJumpsRemaining: 1,
     airJumpAt: -Infinity,
     dropThroughBody: null,
@@ -297,6 +305,7 @@
     candidate: null,
     anchorBody: null,
     remotePlayerId: null,
+    remoteAttachedAt: -Infinity,
     hatchPhase: "none",
     hatchTime: 0,
     hatchStartX: 0,
@@ -425,6 +434,7 @@
     lastGuideRepairAt: -Infinity,
     remotePlayers: new Map(),
     incomingGrapples: new Map(),
+    grappleLockouts: new Map(),
     wisps: [],
     wispPlacementKey: null,
     claimedWispIds: new Set(),
@@ -437,6 +447,15 @@
     lastRemoteTraversalRenderAt: -Infinity,
     remoteRenderStyle: "full-character",
     lastRemoteRenderAt: -Infinity
+  };
+
+  const grappleInterruption = {
+    phase: "none",
+    time: 0,
+    kind: "",
+    directionX: 0,
+    directionY: 0,
+    started: 0
   };
 
   const tutorial = {
@@ -3083,6 +3102,82 @@
     });
   }
 
+  function checkpointSourceElement(body, worldX = player.x + player.width * 0.5) {
+    return sourceElementAt(body, worldX) ||
+      body?.sourceElement ||
+      body?.overlayElement ||
+      body?.sourceRegions?.[0]?.element ||
+      null;
+  }
+
+  function checkpointBodyIsStable(body) {
+    if (!body || body.menuLedge || !body.navigationXs?.length) return false;
+    const elements = [
+      body.sourceElement,
+      body.overlayElement,
+      ...(body.sourceRegions || []).map((region) => region.element)
+    ].filter(Boolean);
+    return !elements.some((element) =>
+      element.closest?.("header ul ul, #main-nav ul ul, [data-eimei-tutorial-reset], [data-eimei-reset]")
+    );
+  }
+
+  function checkpointXForBody(body, preferredX = player.x) {
+    const positions = (body?.navigationXs || []).filter(Number.isFinite);
+    if (positions.length > 0) {
+      return positions.toSorted((a, b) => Math.abs(a - preferredX) - Math.abs(b - preferredX))[0];
+    }
+    return Math.max(body.x + 1, Math.min(preferredX, body.x + body.width - player.width - 1));
+  }
+
+  function recordLandingCheckpoint(body = player.navigationBody || supportingMapBody()) {
+    if (!player.grounded || !checkpointBodyIsStable(body)) return false;
+    player.checkpointX = checkpointXForBody(body);
+    player.checkpointY = body.y - player.height - 1;
+    player.checkpointBody = body;
+    player.checkpointElement = checkpointSourceElement(body, player.x + player.width * 0.5);
+    player.checkpointBodyY = body.y;
+    return true;
+  }
+
+  function resolveLandingCheckpoint() {
+    if (checkpointBodyIsStable(player.checkpointBody) && state.bodies.includes(player.checkpointBody)) {
+      return player.checkpointBody;
+    }
+    const element = player.checkpointElement;
+    if (element?.isConnected) {
+      const elementBodies = state.bodies.filter((body) =>
+        checkpointBodyIsStable(body) &&
+        (body.sourceElement === element ||
+          body.overlayElement === element ||
+          body.sourceRegions?.some((region) =>
+            region.element === element || element.contains?.(region.element) || region.element.contains?.(element)
+          ))
+      );
+      if (elementBodies.length > 0) {
+        return elementBodies.toSorted((a, b) =>
+          Math.abs(a.y - player.checkpointBodyY) + Math.abs(checkpointXForBody(a, player.checkpointX) - player.checkpointX) * 0.25 -
+          (Math.abs(b.y - player.checkpointBodyY) + Math.abs(checkpointXForBody(b, player.checkpointX) - player.checkpointX) * 0.25)
+        )[0];
+      }
+    }
+    const geometryMatch = state.bodies
+      .filter((body) =>
+        checkpointBodyIsStable(body) &&
+        Math.abs(body.y - player.checkpointBodyY) <= 12 &&
+        player.checkpointX + player.width > body.x - 8 &&
+        player.checkpointX < body.x + body.width + 8
+      )
+      .toSorted((a, b) =>
+        Math.abs(a.y - player.checkpointBodyY) + Math.abs(checkpointXForBody(a, player.checkpointX) - player.checkpointX) -
+        (Math.abs(b.y - player.checkpointBodyY) + Math.abs(checkpointXForBody(b, player.checkpointX) - player.checkpointX))
+      )[0];
+    if (geometryMatch) return geometryMatch;
+    return checkpointBodyIsStable(mission.spawnBody) && state.bodies.includes(mission.spawnBody)
+      ? mission.spawnBody
+      : null;
+  }
+
   function placePlayerOnBody(body, { randomizeX = false, recentSpawns = [] } = {}) {
     const safeXs = body.navigationXs || [];
     const insetXs = safeXs.filter((x) => x >= body.x + 7 && x + player.width <= body.x + body.width - 7);
@@ -3121,9 +3216,17 @@
     player.standingBody = body.kind === "text" ? body : null;
     player.navigationBody = body;
     web.active = false;
+    web.anchorBody = null;
+    web.remotePlayerId = null;
+    web.remoteAttachedAt = -Infinity;
     web.mantlePhase = "none";
     web.mantleBody = null;
     web.charges = CONFIG.webMaximumCharges;
+    player.checkpointX = checkpointXForBody(body, player.x);
+    player.checkpointY = body.y - player.height - 1;
+    player.checkpointBody = body;
+    player.checkpointElement = checkpointSourceElement(body, player.x + player.width * 0.5);
+    player.checkpointBodyY = body.y;
   }
 
   function clearScorePickupFeedback() {
@@ -4171,18 +4274,127 @@
   function removeRaceRemotePlayer(id) {
     const key = String(id || "");
     race.remotePlayers.delete(key);
+    race.incomingGrapples.delete(key);
+    race.grappleLockouts.delete(key);
     if (web.remotePlayerId === key) detachWeb({ force: true });
   }
 
-  function applyRaceGrapple({ attackerId, x, y, palette = null } = {}) {
+  function activeIncomingRaceGrapple(nowSeconds = performance.now() / 1000) {
+    expireRacePlayerEffects(nowSeconds);
+    return [...race.incomingGrapples.values()]
+      .filter((grapple) => grapple.expiresAt >= nowSeconds)
+      .toSorted((first, second) => second.lastPacketAt - first.lastPacketAt)[0] || null;
+  }
+
+  function triggerGrappleInterruption(kind, grapple = activeIncomingRaceGrapple()) {
+    if (!grapple) return false;
+    const centerX = player.x + player.width * 0.5;
+    const centerY = player.y + player.height * 0.45;
+    const dx = grapple.x - centerX;
+    const dy = grapple.y - centerY;
+    const distance = Math.max(0.001, Math.hypot(dx, dy));
+    grappleInterruption.phase = "staggering";
+    grappleInterruption.time = 0;
+    grappleInterruption.kind = String(kind || "grapple");
+    grappleInterruption.directionX = dx / distance;
+    grappleInterruption.directionY = dy / distance;
+    grappleInterruption.started += 1;
+    window.dispatchEvent(new CustomEvent("eimei-grapple-interrupted", {
+      detail: { kind: grappleInterruption.kind, attackerId: grapple.attackerId }
+    }));
+    return true;
+  }
+
+  function updateGrappleInterruption(dt) {
+    if (grappleInterruption.phase === "none") return;
+    grappleInterruption.time += dt;
+    if (grappleInterruption.time < CONFIG.raceGrappleInterruptionSeconds) return;
+    grappleInterruption.phase = "none";
+    grappleInterruption.time = 0;
+    grappleInterruption.kind = "";
+  }
+
+  function cancelTraversalForIncomingGrapple(grapple) {
+    let interruptedKind = "";
+    if (dropHatch.phase !== "none") {
+      const body = dropHatch.body;
+      const crossed = ["traversing", "bursting"].includes(dropHatch.phase);
+      if (body) {
+        player.x = Math.max(body.x, Math.min(dropHatch.targetX, body.x + body.width - player.width));
+        player.y = crossed ? body.y + body.height + 1 : body.y - player.height - 1;
+        player.grounded = !crossed;
+        player.groundedAt = crossed ? -Infinity : performance.now() / 1000;
+        player.navigationBody = crossed ? null : body;
+        player.standingBody = !crossed && body.kind === "text" ? body : null;
+      }
+      player.dropThroughBody = null;
+      player.dropThroughUntil = -Infinity;
+      cancelDropHatch();
+      interruptedKind = "drop-through";
+    }
+    if (web.active || web.hatchPhase !== "none" || web.mantlePhase !== "none") {
+      const body = web.anchorBody;
+      const crossed = ["traversing", "emerging"].includes(web.hatchPhase);
+      if (body && web.hatchPhase !== "none") {
+        player.x = Math.max(body.x, Math.min(web.hatchTargetX, body.x + body.width - player.width));
+        player.y = crossed ? body.y - player.height - 1 : body.y + body.height + 1;
+        player.grounded = crossed;
+        player.groundedAt = crossed ? performance.now() / 1000 : -Infinity;
+        player.navigationBody = crossed ? body : null;
+        player.standingBody = crossed && body.kind === "text" ? body : null;
+      }
+      interruptedKind = web.hatchPhase !== "none" ? "up-through" : "grapple";
+      detachWeb({ force: true });
+    }
+    if (ladderTraversal.phase !== "none") {
+      cancelLadderTraversal();
+      interruptedKind ||= "ladder";
+    }
+    if (interruptedKind) triggerGrappleInterruption(interruptedKind, grapple);
+    return Boolean(interruptedKind);
+  }
+
+  function applyRaceGrapple({ attackerId, x, y, length = null, palette = null } = {}) {
     if (!race.active || !attackerId || !Number.isFinite(Number(x) + Number(y))) return false;
-    race.incomingGrapples.set(String(attackerId), {
-      attackerId: String(attackerId),
+    const nowSeconds = performance.now() / 1000;
+    const key = String(attackerId);
+    const lockoutUntil = race.grappleLockouts.get(key) || -Infinity;
+    if (lockoutUntil > nowSeconds) {
+      // A continuous packet stream cannot begin a fresh three-second hold.
+      // The attacker has to release the key long enough for this quiet window.
+      race.grappleLockouts.set(key, nowSeconds + CONFIG.raceGrappleReleaseResetSeconds);
+      race.incomingGrapples.delete(key);
+      return false;
+    }
+    race.grappleLockouts.delete(key);
+    const existing = race.incomingGrapples.get(key);
+    const sameStream = Boolean(
+      existing &&
+      nowSeconds - existing.lastPacketAt <= CONFIG.raceGrappleReleaseResetSeconds
+    );
+    if (sameStream && nowSeconds - existing.startedAt >= CONFIG.raceGrappleMaximumHoldSeconds) {
+      race.incomingGrapples.delete(key);
+      race.grappleLockouts.set(key, nowSeconds + CONFIG.raceGrappleReleaseResetSeconds);
+      return false;
+    }
+    const startedAt = sameStream ? existing.startedAt : nowSeconds;
+    const grapple = {
+      attackerId: key,
       x: Number(x),
       y: Number(y),
+      length: Number.isFinite(Number(length))
+        ? Math.max(CONFIG.raceGrappleMinimumLength, Math.min(CONFIG.webRange * 1.15, Number(length)))
+        : existing?.length ?? null,
       palette,
-      expiresAt: performance.now() / 1000 + CONFIG.raceGrappleHoldSeconds
-    });
+      startedAt,
+      lastPacketAt: nowSeconds,
+      expiresAt: Math.min(
+        nowSeconds + CONFIG.raceGrappleHoldSeconds,
+        startedAt + CONFIG.raceGrappleMaximumHoldSeconds
+      )
+    };
+    race.incomingGrapples.set(key, grapple);
+    cancelTraversalForIncomingGrapple(grapple);
     return true;
   }
 
@@ -4192,7 +4404,14 @@
       removeRaceRemotePlayer(id);
     }
     for (const [id, grapple] of race.incomingGrapples) {
-      if (grapple.expiresAt < nowSeconds) race.incomingGrapples.delete(id);
+      if (grapple.expiresAt >= nowSeconds) continue;
+      if (nowSeconds - grapple.startedAt >= CONFIG.raceGrappleMaximumHoldSeconds - 0.01) {
+        race.grappleLockouts.set(id, nowSeconds + CONFIG.raceGrappleReleaseResetSeconds);
+      }
+      race.incomingGrapples.delete(id);
+    }
+    for (const [id, lockoutUntil] of race.grappleLockouts) {
+      if (lockoutUntil < nowSeconds) race.grappleLockouts.delete(id);
     }
   }
 
@@ -4208,9 +4427,13 @@
       if (distance <= CONFIG.raceGrappleMinimumLength) continue;
       const normalX = dx / distance;
       const normalY = dy / distance;
+      const desiredLength = Number.isFinite(grapple.length)
+        ? Math.max(CONFIG.raceGrappleMinimumLength, grapple.length)
+        : CONFIG.raceGrappleMinimumLength;
+      const reelExtension = Math.max(0, distance - desiredLength);
       const acceleration = Math.min(
         CONFIG.raceGrappleAcceleration,
-        CONFIG.raceGrappleAcceleration * 0.55 + distance * 4.2
+        CONFIG.raceGrappleAcceleration * 0.55 + distance * 4.2 + reelExtension * 12
       );
       player.velocityX += normalX * acceleration * dt;
       player.velocityY += normalY * acceleration * dt;
@@ -4228,6 +4451,10 @@
 
   function syncRemoteWebAnchor(nowSeconds = performance.now() / 1000) {
     if (!web.active || !web.remotePlayerId) return true;
+    if (nowSeconds - web.remoteAttachedAt >= CONFIG.raceGrappleMaximumHoldSeconds) {
+      detachWeb({ force: true });
+      return false;
+    }
     expireRacePlayerEffects(nowSeconds);
     const remote = race.remotePlayers.get(web.remotePlayerId);
     if (!remote) {
@@ -4451,6 +4678,11 @@
       race.wispPlacementKey = null;
       race.claimedWispIds.clear();
       race.pendingWispClaims.clear();
+      race.incomingGrapples.clear();
+      race.grappleLockouts.clear();
+      grappleInterruption.phase = "none";
+      grappleInterruption.time = 0;
+      grappleInterruption.kind = "";
       mission.completed = false;
       mission.completedAt = -Infinity;
     }
@@ -4503,6 +4735,10 @@
       player.velocityX = 0;
       player.velocityY = 0;
       detachWeb({ force: true });
+      race.incomingGrapples.clear();
+      race.grappleLockouts.clear();
+      grappleInterruption.phase = "none";
+      grappleInterruption.time = 0;
     }
   }
 
@@ -5187,18 +5423,50 @@
     web.active = false;
     web.anchorBody = null;
     web.remotePlayerId = null;
+    web.remoteAttachedAt = -Infinity;
     web.hatchPhase = "none";
     web.mantlePhase = "none";
     web.mantleBody = null;
     web.charges = CONFIG.webMaximumCharges;
+    player.standingBody = body?.kind === "text" ? body : null;
+    player.navigationBody = body || null;
+    if (body) {
+      player.checkpointX = checkpointXForBody(body, player.x);
+      player.checkpointY = body.y - player.height - 1;
+      player.checkpointBody = body;
+      player.checkpointElement = checkpointSourceElement(body, player.x + player.width * 0.5);
+      player.checkpointBodyY = body.y;
+    } else {
+      player.checkpointX = player.spawnX;
+      player.checkpointY = player.spawnY;
+      player.checkpointBody = null;
+      player.checkpointElement = null;
+      player.checkpointBodyY = player.spawnY + player.height + 1;
+    }
   }
 
-  function respawn() {
-    player.x = player.spawnX;
-    player.y = player.spawnY;
+  function respawn({ fromFall = false } = {}) {
+    if (!fromFall) {
+      const spawnBody = checkpointBodyIsStable(mission.spawnBody) && state.bodies.includes(mission.spawnBody)
+        ? mission.spawnBody
+        : null;
+      player.checkpointX = player.spawnX;
+      player.checkpointY = player.spawnY;
+      player.checkpointBody = spawnBody;
+      player.checkpointElement = checkpointSourceElement(spawnBody, player.spawnX + player.width * 0.5);
+      player.checkpointBodyY = spawnBody?.y ?? player.spawnY + player.height + 1;
+    }
+    const checkpointBody = fromFall ? resolveLandingCheckpoint() : null;
+    player.x = checkpointBody
+      ? checkpointXForBody(checkpointBody, player.checkpointX)
+      : fromFall && Number.isFinite(player.checkpointX) ? player.checkpointX : player.spawnX;
+    player.y = checkpointBody
+      ? checkpointBody.y - player.height - 1
+      : fromFall && Number.isFinite(player.checkpointY) ? player.checkpointY : player.spawnY;
     player.velocityX = 0;
     player.velocityY = 0;
-    player.grounded = false;
+    player.grounded = Boolean(checkpointBody);
+    player.groundedAt = checkpointBody ? performance.now() / 1000 : -Infinity;
     player.airJumpsRemaining = 1;
     player.airJumpAt = -Infinity;
     player.dropThroughBody = null;
@@ -5208,13 +5476,17 @@
     web.active = false;
     web.anchorBody = null;
     web.remotePlayerId = null;
+    web.remoteAttachedAt = -Infinity;
     web.hatchPhase = "none";
     web.mantlePhase = "none";
     web.mantleBody = null;
     web.charges = CONFIG.webMaximumCharges;
+    player.navigationBody = checkpointBody;
+    player.standingBody = checkpointBody?.kind === "text" ? checkpointBody : null;
     interaction.portal = null;
     if (mission.initialized) {
-      mission.lastStandingBody = mission.spawnBody;
+      const recoveryBody = checkpointBody || mission.spawnBody;
+      mission.lastStandingBody = recoveryBody;
       mission.needsReplan = false;
       mission.lostGuideSince = -Infinity;
       mission.overtookGuideSince = -Infinity;
@@ -5223,9 +5495,14 @@
       mission.lastAdvanceX = -Infinity;
       mission.lastAdvanceY = -Infinity;
       if (race.active) configureRaceMissionTarget({ launchFromPlayer: true });
-      else replanNavigation(mission.spawnBody);
+      else replanNavigation(recoveryBody);
     }
-    window.scrollTo({ top: Math.max(0, player.y - window.innerHeight * 0.42), behavior: "instant" });
+    if (checkpointBody) recordLandingCheckpoint(checkpointBody);
+    window.scrollTo({
+      left: Math.max(0, player.x - window.innerWidth * 0.5),
+      top: Math.max(0, player.y - window.innerHeight * 0.42),
+      behavior: "instant"
+    });
   }
 
   function intersects(a, b) {
@@ -5262,8 +5539,20 @@
   }
 
   function tryDropThrough(nowSeconds) {
+    const recentDownPress = nowSeconds - input.downPressedAt <= 0.18;
+    const interruptionSupport = recentDownPress && player.grounded
+      ? player.navigationBody || supportingMapBody()
+      : null;
+    const incomingGrapple = interruptionSupport && isThinPlatform(interruptionSupport)
+      ? activeIncomingRaceGrapple(nowSeconds)
+      : null;
+    if (incomingGrapple) {
+      input.downPressedAt = -Infinity;
+      triggerGrappleInterruption("drop-through", incomingGrapple);
+      return false;
+    }
     if (
-      nowSeconds - input.downPressedAt > 0.18 ||
+      !recentDownPress ||
       !player.grounded ||
       web.hatchPhase !== "none" ||
       web.active ||
@@ -5486,16 +5775,22 @@
   }
 
   function tryStartLadder() {
+    const deliberateGrab = input.up || input.down;
+    // Catch a ladder while genuinely moving through the air.  Requiring a
+    // little vertical speed prevents a one-frame grounded-state wobble beside
+    // menu portals from stealing the player onto a nearby ladder.
+    const airborneGrab = !player.grounded && Math.abs(player.velocityY) >= 24;
     if (
-      (!input.up && !input.down) ||
+      (!deliberateGrab && !airborneGrab) ||
       ladderTraversal.phase !== "none" ||
       performance.now() / 1000 < ladderTraversal.graceUntil ||
       dropHatch.phase !== "none" ||
       web.active ||
       web.hatchPhase !== "none" ||
-      interaction.portal?.entering
+      interaction.portal?.entering ||
+      activeIncomingRaceGrapple()
     ) return false;
-    const ladder = ladderInReach({ menuOnly: input.down && !input.up });
+    const ladder = ladderInReach({ menuOnly: deliberateGrab && input.down && !input.up });
     if (!ladder) return false;
     ladderTraversal.phase = "climbing";
     ladderTraversal.time = 0;
@@ -6278,16 +6573,21 @@
   }
 
   function attachWeb() {
+    const incomingGrapple = activeIncomingRaceGrapple();
+    if (incomingGrapple) {
+      triggerGrappleInterruption("grapple", incomingGrapple);
+      return false;
+    }
     if (
       web.active ||
       web.mantlePhase !== "none" ||
       web.charges <= 0 ||
       dropHatch.phase !== "none" ||
       ladderTraversal.phase !== "none"
-    ) return;
+    ) return false;
     const anchor = chooseWebAnchor();
     web.candidate = anchor;
-    if (!anchor) return;
+    if (!anchor) return false;
     const centerX = player.x + player.width * 0.5;
     const centerY = player.y + player.height * 0.45;
     web.active = true;
@@ -6296,6 +6596,7 @@
     const attachMinimumLength = anchor.shortHatchAnchor ? 8 : CONFIG.webMinimumLength;
     web.length = Math.max(attachMinimumLength, Math.hypot(centerX - anchor.x, centerY - anchor.y));
     web.remotePlayerId = anchor.remotePlayerId || null;
+    web.remoteAttachedAt = web.remotePlayerId ? performance.now() / 1000 : -Infinity;
     web.anchorBody = web.remotePlayerId ? null : webBodyAtPoint(anchor);
     web.hatchPhase = "none";
     web.hatchTime = 0;
@@ -6305,6 +6606,7 @@
       tutorial.lastWebLength = web.length;
       tutorial.reelDistance = 0;
     }
+    return true;
   }
 
   function detachWeb({ releaseBoost = false, force = false } = {}) {
@@ -6316,6 +6618,7 @@
     web.candidate = null;
     web.anchorBody = null;
     web.remotePlayerId = null;
+    web.remoteAttachedAt = -Infinity;
     web.hatchPhase = "none";
     web.hatchTime = 0;
     web.mantlePhase = "none";
@@ -6465,6 +6768,7 @@
       web.candidate = null;
       web.anchorBody = null;
       web.remotePlayerId = null;
+      web.remoteAttachedAt = -Infinity;
       web.mantlePhase = "none";
       web.mantleTime = 0;
       web.mantleBody = null;
@@ -6589,6 +6893,7 @@
       web.candidate = null;
       web.anchorBody = null;
       web.remotePlayerId = null;
+      web.remoteAttachedAt = -Infinity;
       web.hatchPhase = "none";
       web.hatchTime = 0;
       web.hatchGraceUntil = performance.now() / 1000 + 0.45;
@@ -6608,11 +6913,11 @@
   function applyWebConstraint(dt, nowSeconds) {
     if (!web.active) return;
     if (web.hatchPhase !== "none" || web.mantlePhase !== "none") return;
-    if (web.remotePlayerId) {
-      syncRemoteWebAnchor(nowSeconds);
-      return;
-    }
-    const reelMinimumLength = web.anchorBody
+    const remotePlayerAnchor = Boolean(web.remotePlayerId);
+    if (remotePlayerAnchor && !syncRemoteWebAnchor(nowSeconds)) return;
+    const reelMinimumLength = remotePlayerAnchor
+      ? CONFIG.raceGrappleMinimumLength
+      : web.anchorBody
       ? Math.max(26, Math.min(46, web.anchorBody.height + player.height * 0.45 + 3))
       : CONFIG.webMinimumLength;
     if (input.up) {
@@ -6657,6 +6962,10 @@
       Math.abs(player.velocityX) >= 90
     ) tutorial.actions.swing = true;
 
+    // A player grapple uses the same rope and reel physics as the normal web,
+    // but never turns the other player into a ceiling hatch.
+    if (remotePlayerAnchor) return;
+
     const hatchBody = web.anchorBody;
     // A short hatch web stops with the player's rope attachment point at the
     // reel limit. Because that point is below the top of the sprite, the head
@@ -6696,6 +7005,7 @@
     ));
     player.standingBody = missionPortalBody || linkedBody || standingBodies[0] || null;
     player.navigationBody = supportingMapBody();
+    if (player.grounded) recordLandingCheckpoint(player.navigationBody);
     if (
       web.hatchPhase !== "none" ||
       web.mantlePhase !== "none" ||
@@ -7411,6 +7721,7 @@
   }
 
   function updatePhysics(dt, nowSeconds) {
+    updateGrappleInterruption(dt);
     if (race.active && (race.frozen || race.finished || race.finishPending)) {
       player.velocityX = 0;
       player.velocityY = 0;
@@ -7520,7 +7831,7 @@
 
     player.x = Math.max(0, Math.min(state.documentWidth - player.width, player.x));
     checkRaceWispCollection(nowSeconds);
-    if (player.y > state.documentHeight + window.innerHeight * 0.35) respawn();
+    if (player.y > state.documentHeight + window.innerHeight * 0.35) respawn({ fromFall: true });
   }
 
   function resizeCanvas() {
@@ -8626,8 +8937,14 @@
             ? 1
             : 1 - Math.pow((actionProgress - 0.7) / 0.3, 2)
         : 0;
+      const grappleFailAmount = actionKind === "grapple-fail" && actionPhase === "staggering"
+        ? Math.pow(1 - actionProgress, 0.72)
+        : 0;
+      const grappleFailSide = action?.side < 0 ? -1 : 1;
+      const grappleFailFlail = Math.sin(nowSeconds * 52) * grappleFailAmount;
       let footSwing = groundedMotion ? Math.sin(remote.runPhase) * scaled(3.2) * speedRatio : 0;
-      if (webStruggle > 0) footSwing = Math.sin(nowSeconds * 46) * scaled(5.8) * webStruggle;
+      if (grappleFailAmount > 0) footSwing = grappleFailFlail * scaled(7.4);
+      else if (webStruggle > 0) footSwing = Math.sin(nowSeconds * 46) * scaled(5.8) * webStruggle;
       else if (ladderStep) footSwing = ladderStep * scaled(4.4);
       else if (dropKickAmount > 0) footSwing = facing * scaled(7.2) * dropKickAmount;
       context.save();
@@ -8667,7 +8984,11 @@
 
       const transformCenterY = centerY;
       context.translate(centerX, transformCenterY);
-      if (actionKind === "web-hatch" && actionPhase === "entering") {
+      if (grappleFailAmount > 0) {
+        context.translate(grappleFailSide * scaled(4.5) * grappleFailAmount, 0);
+        context.rotate(grappleFailSide * (0.29 + grappleFailFlail * 0.08) * grappleFailAmount);
+        context.scale(1 + grappleFailAmount * 0.13, 1 - grappleFailAmount * 0.12);
+      } else if (actionKind === "web-hatch" && actionPhase === "entering") {
         context.rotate(Math.sin(nowSeconds * 33) * webStruggle * 0.075);
         context.scale(1 + webStruggle * 0.07, 1 - webStruggle * 0.08);
       } else if (actionKind === "web-hatch" && actionPhase === "emerging") {
@@ -8728,6 +9049,22 @@
       context.moveTo(centerX + scaled(4.5), centerY + scaled(11.5));
       context.lineTo(centerX + scaled(4) - footSwing, feetY - (webStruggle > 0 ? Math.max(0, -Math.cos(nowSeconds * 46)) * scaled(4.2) * webStruggle : 0));
       context.stroke();
+
+      if (grappleFailAmount > 0.08) {
+        context.save();
+        context.globalAlpha = grappleFailAmount * 0.7;
+        context.strokeStyle = palette.accent;
+        context.lineWidth = scaled(1.5);
+        context.beginPath();
+        for (const offset of [-1, 0, 1]) {
+          const originX = centerX - grappleFailSide * scaled(12 + Math.abs(offset) * 2);
+          const originY = centerY + offset * scaled(5);
+          context.moveTo(originX, originY);
+          context.lineTo(originX - grappleFailSide * scaled(7), originY - grappleFailFlail * scaled(2));
+        }
+        context.stroke();
+        context.restore();
+      }
 
       const scarfLength = scaled(8 + speedRatio * 9);
       context.strokeStyle = palette.accent;
@@ -8872,19 +9209,33 @@
       : 0;
     const ladderBackView = ladderTraversal.phase === "climbing" || ladderTraversal.phase === "gripping";
     const ladderStep = Math.sin(ladderTraversal.climbCycle);
-    const footSwing = web.hatchPhase === "entering"
+    const interruptionProgress = grappleInterruption.phase === "staggering"
+      ? Math.min(1, grappleInterruption.time / CONFIG.raceGrappleInterruptionSeconds)
+      : 1;
+    const interruptionAmount = grappleInterruption.phase === "staggering"
+      ? Math.pow(1 - interruptionProgress, 0.72)
+      : 0;
+    const interruptionSide = grappleInterruption.directionX < 0 ? -1 : 1;
+    const interruptionFlail = Math.sin(performance.now() * 0.052) * interruptionAmount;
+    const footSwing = interruptionAmount > 0
+      ? interruptionFlail * scaled(7.4)
+      : web.hatchPhase === "entering"
       ? Math.sin(kickPhase) * scaled(5.8) * struggleAmount
       : dropHatch.phase === "kicking"
         ? facing * scaled(7.2) * dropKickAmount
         : ladderClimbAmount
           ? ladderStep * scaled(4.4)
           : player.grounded ? Math.sin(runPhase) * scaled(3.2) * speedRatio : 0;
-    const leftFootLift = web.hatchPhase === "entering"
+    const leftFootLift = interruptionAmount > 0
+      ? Math.max(0, interruptionFlail) * scaled(5.4)
+      : web.hatchPhase === "entering"
       ? Math.max(0, Math.cos(kickPhase)) * scaled(4.2) * struggleAmount
       : dropHatch.phase === "kicking" && facing < 0
         ? scaled(6.5) * dropKickAmount
         : ladderClimbAmount ? Math.max(0, ladderStep) * scaled(3.2) : 0;
-    const rightFootLift = web.hatchPhase === "entering"
+    const rightFootLift = interruptionAmount > 0
+      ? Math.max(0, -interruptionFlail) * scaled(5.4)
+      : web.hatchPhase === "entering"
       ? Math.max(0, -Math.cos(kickPhase)) * scaled(4.2) * struggleAmount
       : dropHatch.phase === "kicking" && facing >= 0
         ? scaled(6.5) * dropKickAmount
@@ -8928,7 +9279,16 @@
       context.rect(0, 0, state.viewportWidth, Math.max(0, surfaceY));
       context.clip();
     }
-    if (dropHatch.phase === "kicking") {
+    if (interruptionAmount > 0) {
+      context.translate(centerX, spriteCenterY);
+      context.translate(
+        grappleInterruption.directionX * scaled(4.5) * interruptionAmount,
+        grappleInterruption.directionY * scaled(3.2) * interruptionAmount
+      );
+      context.rotate(interruptionSide * (0.29 + interruptionFlail * 0.08) * interruptionAmount);
+      context.scale(1 + interruptionAmount * 0.13, 1 - interruptionAmount * 0.12);
+      context.translate(-centerX, -spriteCenterY);
+    } else if (dropHatch.phase === "kicking") {
       context.translate(centerX, spriteCenterY);
       context.rotate(-facing * dropKickAmount * 0.2);
       context.scale(1 + dropKickAmount * 0.07, 1 - dropKickAmount * 0.09);
@@ -9059,6 +9419,22 @@
     context.moveTo(centerX + scaled(4.5), spriteCenterY + scaled(11.5));
     context.lineTo(rightFootX, rightFootY);
     context.stroke();
+
+    if (interruptionAmount > 0.08) {
+      context.save();
+      context.globalAlpha = interruptionAmount * 0.7;
+      context.strokeStyle = palette.accent;
+      context.lineWidth = scaled(1.5);
+      context.beginPath();
+      for (const offset of [-1, 0, 1]) {
+        const originX = centerX - interruptionSide * scaled(12 + Math.abs(offset) * 2);
+        const originY = spriteCenterY + offset * scaled(5);
+        context.moveTo(originX, originY);
+        context.lineTo(originX - interruptionSide * scaled(7), originY - interruptionFlail * scaled(2));
+      }
+      context.stroke();
+      context.restore();
+    }
 
     if (Number.isFinite(strikingFootX) && dropKickAmount > 0.12) {
       context.globalAlpha = dropKickAmount * 0.48;
@@ -9918,6 +10294,7 @@
     web,
     dropHatch,
     ladderTraversal,
+    grappleInterruption,
     mission,
     tutorial,
     race,
@@ -9947,6 +10324,9 @@
     setRaceRemotePlayer,
     removeRaceRemotePlayer,
     applyRaceGrapple,
+    activeIncomingRaceGrapple,
+    recordLandingCheckpoint,
+    resolveLandingCheckpoint,
     startPageCandidateKeys: () => startPageCandidates().map((candidate) => candidate.key),
     spawnCandidateCount: () => navigationBodies().filter((body) =>
       body.width >= Math.max(70, player.width * 3)
