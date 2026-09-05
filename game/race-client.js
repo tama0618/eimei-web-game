@@ -976,8 +976,9 @@
     let label = "手掛かり 0 / 3";
     let value = "写真のみ｜時間経過でヒント解禁";
     if (stage === 1) {
-      label = "手掛かり 1 / 3　探す入口";
-      value = `上のメニューでは「${topMenuAreaHint(goal)}」の仲間`;
+      label = "手掛かり 1 / 3　三択";
+      const choices = firstHintChoices(goal, race.room.course);
+      value = `入口候補　① ${choices[0]}　② ${choices[1]}　③ ${choices[2]}`;
     } else if (stage === 2) {
       label = "手掛かり 2 / 3　ページの役割";
       const entry = submenuEntryHint(goal);
@@ -1055,6 +1056,19 @@
     if (canonicalLabel === "歩み" || section === "history" || (section === "story" && filename === "history.html")) return "歩み";
     if (canonicalLabel === "過去のニュース" || section === "news") return "過去のニュース";
     return "情報コース";
+  }
+
+  function firstHintChoices(goal, course = race.room?.course) {
+    const answer = topMenuAreaHint(goal);
+    const options = [
+      "情報コース", "授業・科目", "2つの系", "学習環境",
+      "資格・実績", "進路・卒業生", "歩み", "過去のニュース"
+    ];
+    const random = seededRandom(stableTextHash(
+      `${course?.id || ""}|${course?.seed || ""}|${goal?.id || goal?.page || ""}|first-hint-three-choice`
+    ));
+    const decoys = shuffled(options.filter((option) => option !== answer), random).slice(0, 2);
+    return shuffled([answer, ...decoys], random);
   }
 
   function submenuEntryHint(goal) {
@@ -1845,6 +1859,8 @@
   race.updateHints = updateHints;
   race.canonicalEntryForGoal = canonicalEntryForGoal;
   race.canonicalRoute = canonicalRoute;
+  race.topMenuAreaHint = topMenuAreaHint;
+  race.firstHintChoices = firstHintChoices;
   window.EimeiRace = race;
   boot();
 })();
