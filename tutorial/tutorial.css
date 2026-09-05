@@ -94,6 +94,8 @@ body {
 
 .goal-platform [data-eimei-tutorial-checkpoint],
 .portal-row [data-eimei-tutorial-checkpoint] {
+  position: relative;
+  display: inline-block;
   color: #b45a24;
   font-weight: 700;
 }
@@ -102,6 +104,33 @@ body {
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 6px;
+}
+
+/*
+ * The lesson flag is DOM-owned instead of canvas-only.  It therefore exists
+ * during a slow script boot, after a cached-runtime mismatch, and while the
+ * collision map is being rebuilt between lessons.
+ */
+[data-eimei-tutorial-checkpoint].is-current:not([data-require="portal"])::before {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 7px);
+  width: 2px;
+  height: 31px;
+  background: #3f3428;
+  content: "";
+  transform: translateX(-1px);
+}
+
+[data-eimei-tutorial-checkpoint].is-current:not([data-require="portal"])::after {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 25px);
+  width: 19px;
+  height: 12px;
+  background: #d87832;
+  clip-path: polygon(0 0, 100% 22%, 72% 100%, 0 82%);
+  content: "";
 }
 
 .stage-reset {

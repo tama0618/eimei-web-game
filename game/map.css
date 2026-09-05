@@ -14,6 +14,14 @@ html.eimei-game-active body {
   overscroll-behavior: none;
 }
 
+/* The stage camera writes a new scroll position every animation frame.
+   Page themes may opt into smooth scrolling for ordinary anchor links, but
+   keeping that animation active here makes the camera trail a falling player
+   and then catch up in one jump after landing. */
+html.eimei-game-active {
+  scroll-behavior: auto !important;
+}
+
 html.eimei-game-active body {
   transform-origin: 0 0;
 }
@@ -36,6 +44,17 @@ html.eimei-game-active footer {
   left: 0 !important;
   clear: both !important;
   display: block !important;
+}
+
+/* The last native “page top” link is also a physical utility portal. */
+html.eimei-game-active a[data-eimei-page-top] {
+  display: block !important;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  margin-right: auto !important;
+  margin-left: auto !important;
+  padding: 9px 18px;
+  text-align: center !important;
 }
 
 .eimei-player-hover {

@@ -7,52 +7,53 @@
   <title>Webページ制作 - 英明高等学校 情報コース</title>
   <link rel="icon" type="image/svg+xml" href="../../images/kosyo-sq.svg">
   <link rel="stylesheet" href="../assets/info-course.css">
-<script data-eimei-game="entry">(()=>{const p=new URLSearchParams(location.search);if(p.get("eimei-preview")==="1"){addEventListener("DOMContentLoaded",()=>{const v=p.get("v");for(const a of document.querySelectorAll("a[href]")){try{const u=new URL(a.getAttribute("href"),location.href);if(u.origin!==location.origin)continue;u.searchParams.set("eimei-preview","1");if(v)u.searchParams.set("v",v);a.href=u.href}catch{}}},{once:true});return}if(p.has("eimei-route"))return;location.replace(new URL("../../tutorial/index.html",location.href).href)})()</script>
-<link rel="stylesheet" href="../../game/map.css?v=c95c7bc39ea0" data-eimei-game="map">
-<link rel="stylesheet" href="../../game/hover.css?v=c95c7bc39ea0" data-eimei-game="hover">
-<link rel="stylesheet" href="../../game/race.css?v=c95c7bc39ea0" data-eimei-game="race">
+<script data-eimei-game="entry">(()=>{const p=new URLSearchParams(location.search);if(p.get("eimei-preview")==="1"){addEventListener("DOMContentLoaded",()=>{const v=p.get("v");for(const a of document.querySelectorAll("a[href]")){try{const u=new URL(a.getAttribute("href"),location.href);if(u.origin!==location.origin)continue;u.searchParams.set("eimei-preview","1");if(v)u.searchParams.set("v",v);a.href=u.href}catch{}}},{once:true});return}const r=p.get("eimei-route");if(r==="race"||r==="plan"||r==="catalog")return;location.replace(new URL(r?"../../arena/index.html":"../../tutorial/index.html",location.href).href)})()</script>
+<link rel="stylesheet" href="../../game/map.css?v=fe6b7107e088" data-eimei-game="map">
+<link rel="stylesheet" href="../../game/hover.css?v=fe6b7107e088" data-eimei-game="hover">
+<link rel="stylesheet" href="../../game/race.css?v=fe6b7107e088" data-eimei-game="race">
 </head>
 <body class="theme-learning">
   <header class="site-header" id="home">
     <div class="header-inner">
-      <a class="brand" href="../index.html">
+      <a class="brand" href="../index.html" data-eimei-no-portal>
         <img decoding="async" loading="lazy" src="../../images/gakkousyokai_07.png" alt="英明高等学校">
         <span class="brand-course">情報コース案内</span>
       </a>
     </div>
-    <nav class="primary-nav" id="info-course-main-nav" aria-label="情報コース メインメニュー"><ul><li><a href="../about/index.html">コース案内</a></li>
-<li><a href="index.html" aria-current="page">授業と制作</a></li>
-<li><a href="../environment/index.html">学習環境</a></li>
-<li><a href="../qualifications/index.html">資格と実績</a></li>
-<li><a href="../career/index.html">進路と卒業生</a></li>
-<li><a href="../history/index.html">情報コースの歩み</a></li>
-<li><a href="../activities/index.html">活動記録</a></li>
-<li><a href="../admissions/index.html">受験前ガイド</a></li></ul></nav>
+    <nav class="primary-nav" id="main-nav" aria-label="情報コース メインメニュー"><ul class="menu"><li class="top-menu-item has-submenu"><span class="menu-label" role="button" tabindex="0" aria-haspopup="true">情報コース</span><ul class="submenu" aria-label="情報コースのメニュー"><li><a href="../course/three-years.html">3年間の学び方</a></li><li><a href="../story/admissions.html">受験前に知っておきたいこと</a></li></ul></li>
+<li class="top-menu-item direct-menu"><a href="../course/common-learning.html">授業・科目</a></li>
+<li class="top-menu-item has-submenu is-current"><span class="menu-label" role="button" tabindex="0" aria-haspopup="true">2つの系</span><ul class="submenu" aria-label="2つの系のメニュー"><li><a href="../course/system.html">情報システム系</a></li><li><a href="../course/creative.html">情報クリエイト系</a></li></ul></li>
+<li class="top-menu-item has-submenu"><span class="menu-label" role="button" tabindex="0" aria-haspopup="true">学習環境</span><ul class="submenu" aria-label="学習環境のメニュー"><li><a href="../campus/classrooms.html">情報教室と授業支援</a></li><li><a href="../campus/tools.html">制作・開発環境</a></li></ul></li>
+<li class="top-menu-item has-submenu"><span class="menu-label" role="button" tabindex="0" aria-haspopup="true">資格・実績</span><ul class="submenu" aria-label="資格・実績のメニュー"><li><a href="../campus/certifications.html">資格・検定</a></li><li><a href="../campus/competitions.html">大会・作品発表</a></li></ul></li>
+<li class="top-menu-item has-submenu"><span class="menu-label" role="button" tabindex="0" aria-haspopup="true">進路・卒業生</span><ul class="submenu" aria-label="進路・卒業生のメニュー"><li><a href="../future/voices.html">在校生・卒業生の声</a></li><li><a href="../future/universities.html">大学・短期大学への進学</a></li><li><a href="../future/vocational.html">専門学校・職業教育への進学</a></li><li><a href="../future/employment.html">就職と業界理解</a></li></ul></li>
+<li class="top-menu-item direct-menu"><a href="../story/history.html">歩み</a></li>
+<li class="top-menu-item direct-menu"><a href="../news/news.html">過去のニュース</a></li></ul></nav>
   </header>
   <div class="page-shell">
-    <aside class="local-nav" id="course-local-navigation"><h2>授業と制作</h2><ul><li><a href="index.html">授業と制作</a></li>
-<li><a href="first-year.html">1年次の学び</a></li>
-<li><a href="robot-programming.html">ロボットプログラミング</a></li>
+    <aside class="local-nav" id="course-local-navigation"><h2>コースと授業</h2><ul><li><a href="../about/creative-track.html">情報クリエイト系</a></li>
 <li><a href="media-service.html">メディアとサービス</a></li>
-<li><a href="web-production.html" aria-current="page">Webページ制作</a></li>
+<li><span aria-current="page">Webページ制作</span></li>
 <li><a href="content-development.html">コンテンツの開発と設計</a></li>
 <li><a href="information-design.html">情報デザイン</a></li>
+<li><a href="dtp.html">DTP</a></li>
 <li><a href="three-d-graphics.html">3Dグラフィックス</a></li></ul></aside>
     <main class="content">
-      <p class="breadcrumb"><a href="../index.html">情報コースTOP</a> ／ 授業と制作 ／ Webページ制作</p>
+      <p class="breadcrumb"><a href="../index.html" data-eimei-no-portal>情報コースTOP</a> ／ コースと授業 ／ Webページ制作</p>
       <header class="page-head">
-        <p class="page-kicker">授業と制作</p>
+        <p class="page-kicker">コースと授業</p>
         <h1>Webページ制作</h1>
         <p class="page-lead">HTMLやCSS、画像素材を組み合わせ、情報をページとして届けます。</p>
       </header>
-      <div class="fact-stack"><section class="content-section shift-0" id="spot-1"><span class="section-number">要点 01</span><h2>継続してきたWeb制作</h2><p>2016年当時からWebページ作成を実習で扱い、進路ガイダンスでもHTMLとCSSによる制作を体験してきました。</p></section>
-<section class="content-section shift-1" id="spot-2"><span class="section-number">要点 02</span><h2>構造と見た目</h2><p>HTMLで情報の構造を、CSSで見た目を組み立てることで、内容と表現の役割を分けて考えます。</p></section>
-<section class="content-section shift-2" id="spot-3"><span class="section-number">要点 03</span><h2>クリエイト系へ</h2><p>画像処理、情報デザイン、メディア制作と組み合わせ、Webデザインや制作分野の基礎へつながります。</p></section></div><nav class="pager" aria-label="前後のページ"><span><a href="media-service.html">← メディアとサービス</a></span><span><a href="content-development.html">コンテンツの開発と設計 →</a></span></nav>
+      <section class="topic-fact-grid" aria-label="Webページ制作の要点"><article id="spot-1"><span class="section-number">要点 01</span><h2>継続してきたWeb制作</h2><p>2016年当時からWebページ作成を実習で扱い、進路ガイダンスでもHTMLとCSSによる制作を体験してきました。</p></article>
+<article id="spot-2"><span class="section-number">要点 02</span><h2>構造と見た目</h2><p>HTMLで情報の構造を、CSSで見た目を組み立てることで、内容と表現の役割を分けて考えます。</p></article>
+<article id="spot-3"><span class="section-number">要点 03</span><h2>クリエイト系へ</h2><p>画像処理、情報デザイン、メディア制作と組み合わせ、Webデザインや制作分野の基礎へつながります。</p></article></section><section class="learning-path" data-learning-mode="web" aria-label="Webページ制作の学習工程"><div class="learning-path-heading"><span>学習工程</span><h3>Webページ制作で進める4段階</h3></div><ol><li><b>01</b><strong>情報を構造化する</strong><p>「Webページ制作」では、見出し、段落、一覧、画像、リンクへ役割を分けます。</p></li><li><b>02</b><strong>HTMLを書く</strong><p>「Webページ制作」では、内容の意味と読む順番が分かるよう、要素を組み立てます。</p></li><li><b>03</b><strong>CSSで整える</strong><p>「Webページ制作」では、文字、余白、色、配置を調整し、画面幅が変わっても読める形にします。</p></li><li><b>04</b><strong>ブラウザで検証する</strong><p>「Webページ制作」では、リンク、画像、操作、表示崩れを確かめ、原因のある箇所へ戻ります。</p></li></ol></section><section class="guidance-section"><h3>Webページ制作の学び方</h3><div class="guidance-list"><article class="is-detail layout-0"><section class="guidance-unit unit-0"><h4>ページの目的を決める</h4><div class="guidance-copy"><p>「Webページ制作」では、掲載する情報と読む人を先に決めます。</p><p>「Webページ制作」では、見出し、本文、画像、リンクへ役割を分け、必要な順に並べます。</p></div></section><section class="guidance-unit unit-1"><h4>構造と見た目を分ける</h4><div class="guidance-copy"><p>「Webページ制作」では、HTMLで情報の構造を作り、CSSで文字や余白、配置を整えます。</p><p>「Webページ制作」では、一つの画面だけに合わせず、内容とデザインを分けて直せる形にします。</p></div></section></article><article class="is-detail layout-1"><section class="guidance-unit unit-0"><h4>ブラウザで確かめる</h4><div class="guidance-copy"><p>「Webページ制作」は、コードを書いただけでは完成しません。</p><p>「Webページ制作」では、リンク、画像、文字の折り返しを確認し、別の画面幅でも読めるかを試します。</p></div></section><section class="guidance-unit unit-1"><h4>公開前に守ること</h4><div class="guidance-copy"><p>「Webページ制作」では、画像や文章の権利、個人情報、読みやすい代替文を確認します。</p><p>「Webページ制作」では、制作元データと公開用ファイルを分け、更新できる構成で保存します。</p></div></section></article><article class="is-detail layout-2"><section class="guidance-unit unit-0"><h4>次の制作へ</h4><div class="guidance-copy"><p>「Webページ制作」で作った構造は、「コンテンツの開発と設計」や情報デザインにもつながります。</p><p>「Webページ制作」では、進学後は、デザイン、プログラム、企画のどこを深めたいか選ぶ材料になります。</p></div></section><section class="guidance-unit unit-1"><h4>体験入学で見るところ</h4><div class="guidance-copy"><p>「Webページ制作」では、見本を写すだけか、自分で内容と構成を決める課題まで進むかを確かめてください。</p><p>「Webページ制作」では、使用するソフト、画像素材の扱い、公開前の確認方法も質問できます。</p></div></section></article></div></section><div class="photo-grid photo-grid-wide topic-gallery"><figure><img src="../assets/photos/archive/creative-track.jpg" alt="画像やデザインを扱う情報クリエイト系の授業" loading="lazy" decoding="async"><figcaption>画像やデザインを扱う情報クリエイト系の授業</figcaption></figure><figure><img src="../assets/photos/archive/pen-tablet.jpg" alt="デジタル制作に使う入力機器" loading="lazy" decoding="async"><figcaption>デジタル制作に使う入力機器</figcaption></figure><figure><img src="../assets/photos/activities/course-scene-2.jpg" alt="制作課題の成果を発表する場" loading="lazy" decoding="async"><figcaption>制作課題の成果を発表する場</figcaption></figure></div><nav class="pager" aria-label="前後のページ"><span><a href="media-service.html">← メディアとサービス</a></span><span><a href="content-development.html">コンテンツの開発と設計 →</a></span></nav>
     </main>
   </div>
-  <footer class="site-footer"><div class="footer-inner"><p><strong>英明高等学校 情報コース案内</strong></p><p><a href="#home">ページトップへ</a></p></div></footer>
-<script defer src="../../game/map-runtime.js?v=c95c7bc39ea0" data-eimei-game="map"></script>
-<script defer src="../../game/race-config.js?v=c95c7bc39ea0" data-eimei-game="race-config"></script>
-<script defer src="../../game/race-client.js?v=c95c7bc39ea0" data-eimei-game="race-client"></script>
+  <footer class="site-footer"><div class="footer-inner"><p class="footer-title"><strong>英明高等学校 情報コース案内</strong></p><p class="footer-page-top"><a href="#home" data-eimei-page-top data-eimei-manual-portal>ページトップへ</a></p></div></footer>
+
+
+<script defer src="../../game/map-runtime.js?v=fe6b7107e088" data-eimei-game="map"></script>
+<script defer src="../../game/race-config.js?v=fe6b7107e088" data-eimei-game="race-config"></script>
+<script defer src="../../game/race-client.js?v=fe6b7107e088" data-eimei-game="race-client"></script>
 </body>
 </html>

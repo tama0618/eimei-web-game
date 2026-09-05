@@ -588,7 +588,7 @@
       );
       const playable = catalog.pages
         .map((page) => ({ ...page, targets: page.targets.filter(usableTarget) }))
-        .filter((page) => page.targets.length > 0 && page.height >= 420);
+        .filter((page) => !page.page.endsWith("/index.html") && page.targets.length > 0 && page.height >= 420);
       const recent = new Set(recentGoalIds);
       const random = seededRandom(seed);
       const pageBuckets = new Map();
@@ -693,10 +693,10 @@
   function hintStage(room = race.room) {
     if (!room?.startAt) return 0;
     const elapsed = Math.max(0, serverNow() - room.startAt);
-    if (elapsed >= (Number(config.navigationHintMilliseconds) || 300000)) return 4;
-    if (elapsed >= (Number(config.contextHintMilliseconds) || 270000)) return 3;
-    if (elapsed >= (Number(config.titleHintMilliseconds) || 210000)) return 2;
-    if (elapsed >= (Number(config.categoryHintMilliseconds) || 150000)) return 1;
+    if (elapsed >= (Number(config.navigationHintMilliseconds) || 240000)) return 4;
+    if (elapsed >= (Number(config.contextHintMilliseconds) || 180000)) return 3;
+    if (elapsed >= (Number(config.titleHintMilliseconds) || 135000)) return 2;
+    if (elapsed >= (Number(config.categoryHintMilliseconds) || 90000)) return 1;
     return 0;
   }
 
@@ -876,13 +876,13 @@
     let label = "手掛かり 0 / 3";
     let value = "写真のみ｜時間経過でヒント解禁";
     if (stage === 1) {
-      label = "手掛かり 1 / 3　ページの長さ";
-      value = pageSizeHint(goal);
+      label = "手掛かり 1 / 3　探す入口";
+      value = `上のメニューでは「${topMenuAreaHint(goal)}」の仲間`;
     } else if (stage === 2) {
-      label = "手掛かり 2 / 3　ページの構造";
-      value = pageStructureHint(goal);
+      label = "手掛かり 2 / 3　ページの役割";
+      value = `${pageStructureHint(goal)}｜${pageSizeHint(goal)}`;
     } else if (stage === 3) {
-      label = "手掛かり 3 / 3　旗の位置";
+      label = "手掛かり 3 / 3　目的ページと位置";
       value = positionHint(goal);
     } else if (stage >= 4) {
       label = "FINAL GUIDE　ナビ解禁";
@@ -928,20 +928,72 @@
     return "かなり縦に長いページ";
   }
 
+  function topMenuAreaHint(goal) {
+    const parts = String(goal.page || "").split("/").filter(Boolean);
+    const section = parts[1] || "";
+    const filename = parts.at(-1) || "";
+    if (section === "learning" || (section === "course" && filename === "common-learning.html")) {
+      return "授業・科目";
+    }
+    if (section === "course" && /^(?:system|creative)\.html?$/i.test(filename)) return "2つの系";
+    if (section === "environment" || (section === "campus" && /^(?:classrooms|tools)\.html?$/i.test(filename))) {
+      return "学習環境";
+    }
+    if (section === "qualifications" || (section === "campus" && /^(?:certifications|competitions)\.html?$/i.test(filename))) {
+      return "資格・実績";
+    }
+    if (section === "future" || section === "career") return "進路・卒業生";
+    if (section === "history" || (section === "story" && filename === "history.html")) return "歩み";
+    if (section === "news") return "過去のニュース";
+    return "情報コース";
+  }
+
   function pageStructureHint(goal) {
     const parts = String(goal.page || "").split("/").filter(Boolean);
     const filename = parts.at(-1) || "";
+    const informationArea = parts[0] === "info-course" ? parts[1] : "";
+    if (informationArea === "about") return "コース全体や3年間の仕組みを掘り下げたページ";
+    if (informationArea === "learning") return "一つの授業分野を掘り下げたページ";
+    if (informationArea === "environment") return "教室の設備や制作環境を一つ掘り下げたページ";
+    if (informationArea === "qualifications") return "資格・大会・制作成果を一つ掘り下げたページ";
+    if (informationArea === "career") return "進学先や仕事へのつながりを一つ掘り下げたページ";
+    if (informationArea === "history") return "過去から現在への変化を一つたどるページ";
+    if (informationArea === "admissions") return "入学前に確かめたい内容を一つ掘り下げたページ";
+    if (informationArea === "news") {
+      return filename === "news.html"
+        ? "年度と月から活動を選ぶ一覧ページ"
+        : "ある一日の授業や挑戦を写真で振り返る記事";
+    }
+    if (informationArea === "course") {
+      if (filename === "common-learning.html") return "共通科目と専門科目のつながりをまとめたページ";
+      if (filename === "system.html") return "処理と仕組みづくりを扱う専門分野のページ";
+      if (filename === "creative.html") return "画像・Web・DTP・3Dを扱う専門分野のページ";
+      return "情報コースの3年間をまとめたページ";
+    }
+    if (informationArea === "campus") {
+      if (/^(?:certifications|competitions)\.html?$/i.test(filename)) return "資格や作品発表の成果をまとめたページ";
+      return "授業を支える教室や機材をまとめたページ";
+    }
+    if (informationArea === "future") return "卒業後の進学や仕事への接続をまとめたページ";
+    if (informationArea === "story") {
+      return filename === "history.html"
+        ? "情報教育がどう変わってきたかをまとめたページ"
+        : "入学前に授業・環境・進路を確かめるページ";
+    }
     if (/^(?:index|top)\.html?$/i.test(filename)) return "大きなエリアの入口ページ";
-    if (/^news20\d{2}\.html?$/i.test(filename)) return "複数項目が並ぶ一覧ページ";
-    if (parts.length >= 3) return "階層の深い個別ページ";
-    return "入口から一段進んだ情報ページ";
+    return "入口から一段進んだ個別ページ";
   }
 
   function positionHint(goal) {
-    const { xRatio, yRatio } = catalogGoalGeometry(goal);
+    const { page, target, xRatio, yRatio } = catalogGoalGeometry(goal);
     const vertical = yRatio < .34 ? "上の方" : yRatio < .7 ? "中央付近" : "下の方";
     const horizontal = xRatio < .34 ? "左寄り" : xRatio < .67 ? "中央寄り" : "右寄り";
-    return `旗はページの${vertical}・${horizontal}`;
+    const pageTitle = String(page?.title || target?.title || "")
+      .replace(/\s*[-｜|]\s*英明高等学校(?:\s+情報コース)?\s*$/u, "")
+      .trim();
+    return pageTitle
+      ? `「${pageTitle}」ページの${vertical}・${horizontal}`
+      : `目的ページの${vertical}・${horizontal}`;
   }
 
   function privateHintChoices(goal) {
@@ -1084,12 +1136,13 @@
     positionPhotoMarker();
   }
 
-  function positionPhotoMarker() {
-    const photo = race.photo;
+  function positionPhotoMarker(photo = race.photo) {
     if (!photo?.iframe.contentWindow || !photo.iframe.contentDocument) return;
     const view = photo.iframe.contentWindow;
     try {
       const previewDocument = photo.iframe.contentDocument;
+      previewDocument.documentElement.style.setProperty("scroll-behavior", "auto", "important");
+      previewDocument.body?.style.setProperty("scroll-behavior", "auto", "important");
       let goalX = Number(photo.goal.x);
       let goalY = Number(photo.goal.y);
       const targetElement = photo.goal.selector ? previewDocument.querySelector(photo.goal.selector) : null;
@@ -1104,21 +1157,62 @@
       const documentHeight = Math.max(previewDocument.documentElement.scrollHeight, previewDocument.body?.scrollHeight || 0);
       const targetX = Math.max(0, Math.min(documentWidth - photo.viewWidth, goalX - photo.viewWidth * .5));
       const targetY = Math.max(0, Math.min(documentHeight - photo.viewHeight, goalY - photo.viewHeight * .48));
-      view.scrollTo(targetX, targetY);
+      view.scrollTo({ left: targetX, top: targetY, behavior: "auto" });
       photo.marker.style.left = `${Math.max(10, Math.min(photo.viewWidth - 10, goalX - view.scrollX)) * photo.scale}px`;
       photo.marker.style.top = `${Math.max(20, Math.min(photo.viewHeight - 10, goalY - view.scrollY)) * photo.scale}px`;
       photo.marker.hidden = false;
+      return {
+        goalX,
+        goalY,
+        targetX,
+        targetY,
+        scrollX: view.scrollX,
+        scrollY: view.scrollY
+      };
     } catch {
       // The mirrored preview is same-origin; keep the frame usable if it is still loading.
+      return null;
     }
+  }
+
+  function prepareRacePhoto(photo) {
+    window.clearTimeout(photo?.preparationTimer);
+    const startedAt = performance.now();
+    let previousSignature = "";
+    let stablePasses = 0;
+    const settle = () => {
+      if (race.photo !== photo) return;
+      const position = positionPhotoMarker(photo);
+      const signature = position
+        ? [position.goalX, position.goalY, position.targetX, position.targetY, position.scrollX, position.scrollY]
+          .map((value) => Math.round(value))
+          .join(":")
+        : "";
+      stablePasses = signature && signature === previousSignature ? stablePasses + 1 : 0;
+      previousSignature = signature;
+      const elapsed = performance.now() - startedAt;
+      if ((stablePasses >= 2 && elapsed >= 360) || elapsed >= 1200) {
+        positionPhotoMarker(photo);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (race.photo !== photo) return;
+          positionPhotoMarker(photo);
+          photo.prepared = true;
+          photo.root.classList.remove("is-preparing");
+        }));
+        return;
+      }
+      photo.preparationTimer = window.setTimeout(settle, 90);
+    };
+    settle();
   }
 
   function ensureRacePhoto(goal) {
     if (race.photo?.goal.id === goal.id && race.photo.roundId === race.room?.roundId) return;
     window.clearTimeout(race.photo?.introTimer);
+    window.clearTimeout(race.photo?.preparationTimer);
     race.photo?.root.remove();
     const root = document.createElement("div");
-    root.className = "eimei-race-photo is-intro";
+    root.className = "eimei-race-photo is-intro is-preparing";
     root.setAttribute("aria-label", "目的地の写真。Cキーで拡大");
     const iframe = document.createElement("iframe");
     iframe.tabIndex = -1;
@@ -1141,7 +1235,9 @@
       viewWidth: Math.max(1, window.innerWidth),
       viewHeight: Math.max(1, window.innerHeight),
       introUntil: performance.now() + photoIntroMilliseconds,
-      introTimer: 0
+      introTimer: 0,
+      preparationTimer: 0,
+      prepared: false
     };
     const currentPhoto = race.photo;
     currentPhoto.introTimer = window.setTimeout(() => {
@@ -1152,9 +1248,7 @@
     const url = new URL(goal.page.replace(/^\//, ""), staticRoot);
     url.searchParams.set("eimei-preview", "1");
     iframe.addEventListener("load", () => {
-      positionPhotoMarker();
-      window.setTimeout(positionPhotoMarker, 180);
-      window.setTimeout(positionPhotoMarker, 600);
+      prepareRacePhoto(currentPhoto);
     });
     iframe.src = url.href;
     sizePhoto();
@@ -1213,6 +1307,103 @@
     }
   }
 
+  function unit(value) {
+    return Math.max(0, Math.min(1, Number(value) || 0));
+  }
+
+  function traversalAction(map, width, height) {
+    const pack = (kind, phase, elapsed, duration, extra = {}) => ({
+      kind,
+      phase,
+      progress: unit(Number(elapsed) / Math.max(0.01, Number(duration) || 0.01)),
+      duration: Math.max(0.01, Math.min(3, Number(duration) || 0.01)),
+      ...extra
+    });
+    const surface = (topY, bottomY, centerX, actionWidth) => ({
+      topY: unit(Number(topY) / height),
+      bottomY: unit(Number(bottomY) / height),
+      centerX: unit(Number(centerX) / width),
+      width: unit(Number(actionWidth) / width)
+    });
+
+    if (map.web.hatchPhase !== "none") {
+      const phase = map.web.hatchPhase;
+      const duration = phase === "opening"
+        ? 0.46
+        : phase === "entering"
+          ? map.web.hatchEntryDuration
+          : phase === "traversing"
+            ? map.web.hatchTraverseDuration
+            : map.web.hatchPassageDuration;
+      return pack("web-hatch", phase, map.web.hatchTime, duration, surface(
+        map.web.hatchTopY,
+        map.web.hatchBottomY,
+        map.web.hatchCenterX,
+        map.web.hatchWidth
+      ));
+    }
+
+    if (map.dropHatch.phase !== "none") {
+      const phase = map.dropHatch.phase;
+      const duration = phase === "kicking"
+        ? map.config.dropHatchKickSeconds
+        : phase === "readying"
+          ? map.config.dropHatchReadySeconds
+          : phase === "jumping"
+            ? map.config.dropHatchJumpSeconds
+            : phase === "diving"
+              ? map.config.dropHatchDiveSeconds
+              : phase === "traversing"
+                ? map.dropHatch.traverseDuration
+                : map.config.dropHatchBurstSeconds;
+      return pack("drop-hatch", phase, map.dropHatch.time, duration, {
+        ...surface(map.dropHatch.topY, map.dropHatch.bottomY, map.dropHatch.centerX, map.dropHatch.width),
+        side: map.player.facing < 0 ? -1 : 1
+      });
+    }
+
+    if (map.ladderTraversal.phase !== "none") {
+      const phase = map.ladderTraversal.phase;
+      const ladder = map.ladderTraversal.ladder;
+      const duration = phase === "gripping"
+        ? map.config.ladderGripSeconds
+        : phase === "threading"
+          ? map.config.ladderThreadSeconds
+          : phase === "burrowing"
+            ? map.config.ladderTraverseSeconds
+            : phase === "rolling"
+              ? map.config.ladderRollSeconds
+              : 3;
+      return pack("ladder", phase, phase === "climbing" ? 0 : map.ladderTraversal.time, duration, {
+        topY: unit(Number(ladder?.topY) / height),
+        bottomY: unit(Number(ladder?.bottomY) / height),
+        cycle: Math.max(-1, Math.min(1, Math.sin(Number(map.ladderTraversal.climbCycle) || 0)))
+      });
+    }
+
+    if (map.web.mantlePhase !== "none") {
+      const phase = map.web.mantlePhase;
+      const duration = phase === "approaching"
+        ? map.config.webMantleApproachSeconds
+        : map.config.webMantleVaultSeconds;
+      return pack("mantle", phase, map.web.mantleTime, duration, {
+        side: map.web.mantleSide < 0 ? -1 : 1
+      });
+    }
+
+    if (map.interaction.portal?.entering) {
+      return pack("portal", "entering", map.interaction.portal.enterProgress, 1);
+    }
+
+    const airJumpElapsed = performance.now() / 1000 - Number(map.player.airJumpAt);
+    if (Number.isFinite(airJumpElapsed) && airJumpElapsed >= 0 && airJumpElapsed < map.config.airJumpSpinSeconds) {
+      return pack("air-jump", "spinning", airJumpElapsed, map.config.airJumpSpinSeconds, {
+        side: map.player.facing < 0 ? -1 : 1
+      });
+    }
+    return null;
+  }
+
   function sendPosition() {
     const map = window.EimeiMap;
     const room = race.room;
@@ -1227,6 +1418,13 @@
       y: (map.player.y + map.player.height) / height,
       facing: map.player.facing
     };
+    if (map.web.active && Number.isFinite(map.web.anchorX + map.web.anchorY)) {
+      message.web = {
+        x: unit(map.web.anchorX / width),
+        y: unit(map.web.anchorY / height)
+      };
+    }
+    message.action = traversalAction(map, width, height);
     if (map.web.active && map.web.remotePlayerId) message.grappleTargetId = map.web.remotePlayerId;
     send(message);
   }
@@ -1269,6 +1467,13 @@
     const overlapDirection = colorIndex % 2 === 0 ? -1 : 1;
     const overlapOffset = overlapsLocal ? overlapDirection * (20 + Math.floor(colorIndex / 2) * 3) : 0;
     ghost.root.classList.toggle("is-overlapping", overlapsLocal);
+    ghost.root.classList.toggle("is-traversing", Boolean(
+      message.action && (
+        (message.action.kind === "web-hatch" && message.action.phase === "traversing") ||
+        (message.action.kind === "drop-hatch" && message.action.phase === "traversing") ||
+        (message.action.kind === "ladder" && message.action.phase === "burrowing")
+      )
+    ));
     ghost.root.style.setProperty("--race-overlap-offset", `${overlapOffset}px`);
     ghost.root.style.left = `${remoteLeft}px`;
     ghost.root.style.top = `${remoteTop}px`;
@@ -1278,7 +1483,18 @@
       y: remoteY,
       facing: message.facing,
       visualOffsetX: overlapOffset,
-      palette: paletteFor(race.room.players.find((player) => player.id === message.playerId))
+      palette: paletteFor(race.room.players.find((player) => player.id === message.playerId)),
+      web: message.web ? {
+        x: Number(message.web.x) * map.state.documentWidth,
+        y: Number(message.web.y) * map.state.documentHeight
+      } : null,
+      action: message.action ? {
+        ...message.action,
+        topY: Number.isFinite(Number(message.action.topY)) ? Number(message.action.topY) * map.state.documentHeight : null,
+        bottomY: Number.isFinite(Number(message.action.bottomY)) ? Number(message.action.bottomY) * map.state.documentHeight : null,
+        centerX: Number.isFinite(Number(message.action.centerX)) ? Number(message.action.centerX) * map.state.documentWidth : null,
+        width: Number.isFinite(Number(message.action.width)) ? Number(message.action.width) * map.state.documentWidth : null
+      } : null
     });
   }
 

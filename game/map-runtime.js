@@ -430,6 +430,11 @@
     claimedWispIds: new Set(),
     pendingWispClaims: new Map(),
     remoteRenderCount: 0,
+    remoteWebRenderCount: 0,
+    remoteTraversalRenderCount: 0,
+    remoteTraversalHiddenCount: 0,
+    lastRemoteWebRenderAt: -Infinity,
+    lastRemoteTraversalRenderAt: -Infinity,
     remoteRenderStyle: "full-character",
     lastRemoteRenderAt: -Infinity
   };
@@ -558,6 +563,24 @@
     }
 
     selector.replaceWith(navigation);
+  }
+
+  function installPageTopPortal() {
+    const candidates = [...document.querySelectorAll('a[href]')].filter((anchor) => {
+      const href = anchor.getAttribute('href')?.trim().toLowerCase();
+      return href === '#home' && anchor.textContent?.trim() === 'ページトップへ' && document.getElementById('home');
+    });
+    if (candidates.length === 0) return;
+
+    // Some legacy pages repeat this utility link inside the article.  Only the
+    // lowest one is the footer exit requested by the player.
+    const footerAnchor = candidates.toSorted((first, second) => {
+      const firstRect = first.getBoundingClientRect();
+      const secondRect = second.getBoundingClientRect();
+      return firstRect.bottom + window.scrollY - (secondRect.bottom + window.scrollY);
+    }).at(-1);
+    footerAnchor.setAttribute('data-eimei-page-top', '');
+    footerAnchor.setAttribute('data-eimei-manual-portal', '');
   }
 
   function prepareWorld() {
@@ -1638,6 +1661,66 @@
       .filter(Boolean);
   }
 
+  function bodyBelongsToElement(body, element) {
+    if (!body || !element) return false;
+    if (body.sourceElement) {
+      return body.sourceElement === element || element.contains(body.sourceElement);
+    }
+    return Boolean(body.sourceRegions?.some((region) =>
+      region.element === element || element.contains(region.element)
+    ));
+  }
+
+  function collectStructuralLadderCandidates(bodies, obstacleIndex) {
+    const candidates = [];
+    for (const upperSection of document.querySelectorAll(".collection-summary-photos")) {
+      let lowerSection = upperSection.nextElementSibling;
+      while (lowerSection && !lowerSection.matches(".collection-directory")) {
+        lowerSection = lowerSection.nextElementSibling;
+      }
+      if (!lowerSection) continue;
+
+      const upperRect = upperSection.getBoundingClientRect();
+      const lowerRect = lowerSection.getBoundingClientRect();
+      const upperBottom = upperRect.bottom + window.scrollY;
+      const lowerTop = lowerRect.top + window.scrollY;
+      if (lowerTop <= upperBottom || lowerTop - upperBottom > 520) continue;
+
+      // Collection pages deliberately use a large photographic band followed
+      // by a lower directory.  The visual gap is useful, but the generic
+      // ladder budget used to spend every slot near the header and leave this
+      // transition one-way.  Only inspect the facing edges of the two bands,
+      // then reserve the clearest central connector.
+      const upperBodies = bodies.filter((body) =>
+        bodyBelongsToElement(body, upperSection) &&
+        body.y + body.height >= upperBottom - Math.max(110, upperRect.height * 0.34)
+      );
+      const lowerBodies = bodies.filter((body) =>
+        bodyBelongsToElement(body, lowerSection) &&
+        body.y <= lowerTop + Math.max(170, Math.min(280, lowerRect.height * 0.18))
+      );
+      const centerX = (Math.max(upperRect.left, lowerRect.left) +
+        Math.min(upperRect.right, lowerRect.right)) * 0.5 + window.scrollX;
+      const options = [];
+      for (const lowerBody of lowerBodies) {
+        for (const upperBody of upperBodies) {
+          if (upperBody.y >= lowerBody.y) continue;
+          const candidate = ladderCandidateBetween(lowerBody, upperBody, obstacleIndex, 620);
+          if (!candidate) continue;
+          candidate.structuralConnector = true;
+          options.push(candidate);
+        }
+      }
+      const selected = options.toSorted((a, b) =>
+        Number(b.directAccess) - Number(a.directAccess) ||
+        Math.abs(a.x - centerX) - Math.abs(b.x - centerX) ||
+        a.height - b.height
+      )[0];
+      if (selected) candidates.push(selected);
+    }
+    return candidates;
+  }
+
   function collectLadders() {
     if (isTutorialDocument) return collectTutorialLadders();
     const bodyBelongsToHeader = (body) => Boolean(
@@ -1702,6 +1785,8 @@
         }
       }
     }
+    const structuralCandidates = collectStructuralLadderCandidates(bodies, obstacleIndex);
+    candidates.push(...structuralCandidates);
     if (candidates.length === 0) return [];
 
     const baseScore = (candidate) =>
@@ -1759,6 +1844,9 @@
         Number(b.directAccess) - Number(a.directAccess) ||
         b.height - a.height
       )[0];
+    // A structural transition is a guaranteed return route, not decoration.
+    // Give it a slot before rescue scoring can fill the small ladder budget.
+    for (const candidate of structuralCandidates) addCandidate(candidate);
     if (headerConnector) addCandidate(headerConnector);
     for (const candidate of sorted.filter((item) => item.rescue)) addCandidate(candidate);
     for (const candidate of [...bandChoices.entries()].toSorted((a, b) => a[0] - b[0]).map((entry) => entry[1])) {
@@ -1770,6 +1858,79 @@
       ...ladder,
       id: `ladder-${index}`
     }));
+  }
+
+  function ensureGuideRescueLadder(support, guide) {
+    if (
+      isTutorialDocument ||
+      !support ||
+      !guide ||
+      mission.goalKind !== "text" ||
+      guide !== mission.goalBody ||
+      !player.grounded
+    ) return;
+    // Never pull a ladder out from under a character who has already grabbed
+    // it. It can be reconsidered after the next landing.
+    if (ladderTraversal.phase !== "none" && ladderTraversal.ladder?.guideRescue) return;
+
+    const existing = state.ladders.find((ladder) => ladder.guideRescue);
+    const riseToGuide = support.y - guide.y;
+    if (riseToGuide < CONFIG.ladderMinimumHeight) {
+      if (existing) {
+        state.ladders = state.ladders.filter((ladder) => !ladder.guideRescue);
+        state.normalRouteCache.clear();
+      }
+      return;
+    }
+    if (
+      existing &&
+      bodiesDescribeSamePlatform(existing.lowerBody, support) &&
+      bodiesDescribeSamePlatform(existing.upperBody, guide)
+    ) return;
+
+    const permanentConnection = state.ladders.some((ladder) =>
+      !ladder.guideRescue &&
+      bodiesDescribeSamePlatform(ladder.lowerBody, support) &&
+      bodiesDescribeSamePlatform(ladder.upperBody, guide)
+    );
+    if (permanentConnection) {
+      if (existing) state.ladders = state.ladders.filter((ladder) => !ladder.guideRescue);
+      return;
+    }
+
+    const obstacleIndex = verticalBodyIndex(state.bodies);
+    const maximumHeight = Math.min(
+      1100,
+      Math.max(CONFIG.webRange * 1.35, window.innerHeight * 1.25)
+    );
+    let candidate = ladderCandidateBetween(support, guide, obstacleIndex, maximumHeight);
+    if (!candidate) {
+      // If the goal itself is offset, bridge to the highest clear platform in
+      // the same upward direction. On the next landing this function can add
+      // the following single bridge, so the screen never fills with ladders.
+      candidate = state.bodies
+        .filter((body) =>
+          body !== support &&
+          body !== guide &&
+          body.navigationXs?.length &&
+          body.y < support.y - CONFIG.ladderMinimumHeight &&
+          body.y >= Math.max(guide.y, support.y - maximumHeight)
+        )
+        .map((body) => ladderCandidateBetween(support, body, obstacleIndex, maximumHeight))
+        .filter(Boolean)
+        .toSorted((a, b) =>
+          Math.abs(a.upperBody.y - guide.y) - Math.abs(b.upperBody.y - guide.y) ||
+          a.height - b.height
+        )[0] || null;
+    }
+
+    state.ladders = state.ladders.filter((ladder) => !ladder.guideRescue);
+    if (!candidate) return;
+    candidate.id = "guide-rescue-ladder";
+    candidate.guideRescue = true;
+    candidate.rescue = true;
+    state.ladders.push(candidate);
+    state.normalRouteCache.clear();
   }
 
   function collectMenuLadders(overlays = visibleHoverOverlays()) {
@@ -2417,6 +2578,10 @@
   function portalMissionCandidates(bodies, excludedPaths = new Set()) {
     const candidates = [];
     for (const anchor of document.querySelectorAll("a[href]")) {
+      // Header shortcuts on directory pages remain usable by the player, but
+      // are not part of the authored route graph and must not become required
+      // navigation steps.
+      if (anchor.hasAttribute("data-eimei-manual-portal")) continue;
       // Fixed section navigation can overlap the desktop header on the source
       // site itself. Players may still use its visible links, but mission
       // planning must never choose one as the required portal.
@@ -3946,7 +4111,16 @@
     };
   }
 
-  function setRaceRemotePlayer({ id, x, y, facing = 1, palette = null, visualOffsetX = 0 } = {}) {
+  function setRaceRemotePlayer({
+    id,
+    x,
+    y,
+    facing = 1,
+    palette = null,
+    visualOffsetX = 0,
+    web: remoteWeb = null,
+    action = null
+  } = {}) {
     if (!race.active || !id || !Number.isFinite(Number(x) + Number(y))) return false;
     const nowSeconds = performance.now() / 1000;
     const existing = race.remotePlayers.get(String(id)) || {};
@@ -3969,6 +4143,23 @@
       facing: Number(facing) < 0 ? -1 : 1,
       palette: palette || existing.palette || null,
       visualOffsetX: Number.isFinite(Number(visualOffsetX)) ? Number(visualOffsetX) : 0,
+      web: remoteWeb && Number.isFinite(Number(remoteWeb.x) + Number(remoteWeb.y)) ? {
+        x: Number(remoteWeb.x),
+        y: Number(remoteWeb.y)
+      } : null,
+      action: action && typeof action === "object" ? {
+        kind: String(action.kind || ""),
+        phase: String(action.phase || ""),
+        progress: Math.max(0, Math.min(1, Number(action.progress) || 0)),
+        duration: Math.max(0.01, Math.min(3, Number(action.duration) || 0.01)),
+        topY: Number.isFinite(Number(action.topY)) ? Number(action.topY) : null,
+        bottomY: Number.isFinite(Number(action.bottomY)) ? Number(action.bottomY) : null,
+        centerX: Number.isFinite(Number(action.centerX)) ? Number(action.centerX) : null,
+        width: Number.isFinite(Number(action.width)) ? Number(action.width) : null,
+        side: Number(action.side) < 0 ? -1 : 1,
+        cycle: Math.max(-1, Math.min(1, Number(action.cycle) || 0)),
+        receivedAt: nowSeconds
+      } : null,
       updatedAt: nowSeconds,
       renderedAt: existing.renderedAt || nowSeconds,
       runPhase: existing.runPhase || 0,
@@ -5637,8 +5828,10 @@
 
   function portalTarget(anchor) {
     if (!anchor) return null;
+    if (anchor.hasAttribute?.("data-eimei-no-portal")) return null;
     const rawHref = anchor.getAttribute("href")?.trim();
-    if (!rawHref || rawHref.startsWith("#") || /^(?:javascript|mailto|tel):/i.test(rawHref)) return null;
+    const pageTop = anchor.hasAttribute?.('data-eimei-page-top');
+    if (!rawHref || (!pageTop && rawHref.startsWith("#")) || /^(?:javascript|mailto|tel):/i.test(rawHref)) return null;
 
     let target;
     try {
@@ -5655,11 +5848,73 @@
       return null;
     }
 
+    if (pageTop) {
+      const targetId = decodeURIComponent(target.hash.replace(/^#/, ''));
+      if (pageIdentity(target) !== pageIdentity() || !targetId || !document.getElementById(targetId)) return null;
+    }
+
     const pathname = target.pathname.toLowerCase();
     const lastPart = pathname.split("/").at(-1) || "";
     if (lastPart && /\.[a-z0-9]+$/i.test(lastPart) && !/\.html?$/i.test(lastPart)) return null;
     if (unsupportedStagePages.has(pageIdentity(target))) return null;
     return target;
+  }
+
+  function pageTopLandingBody(portal) {
+    const targetId = decodeURIComponent(portal?.target?.hash?.replace(/^#/, '') || '');
+    const targetElement = targetId ? document.getElementById(targetId) : null;
+    const primaryNavigation = targetElement?.querySelector?.('#main-nav') || document.querySelector('#main-nav');
+    const roots = [primaryNavigation, targetElement].filter(Boolean);
+    const preferredX = state.documentWidth * 0.5;
+
+    for (const root of roots) {
+      const candidates = navigationBodies().filter((body) =>
+        body.navigationXs?.length > 0 &&
+        body.y >= player.height + 2 &&
+        body.sourceRegions?.some((region) => root === region.element || root.contains(region.element))
+      );
+      if (candidates.length > 0) {
+        return candidates.toSorted((first, second) =>
+          Math.abs(bodyCenterX(first) - preferredX) + first.y * 0.15 -
+          (Math.abs(bodyCenterX(second) - preferredX) + second.y * 0.15)
+        )[0];
+      }
+    }
+
+    return navigationBodies()
+      .filter((body) => body.navigationXs?.length > 0 && body.y >= player.height + 2)
+      .toSorted((first, second) =>
+        first.y + Math.abs(bodyCenterX(first) - preferredX) * 0.12 -
+        (second.y + Math.abs(bodyCenterX(second) - preferredX) * 0.12)
+      )[0] || null;
+  }
+
+  function finishPortalEntry(portal) {
+    if (!portal?.pageTop) {
+      location.assign(portal.target.href);
+      return true;
+    }
+
+    const landingBody = pageTopLandingBody(portal);
+    if (!landingBody) return false;
+    window.clearTimeout(portal.navigationTimer);
+    placePlayerOnBody(landingBody, { randomizeX: false });
+    player.grounded = true;
+    player.groundedAt = performance.now() / 1000;
+    mission.lastStandingBody = landingBody;
+    const targetUrl = new URL(location.href);
+    targetUrl.hash = portal.target.hash;
+    history.replaceState(history.state, '', targetUrl.href);
+    interaction.portal = null;
+    window.scrollTo({
+      left: Math.max(0, player.x - window.innerWidth * 0.5),
+      top: Math.max(0, player.y - window.innerHeight * 0.42),
+      behavior: 'instant'
+    });
+    window.dispatchEvent(new CustomEvent('eimei-page-top-entered', {
+      detail: { id: portal.target.hash.replace(/^#/, ''), x: player.x, y: player.y }
+    }));
+    return true;
   }
 
   function anchorRegion(body, anchor) {
@@ -5709,7 +5964,7 @@
   function beginPortalEntry(portal, nowSeconds = performance.now() / 1000) {
     if (!portal || portal.entering || portal.progress < 0.82 || !playerIsNearPortal(portal)) return false;
     input.downPressedAt = -Infinity;
-    syncScoreAttackPortalTarget(portal);
+    if (!portal.pageTop) syncScoreAttackPortalTarget(portal);
     portal.entering = true;
     portal.enterProgress = 0;
     portal.enterStartedAt = nowSeconds;
@@ -5725,7 +5980,7 @@
     window.dispatchEvent(new CustomEvent("eimei-portal-entering", {
       detail: { href: portal.target.href }
     }));
-    if (isLowPowerDevice()) {
+    if (isLowPowerDevice() && !portal.pageTop) {
       // On the reduced renderer the outgoing page may already have a long
       // canvas task queued. Navigate in this input task so it cannot sit in
       // front of the new document for several seconds.
@@ -5738,9 +5993,9 @@
         // Navigation still works when storage is unavailable.
       }
       location.assign(portal.target.href);
-    } else {
+    } else if (!portal.pageTop) {
       portal.navigationTimer = window.setTimeout(() => {
-        if (interaction.portal === portal && portal.entering) location.assign(portal.target.href);
+        if (interaction.portal === portal && portal.entering) finishPortalEntry(portal);
       }, portal.enterDuration * 1000 + 10);
     }
     return true;
@@ -5750,7 +6005,10 @@
     const anchor = sourceElement?.closest?.("a[href]") || null;
     if (anchor && standingBody && interaction.portal?.anchor !== anchor) {
       let target = portalTarget(anchor);
-      if (target && race.active) {
+      const pageTop = anchor.hasAttribute('data-eimei-page-top');
+      if (target && pageTop) {
+        target = new URL(target.href);
+      } else if (target && race.active) {
         target = new URL(target.href);
         for (const key of [...target.searchParams.keys()]) {
           if (key.startsWith("eimei-")) target.searchParams.delete(key);
@@ -5806,10 +6064,11 @@
           entering: false,
           enterProgress: 0,
           enterStartedAt: -Infinity,
+          pageTop,
           lastTouched: nowSeconds
         };
         positionPortalForEntry(interaction.portal, standingBody, anchor, entrySide);
-        syncScoreAttackPortalTarget(interaction.portal);
+        if (!pageTop) syncScoreAttackPortalTarget(interaction.portal);
         window.dispatchEvent(new CustomEvent("eimei-portal-warm", {
           detail: { href: target.href }
         }));
@@ -5853,7 +6112,7 @@
       player.x += (doorwayCenter - (player.x + player.width * 0.5)) * Math.min(1, dt * 10);
       player.velocityX = 0;
       player.velocityY = 0;
-      if (portal.enterProgress >= 1) location.assign(portal.target.href);
+      if (portal.enterProgress >= 1) finishPortalEntry(portal);
       return;
     }
 
@@ -6997,6 +7256,7 @@
       guide = mission.guideBody;
     }
     if (!guide) return;
+    ensureGuideRescueLadder(support, guide);
     updateNavigationWisp(dt);
 
     if (isPlayerOnTutorialRelease(support)) {
@@ -7663,7 +7923,9 @@
     if (!mission.initialized) return;
     const time = performance.now() / 1000;
 
-    if (mission.goalKind === "text" && mission.goalBody && mission.goalPoint) {
+    // Tutorial flags are part of the document itself so they cannot disappear
+    // when a slow or cached runtime misses a canvas frame during stage setup.
+    if (!tutorial.active && mission.goalKind === "text" && mission.goalBody && mission.goalPoint) {
       const goalX = mission.goalPoint.x - scrollX;
       const goalY = mission.goalBody.y - scrollY;
       const sway = Math.sin(time * 2.3) * 1.8;
@@ -7689,6 +7951,10 @@
       context.restore();
     }
 
+    // Race navigation is a final hint, never part of the opening search.  Keep
+    // the destination flag drawable, but reject any stale guide left over from
+    // a late page/room update until the server-backed hint stage unlocks it.
+    if (race.active && (!race.configured || !race.navigationEnabled)) return;
     if (mission.completed || !mission.guideBody || !mission.guidePoint) return;
     context.save();
     drawGuideArrivalZone(mission.guideBody, scrollX, scrollY, time);
@@ -7827,6 +8093,10 @@
     context.save();
     context.lineCap = "round";
     for (const grapple of race.incomingGrapples.values()) {
+      // Position sync already draws the attacker's live web for everyone.
+      // Keep this short-lived fallback only for a dropped/delayed position
+      // packet so the grapple target does not see the same strand twice.
+      if (race.remotePlayers.get(grapple.attackerId)?.web) continue;
       const startX = grapple.x - scrollX;
       const startY = grapple.y - scrollY;
       const palette = grapple.palette || player.palette;
@@ -7843,6 +8113,157 @@
       context.stroke();
     }
     context.restore();
+  }
+
+  function remoteActionProgress(remote, nowSeconds = performance.now() / 1000) {
+    const action = remote?.action;
+    if (!action) return 0;
+    const elapsed = Math.max(0, nowSeconds - (action.receivedAt || nowSeconds));
+    return Math.max(0, Math.min(1, action.progress + elapsed / Math.max(0.01, action.duration || 0.01)));
+  }
+
+  function drawRemoteWebs(scrollX, scrollY) {
+    if (!race.active || race.remotePlayers.size === 0) {
+      race.remoteWebRenderCount = 0;
+      return;
+    }
+    let renderedCount = 0;
+    context.save();
+    context.lineCap = "round";
+    for (const remote of race.remotePlayers.values()) {
+      if (!remote.web) continue;
+      const startX = (Number.isFinite(remote.renderX) ? remote.renderX : remote.x) + (remote.visualOffsetX || 0) - scrollX;
+      const startY = (Number.isFinite(remote.renderY) ? remote.renderY : remote.y) - scrollY;
+      const endX = remote.web.x - scrollX;
+      const endY = remote.web.y - scrollY;
+      if (
+        Math.max(startX, endX) < -40 || Math.min(startX, endX) > state.viewportWidth + 40 ||
+        Math.max(startY, endY) < -40 || Math.min(startY, endY) > state.viewportHeight + 40
+      ) continue;
+      const palette = remote.palette || player.palette;
+      context.strokeStyle = palette.dark;
+      context.globalAlpha = 0.72;
+      context.lineWidth = 4.2;
+      context.beginPath();
+      context.moveTo(startX, startY);
+      context.lineTo(endX, endY);
+      context.stroke();
+      context.strokeStyle = palette.primary;
+      context.globalAlpha = 1;
+      context.lineWidth = 1.7;
+      context.stroke();
+      context.fillStyle = palette.glow;
+      context.beginPath();
+      context.arc(endX, endY, 7.2, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = palette.visor;
+      context.beginPath();
+      context.arc(endX, endY, 3.8, 0, Math.PI * 2);
+      context.fill();
+      renderedCount += 1;
+    }
+    context.restore();
+    race.remoteWebRenderCount = renderedCount;
+    if (renderedCount > 0) race.lastRemoteWebRenderAt = performance.now() / 1000;
+  }
+
+  function drawRemoteHatchPanel(centerWorldX, surfaceWorldY, hatchWidth, angle, color, scrollX, scrollY, hingeSide = -1) {
+    const centerX = centerWorldX - scrollX;
+    const surfaceY = surfaceWorldY - scrollY;
+    const hingeX = centerX + (hingeSide < 0 ? -1 : 1) * hatchWidth * 0.5;
+    const endX = hingeX + Math.cos(angle) * hatchWidth;
+    const endY = surfaceY + Math.sin(angle) * hatchWidth;
+    const normalX = -Math.sin(angle) * 2.1;
+    const normalY = Math.cos(angle) * 2.1;
+    context.save();
+    context.lineCap = "round";
+    context.strokeStyle = "rgba(15, 12, 9, 0.58)";
+    context.lineWidth = 3.1;
+    context.beginPath();
+    context.moveTo(centerX - hatchWidth * 0.5 + 2, surfaceY);
+    context.lineTo(centerX + hatchWidth * 0.5 - 2, surfaceY);
+    context.stroke();
+    context.fillStyle = color;
+    context.globalAlpha = 0.9;
+    context.beginPath();
+    context.moveTo(hingeX + normalX, surfaceY + normalY);
+    context.lineTo(endX + normalX, endY + normalY);
+    context.lineTo(endX - normalX, endY - normalY);
+    context.lineTo(hingeX - normalX, surfaceY - normalY);
+    context.closePath();
+    context.fill();
+    context.globalAlpha = 1;
+    context.strokeStyle = color;
+    context.lineWidth = 1.2;
+    context.stroke();
+    context.strokeStyle = "rgba(255, 255, 255, 0.62)";
+    context.lineWidth = 0.9;
+    for (const fraction of [0.3, 0.7]) {
+      const railX = hingeX + Math.cos(angle) * hatchWidth * fraction;
+      const railY = surfaceY + Math.sin(angle) * hatchWidth * fraction;
+      context.beginPath();
+      context.moveTo(railX + normalX * 0.7, railY + normalY * 0.7);
+      context.lineTo(railX - normalX * 0.7, railY - normalY * 0.7);
+      context.stroke();
+    }
+    context.restore();
+  }
+
+  function drawRemoteTraversalHatches(scrollX, scrollY) {
+    if (!race.active || race.remotePlayers.size === 0) {
+      race.remoteTraversalRenderCount = 0;
+      return;
+    }
+    const nowSeconds = performance.now() / 1000;
+    let renderedCount = 0;
+    for (const remote of race.remotePlayers.values()) {
+      const action = remote.action;
+      if (!action || !["web-hatch", "drop-hatch"].includes(action.kind)) continue;
+      if (![action.centerX, action.topY, action.bottomY].every(Number.isFinite)) continue;
+      const progress = remoteActionProgress(remote, nowSeconds);
+      const hatchWidth = Math.max(player.width, Math.min(96, Number(action.width) || player.width * 1.95));
+      const palette = remote.palette || player.palette;
+      let surfaceY;
+      let angle;
+      let hingeSide = -1;
+      if (action.kind === "web-hatch") {
+        const emerging = action.phase === "emerging";
+        surfaceY = emerging ? action.topY : action.bottomY;
+        let openProgress = 1;
+        if (action.phase === "opening") {
+          const doorProgress = Math.min(1, progress / 0.58);
+          openProgress = 1 - Math.pow(1 - doorProgress, 3);
+        } else if (emerging) {
+          const pushed = Math.max(0, Math.min(1, (progress - 0.06) / 0.24));
+          const pushedOpen = pushed * pushed * (3 - 2 * pushed);
+          const closingProgress = Math.max(0, Math.min(1, (progress - 0.76) / 0.24));
+          const closing = closingProgress * closingProgress * (3 - 2 * closingProgress);
+          openProgress = pushedOpen * (1 - closing);
+        }
+        angle = (emerging ? -1 : 1) * Math.PI * 0.5 * openProgress;
+      } else {
+        surfaceY = ["kicking", "readying", "jumping", "diving"].includes(action.phase)
+          ? action.topY
+          : action.bottomY;
+        let openProgress = 1;
+        if (action.phase === "kicking") {
+          const released = Math.max(0, Math.min(1, (progress - 0.5) / 0.26));
+          openProgress = 1 - Math.pow(1 - released, 3);
+        } else if (action.phase === "bursting") {
+          const closingProgress = Math.max(0, Math.min(1, (progress - 0.58) / 0.42));
+          openProgress = 1 - closingProgress * closingProgress * (3 - 2 * closingProgress);
+        }
+        const facing = remote.facing || 1;
+        hingeSide = facing;
+        angle = facing > 0
+          ? Math.PI + Math.PI * 0.5 * openProgress
+          : -Math.PI * 0.5 * openProgress;
+      }
+      drawRemoteHatchPanel(action.centerX, surfaceY, hatchWidth, angle, palette.dark, scrollX, scrollY, hingeSide);
+      renderedCount += 1;
+    }
+    race.remoteTraversalRenderCount = renderedCount;
+    if (renderedCount > 0) race.lastRemoteTraversalRenderAt = nowSeconds;
   }
 
   function drawWeb(scrollX, scrollY) {
@@ -8149,11 +8570,13 @@
   function drawRemotePlayers(scrollX, scrollY) {
     if (!race.active || race.remotePlayers.size === 0) {
       race.remoteRenderCount = 0;
+      race.remoteTraversalHiddenCount = 0;
       return;
     }
     const nowSeconds = performance.now() / 1000;
     expireRacePlayerEffects(nowSeconds);
     let renderedCount = 0;
+    let hiddenCount = 0;
     const spriteScale = player.height / 32;
     const scaled = (value) => value * spriteScale;
     const spriteRadius = scaled(15);
@@ -8166,6 +8589,18 @@
       remote.renderedAt = nowSeconds;
       const speedRatio = Math.min(1, Math.abs(remote.velocityX || 0) / CONFIG.maxRunSpeed);
       remote.runPhase = (remote.runPhase || 0) + elapsed * (5 + speedRatio * 13);
+      const action = remote.action;
+      const actionProgress = remoteActionProgress(remote, nowSeconds);
+      const actionKind = action?.kind || "";
+      const actionPhase = action?.phase || "";
+      if (
+        (actionKind === "web-hatch" && actionPhase === "traversing") ||
+        (actionKind === "drop-hatch" && actionPhase === "traversing") ||
+        (actionKind === "ladder" && actionPhase === "burrowing")
+      ) {
+        hiddenCount += 1;
+        continue;
+      }
       const centerX = remote.renderX + (remote.visualOffsetX || 0) - scrollX;
       const groundedMotion = Math.abs(remote.velocityY || 0) < 28;
       const bob = groundedMotion ? -Math.abs(Math.sin(remote.runPhase)) * scaled(1.2) * speedRatio : -scaled(1.4);
@@ -8179,23 +8614,119 @@
       renderedCount += 1;
       const facing = remote.facing || 1;
       const palette = remote.palette || player.palette;
-      const footSwing = groundedMotion ? Math.sin(remote.runPhase) * scaled(3.2) * speedRatio : 0;
+      const webStruggle = actionKind === "web-hatch" && actionPhase === "entering" && actionProgress > 0.24 && actionProgress < 0.86
+        ? Math.sin(Math.min(1, (actionProgress - 0.24) / 0.18) * Math.PI * 0.5) *
+          Math.sin(Math.min(1, (0.86 - actionProgress) / 0.16) * Math.PI * 0.5)
+        : 0;
+      const ladderStep = actionKind === "ladder" && actionPhase === "climbing" ? action.cycle || 0 : 0;
+      const dropKickAmount = actionKind === "drop-hatch" && actionPhase === "kicking"
+        ? actionProgress < 0.28
+          ? 1 - Math.pow(1 - actionProgress / 0.28, 3)
+          : actionProgress < 0.7
+            ? 1
+            : 1 - Math.pow((actionProgress - 0.7) / 0.3, 2)
+        : 0;
+      let footSwing = groundedMotion ? Math.sin(remote.runPhase) * scaled(3.2) * speedRatio : 0;
+      if (webStruggle > 0) footSwing = Math.sin(nowSeconds * 46) * scaled(5.8) * webStruggle;
+      else if (ladderStep) footSwing = ladderStep * scaled(4.4);
+      else if (dropKickAmount > 0) footSwing = facing * scaled(7.2) * dropKickAmount;
       context.save();
       context.globalAlpha = 0.97;
 
-      context.fillStyle = "rgba(5, 18, 38, 0.2)";
-      context.beginPath();
-      context.ellipse(centerX, feetY + scaled(1), scaled(11 - speedRatio * 1.5), scaled(2.8), 0, 0, Math.PI * 2);
-      context.fill();
+      if (actionKind === "web-hatch" && ["opening", "entering"].includes(actionPhase) && Number.isFinite(action.bottomY)) {
+        const undersideY = action.bottomY - scrollY;
+        context.beginPath();
+        context.rect(0, undersideY, state.viewportWidth, Math.max(0, state.viewportHeight - undersideY));
+        context.clip();
+      } else if (actionKind === "web-hatch" && actionPhase === "emerging" && Number.isFinite(action.topY)) {
+        const surfaceY = action.topY - scrollY;
+        context.beginPath();
+        context.rect(0, 0, state.viewportWidth, Math.max(0, surfaceY));
+        context.clip();
+      } else if (actionKind === "drop-hatch" && actionPhase === "diving" && Number.isFinite(action.topY)) {
+        const surfaceY = action.topY - scrollY;
+        context.beginPath();
+        context.rect(0, 0, state.viewportWidth, Math.max(0, surfaceY));
+        context.clip();
+      } else if (actionKind === "drop-hatch" && actionPhase === "bursting" && Number.isFinite(action.bottomY)) {
+        const undersideY = action.bottomY - scrollY;
+        context.beginPath();
+        context.rect(0, undersideY, state.viewportWidth, Math.max(0, state.viewportHeight - undersideY));
+        context.clip();
+      } else if (actionKind === "ladder" && actionPhase === "threading" && Number.isFinite(action.topY)) {
+        const undersideY = action.topY - scrollY;
+        context.beginPath();
+        context.rect(0, undersideY, state.viewportWidth, Math.max(0, state.viewportHeight - undersideY));
+        context.clip();
+      } else if (actionKind === "ladder" && actionPhase === "rolling" && Number.isFinite(action.topY)) {
+        const surfaceY = action.topY - scrollY;
+        context.beginPath();
+        context.rect(0, 0, state.viewportWidth, Math.max(0, surfaceY));
+        context.clip();
+      }
+
+      const transformCenterY = centerY;
+      context.translate(centerX, transformCenterY);
+      if (actionKind === "web-hatch" && actionPhase === "entering") {
+        context.rotate(Math.sin(nowSeconds * 33) * webStruggle * 0.075);
+        context.scale(1 + webStruggle * 0.07, 1 - webStruggle * 0.08);
+      } else if (actionKind === "web-hatch" && actionPhase === "emerging") {
+        const crawl = Math.sin(actionProgress * Math.PI);
+        context.rotate(facing * crawl * 0.16);
+        context.scale(1 + crawl * 0.18, 1 - crawl * 0.25);
+      } else if (actionKind === "drop-hatch" && actionPhase === "kicking") {
+        context.rotate(-facing * dropKickAmount * 0.2);
+        context.scale(1 + dropKickAmount * 0.07, 1 - dropKickAmount * 0.09);
+      } else if (actionKind === "drop-hatch" && actionPhase === "readying") {
+        const crouch = actionProgress * actionProgress * (3 - 2 * actionProgress);
+        context.translate(0, spriteRadius);
+        context.scale(1 + crouch * 0.13, 1 - crouch * 0.2);
+        context.translate(0, -spriteRadius);
+      } else if (actionKind === "drop-hatch" && ["jumping", "diving", "bursting"].includes(actionPhase)) {
+        const stretch = actionPhase === "bursting" ? 1 - actionProgress : actionProgress;
+        context.scale(0.97 + (1 - stretch) * 0.03, 1 + stretch * 0.1);
+      } else if (actionKind === "ladder" && actionPhase === "climbing") {
+        context.rotate(ladderStep * 0.035);
+      } else if (actionKind === "ladder" && actionPhase === "gripping") {
+        const grip = Math.sin(actionProgress * Math.PI);
+        context.scale(1 + grip * 0.13, 1 - grip * 0.16);
+      } else if (actionKind === "ladder" && actionPhase === "threading") {
+        const squeeze = Math.sin(actionProgress * Math.PI * 0.5);
+        context.rotate(Math.sin(actionProgress * Math.PI * 4) * (1 - actionProgress) * 0.08);
+        context.scale(1 - squeeze * 0.54, 1 + squeeze * 0.15);
+      } else if (actionKind === "ladder" && actionPhase === "rolling") {
+        const settle = actionProgress * actionProgress * (3 - 2 * actionProgress);
+        context.rotate(facing * Math.PI * 1.5 * (1 - settle));
+        context.scale(1 + Math.sin(actionProgress * Math.PI) * 0.14, 1 - Math.sin(actionProgress * Math.PI) * 0.16);
+      } else if (actionKind === "mantle") {
+        const curl = Math.sin(actionProgress * Math.PI);
+        context.rotate((action.side || facing) * curl * 0.48);
+        context.scale(1 + curl * 0.12, 1 - curl * 0.15);
+      } else if (actionKind === "air-jump") {
+        const rotationProgress = 1 - Math.pow(1 - actionProgress, 1.22);
+        const tuck = Math.sin(actionProgress * Math.PI);
+        context.rotate((action.side || facing) * Math.PI * 4 * rotationProgress);
+        context.scale(1 + tuck * 0.16, 1 - tuck * 0.22);
+      } else if (actionKind === "portal") {
+        context.scale(Math.max(0.22, 1 - actionProgress * 0.78), 1 + Math.sin(actionProgress * Math.PI) * 0.08);
+      }
+      context.translate(-centerX, -transformCenterY);
+
+      if (!action || !["web-hatch", "drop-hatch", "ladder"].includes(actionKind)) {
+        context.fillStyle = "rgba(5, 18, 38, 0.2)";
+        context.beginPath();
+        context.ellipse(centerX, feetY + scaled(1), scaled(11 - speedRatio * 1.5), scaled(2.8), 0, 0, Math.PI * 2);
+        context.fill();
+      }
 
       context.strokeStyle = palette.dark;
       context.lineWidth = scaled(3.2);
       context.lineCap = "round";
       context.beginPath();
       context.moveTo(centerX - scaled(4.5), centerY + scaled(11.5));
-      context.lineTo(centerX - scaled(4) + footSwing, feetY);
+      context.lineTo(centerX - scaled(4) + footSwing, feetY - (webStruggle > 0 ? Math.max(0, Math.cos(nowSeconds * 46)) * scaled(4.2) * webStruggle : 0));
       context.moveTo(centerX + scaled(4.5), centerY + scaled(11.5));
-      context.lineTo(centerX + scaled(4) - footSwing, feetY);
+      context.lineTo(centerX + scaled(4) - footSwing, feetY - (webStruggle > 0 ? Math.max(0, -Math.cos(nowSeconds * 46)) * scaled(4.2) * webStruggle : 0));
       context.stroke();
 
       const scarfLength = scaled(8 + speedRatio * 9);
@@ -8223,20 +8754,28 @@
       context.lineWidth = scaled(1.7);
       context.stroke();
 
-      const visorX = centerX + facing * scaled(2.3);
-      context.fillStyle = palette.visor;
-      context.beginPath();
-      context.roundRect(visorX - scaled(6), centerY - scaled(5.3), scaled(12), scaled(6.4), scaled(3.2));
-      context.fill();
-      context.strokeStyle = "#ffffff";
-      context.lineWidth = scaled(1);
-      context.stroke();
-      context.strokeStyle = "rgba(255, 255, 255, 0.78)";
-      context.lineWidth = scaled(0.8);
-      context.beginPath();
-      context.moveTo(visorX - scaled(3.8), centerY - scaled(3.6));
-      context.lineTo(visorX + scaled(1.2), centerY - scaled(3.6));
-      context.stroke();
+      const ladderBackView = actionKind === "ladder" && ["climbing", "gripping"].includes(actionPhase);
+      if (ladderBackView) {
+        context.fillStyle = "rgba(2, 15, 34, 0.72)";
+        context.beginPath();
+        context.roundRect(centerX - scaled(4.2), centerY - scaled(7.2), scaled(8.4), scaled(13.5), scaled(3.2));
+        context.fill();
+      } else {
+        const visorX = centerX + facing * scaled(2.3);
+        context.fillStyle = palette.visor;
+        context.beginPath();
+        context.roundRect(visorX - scaled(6), centerY - scaled(5.3), scaled(12), scaled(6.4), scaled(3.2));
+        context.fill();
+        context.strokeStyle = "#ffffff";
+        context.lineWidth = scaled(1);
+        context.stroke();
+        context.strokeStyle = "rgba(255, 255, 255, 0.78)";
+        context.lineWidth = scaled(0.8);
+        context.beginPath();
+        context.moveTo(visorX - scaled(3.8), centerY - scaled(3.6));
+        context.lineTo(visorX + scaled(1.2), centerY - scaled(3.6));
+        context.stroke();
+      }
 
       context.fillStyle = palette.accent;
       context.beginPath();
@@ -8258,6 +8797,7 @@
     }
 
     race.remoteRenderCount = renderedCount;
+    race.remoteTraversalHiddenCount = hiddenCount;
     race.remoteRenderStyle = "full-character";
     if (renderedCount > 0) race.lastRemoteRenderAt = nowSeconds;
   }
@@ -8780,8 +9320,6 @@
   }
 
   function beginMissionPreview({ pageUrl, goalX, goalY }) {
-    const previewWorldX = mission.goalKind === "text" ? mission.goalPoint.x : bodyCenterX(mission.goalBody);
-    const previewWorldY = mission.goalBody.y - window.innerHeight * 0.12;
     mission.previewStartedAt = performance.now() / 1000;
     mission.previewUntil = Infinity;
     mission.previewShownAt = mission.previewStartedAt;
@@ -8790,8 +9328,11 @@
     // Relaunch the scout swarm when the photo closes. Otherwise a round made
     // during the pickup freeze can inherit the previous flag's cleared wisp.
     mission.previewGuidePending = true;
-    mission.previewScrollX = Math.max(0, Math.min(state.documentWidth - window.innerWidth, previewWorldX - window.innerWidth * 0.5));
-    mission.previewScrollY = Math.max(0, Math.min(state.documentHeight - window.innerHeight, previewWorldY - window.innerHeight * 0.48));
+    // The framed iframe is the destination photograph. Keep the live stage at
+    // its current camera position while that photograph is shown; panning the
+    // page behind it reveals whether the flag is above or below the spawn.
+    mission.previewScrollX = window.scrollX;
+    mission.previewScrollY = window.scrollY;
     showMissionPreviewPhoto({ pageUrl, goalX, goalY });
     mission.previewAwaitingPhoto = Boolean(missionPreviewPhoto);
     if (!mission.previewAwaitingPhoto) {
@@ -8820,9 +9361,8 @@
     if (!destination) return;
     mission.previewStartedAt = performance.now() / 1000;
     mission.previewUntil = Infinity;
-    const previewWorldX = bodyCenterX(mission.goalBody);
-    mission.previewScrollX = Math.max(0, Math.min(state.documentWidth - window.innerWidth, previewWorldX - window.innerWidth * 0.5));
-    mission.previewScrollY = Math.max(0, Math.min(state.documentHeight - window.innerHeight, mission.goalBody.y - window.innerHeight * 0.48));
+    mission.previewScrollX = window.scrollX;
+    mission.previewScrollY = window.scrollY;
 
     const firstPortalPage = pageIdentity(destination);
     const requiredDistance = Math.max(0, remainingDistance) * CONFIG.missionPlanningCompletionRatio;
@@ -9036,7 +9576,13 @@
     const documentHeight = Math.max(previewDocument.documentElement.scrollHeight, previewDocument.body?.scrollHeight || 0);
     const targetX = Math.max(0, Math.min(documentWidth - width, goalX - width * 0.5));
     const targetY = Math.max(0, Math.min(documentHeight - height, goalY - height * 0.5));
-    previewWindow.scrollTo(targetX, targetY);
+    // Course pages deliberately use smooth scrolling for normal links. A goal
+    // photograph must be a still image, otherwise its loading scroll becomes a
+    // free directional hint. Override both possible scrolling elements before
+    // positioning the hidden iframe.
+    previewDocument.documentElement.style.setProperty("scroll-behavior", "auto", "important");
+    if (previewDocument.body) previewDocument.body.style.setProperty("scroll-behavior", "auto", "important");
+    previewWindow.scrollTo({ left: targetX, top: targetY, behavior: "instant" });
     requestAnimationFrame(() => {
       if (missionPreviewPhoto !== photo) return;
       photo.marker.style.left = `${Math.max(13, Math.min(width - 13, goalX - previewWindow.scrollX)) * photo.scale}px`;
@@ -9172,7 +9718,9 @@
     drawNavigation(window.scrollX, window.scrollY);
     drawAvailableHatch(window.scrollX, window.scrollY);
     drawIncomingRaceGrapples(window.scrollX, window.scrollY);
+    drawRemoteWebs(window.scrollX, window.scrollY);
     drawWeb(window.scrollX, window.scrollY);
+    drawRemoteTraversalHatches(window.scrollX, window.scrollY);
     drawWebHatch(window.scrollX, window.scrollY);
     drawDropHatch(window.scrollX, window.scrollY);
     drawLadderPassage(window.scrollX, window.scrollY);
@@ -9425,6 +9973,7 @@
     }
     if (!isTutorialDocument && redirectToRandomStartPage()) return;
     installNewsYearPortals();
+    installPageTopPortal();
     prepareWorld();
     if (!isPlanningDocument) {
       installPlayerHoverRules();

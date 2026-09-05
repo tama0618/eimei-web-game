@@ -7,52 +7,54 @@
   <title>システムの設計と開発 - 英明高等学校 情報コース</title>
   <link rel="icon" type="image/svg+xml" href="../../images/kosyo-sq.svg">
   <link rel="stylesheet" href="../assets/info-course.css">
-<script data-eimei-game="entry">(()=>{const p=new URLSearchParams(location.search);if(p.get("eimei-preview")==="1"){addEventListener("DOMContentLoaded",()=>{const v=p.get("v");for(const a of document.querySelectorAll("a[href]")){try{const u=new URL(a.getAttribute("href"),location.href);if(u.origin!==location.origin)continue;u.searchParams.set("eimei-preview","1");if(v)u.searchParams.set("v",v);a.href=u.href}catch{}}},{once:true});return}if(p.has("eimei-route"))return;location.replace(new URL("../../tutorial/index.html",location.href).href)})()</script>
-<link rel="stylesheet" href="../../game/map.css?v=c95c7bc39ea0" data-eimei-game="map">
-<link rel="stylesheet" href="../../game/hover.css?v=c95c7bc39ea0" data-eimei-game="hover">
-<link rel="stylesheet" href="../../game/race.css?v=c95c7bc39ea0" data-eimei-game="race">
+<script data-eimei-game="entry">(()=>{const p=new URLSearchParams(location.search);if(p.get("eimei-preview")==="1"){addEventListener("DOMContentLoaded",()=>{const v=p.get("v");for(const a of document.querySelectorAll("a[href]")){try{const u=new URL(a.getAttribute("href"),location.href);if(u.origin!==location.origin)continue;u.searchParams.set("eimei-preview","1");if(v)u.searchParams.set("v",v);a.href=u.href}catch{}}},{once:true});return}const r=p.get("eimei-route");if(r==="race"||r==="plan"||r==="catalog")return;location.replace(new URL(r?"../../arena/index.html":"../../tutorial/index.html",location.href).href)})()</script>
+<link rel="stylesheet" href="../../game/map.css?v=fe6b7107e088" data-eimei-game="map">
+<link rel="stylesheet" href="../../game/hover.css?v=fe6b7107e088" data-eimei-game="hover">
+<link rel="stylesheet" href="../../game/race.css?v=fe6b7107e088" data-eimei-game="race">
 </head>
 <body class="theme-learning">
   <header class="site-header" id="home">
     <div class="header-inner">
-      <a class="brand" href="../index.html">
+      <a class="brand" href="../index.html" data-eimei-no-portal>
         <img decoding="async" loading="lazy" src="../../images/gakkousyokai_07.png" alt="英明高等学校">
         <span class="brand-course">情報コース案内</span>
       </a>
     </div>
-    <nav class="primary-nav" id="info-course-main-nav" aria-label="情報コース メインメニュー"><ul><li><a href="../about/index.html">コース案内</a></li>
-<li><a href="index.html" aria-current="page">授業と制作</a></li>
-<li><a href="../environment/index.html">学習環境</a></li>
-<li><a href="../qualifications/index.html">資格と実績</a></li>
-<li><a href="../career/index.html">進路と卒業生</a></li>
-<li><a href="../history/index.html">情報コースの歩み</a></li>
-<li><a href="../activities/index.html">活動記録</a></li>
-<li><a href="../admissions/index.html">受験前ガイド</a></li></ul></nav>
+    <nav class="primary-nav" id="main-nav" aria-label="情報コース メインメニュー"><ul class="menu"><li class="top-menu-item has-submenu"><span class="menu-label" role="button" tabindex="0" aria-haspopup="true">情報コース</span><ul class="submenu" aria-label="情報コースのメニュー"><li><a href="../course/three-years.html">3年間の学び方</a></li><li><a href="../story/admissions.html">受験前に知っておきたいこと</a></li></ul></li>
+<li class="top-menu-item direct-menu"><a href="../course/common-learning.html">授業・科目</a></li>
+<li class="top-menu-item has-submenu is-current"><span class="menu-label" role="button" tabindex="0" aria-haspopup="true">2つの系</span><ul class="submenu" aria-label="2つの系のメニュー"><li><a href="../course/system.html">情報システム系</a></li><li><a href="../course/creative.html">情報クリエイト系</a></li></ul></li>
+<li class="top-menu-item has-submenu"><span class="menu-label" role="button" tabindex="0" aria-haspopup="true">学習環境</span><ul class="submenu" aria-label="学習環境のメニュー"><li><a href="../campus/classrooms.html">情報教室と授業支援</a></li><li><a href="../campus/tools.html">制作・開発環境</a></li></ul></li>
+<li class="top-menu-item has-submenu"><span class="menu-label" role="button" tabindex="0" aria-haspopup="true">資格・実績</span><ul class="submenu" aria-label="資格・実績のメニュー"><li><a href="../campus/certifications.html">資格・検定</a></li><li><a href="../campus/competitions.html">大会・作品発表</a></li></ul></li>
+<li class="top-menu-item has-submenu"><span class="menu-label" role="button" tabindex="0" aria-haspopup="true">進路・卒業生</span><ul class="submenu" aria-label="進路・卒業生のメニュー"><li><a href="../future/voices.html">在校生・卒業生の声</a></li><li><a href="../future/universities.html">大学・短期大学への進学</a></li><li><a href="../future/vocational.html">専門学校・職業教育への進学</a></li><li><a href="../future/employment.html">就職と業界理解</a></li></ul></li>
+<li class="top-menu-item direct-menu"><a href="../story/history.html">歩み</a></li>
+<li class="top-menu-item direct-menu"><a href="../news/news.html">過去のニュース</a></li></ul></nav>
   </header>
   <div class="page-shell">
-    <aside class="local-nav" id="course-local-navigation"><h2>授業と制作</h2><ul><li><a href="index.html">授業と制作</a></li>
-<li><a href="first-year.html">1年次の学び</a></li>
+    <aside class="local-nav" id="course-local-navigation"><h2>コースと授業</h2><ul><li><a href="../about/system-track.html">情報システム系</a></li>
+<li><a href="c-language.html">C言語</a></li>
+<li><a href="java.html">Java</a></li>
 <li><a href="algorithms.html">アルゴリズム</a></li>
 <li><a href="system-programming.html">情報システムのプログラミング</a></li>
-<li><a href="system-design.html" aria-current="page">システムの設計と開発</a></li>
+<li><span aria-current="page">システムの設計と開発</span></li>
 <li><a href="database.html">データベース</a></li>
-<li><a href="robot-programming.html">ロボットプログラミング</a></li>
-<li><a href="three-d-graphics.html">3Dグラフィックス</a></li></ul></aside>
+<li><a href="robot-programming.html">ロボットプログラミング</a></li></ul></aside>
     <main class="content">
-      <p class="breadcrumb"><a href="../index.html">情報コースTOP</a> ／ 授業と制作 ／ システムの設計と開発</p>
+      <p class="breadcrumb"><a href="../index.html" data-eimei-no-portal>情報コースTOP</a> ／ コースと授業 ／ システムの設計と開発</p>
       <header class="page-head">
-        <p class="page-kicker">授業と制作</p>
+        <p class="page-kicker">コースと授業</p>
         <h1>システムの設計と開発</h1>
         <p class="page-lead">必要な機能を整理し、実現する手順へ分解していきます。</p>
       </header>
-      <div class="fact-stack"><section class="content-section shift-0" id="spot-1"><span class="section-number">要点 01</span><h2>情報実習のテーマ</h2><p>情報システム系の情報実習では、システムの設計と開発に関する基礎を学習します。</p></section>
-<section class="content-section shift-1" id="spot-2"><span class="section-number">要点 02</span><h2>入力から出力まで</h2><p>利用者の要求、扱うデータ、処理、結果を分けて考えることで、プログラム全体の見通しをつくります。</p></section>
-<section class="content-section shift-2" id="spot-3"><span class="section-number">要点 03</span><h2>ロボットでも確認</h2><p>LEGOマインドストームを用いた実習では、センサーと動作を結びつけて設計を確かめられます。</p></section></div><nav class="pager" aria-label="前後のページ"><span><a href="system-programming.html">← 情報システムのプログラミング</a></span><span><a href="database.html">データベース →</a></span></nav>
+      <section class="topic-fact-grid" aria-label="システムの設計と開発の要点"><article id="spot-1"><span class="section-number">要点 01</span><h2>情報実習のテーマ</h2><p>情報システム系の情報実習では、システムの設計と開発に関する基礎を学習します。</p></article>
+<article id="spot-2"><span class="section-number">要点 02</span><h2>入力から出力まで</h2><p>利用者の要求、扱うデータ、処理、結果を分けて考えることで、プログラム全体の見通しをつくります。</p></article>
+<article id="spot-3"><span class="section-number">要点 03</span><h2>ロボットでも確認</h2><p>LEGOマインドストームを用いた実習では、センサーと動作を結びつけて設計を確かめられます。</p></article></section><section class="learning-path" data-learning-mode="programming" aria-label="システムの設計と開発の学習工程"><div class="learning-path-heading"><span>学習工程</span><h3>システムの設計と開発で進める4段階</h3></div><ol><li><b>01</b><strong>利用場面を決める</strong><p>「システムの設計と開発」では、誰が何のために使い、どの情報を入力する仕組みかを整理します。</p></li><li><b>02</b><strong>機能とデータを分ける</strong><p>「システムの設計と開発」では、必要な画面、処理、保存する項目を分け、つながりを図にします。</p></li><li><b>03</b><strong>小さく組み立てる</strong><p>「システムの設計と開発」では、一つの機能から実装し、入力から出力まで順に動作を確かめます。</p></li><li><b>04</b><strong>条件どおりか試す</strong><p>「システムの設計と開発」では、想定した利用だけでなく、未入力や誤入力でも破綻しないか確認します。</p></li></ol></section><section class="guidance-section"><h3>システムの設計と開発の学び方</h3><div class="guidance-list"><article class="is-detail layout-0"><section class="guidance-unit unit-0"><h4>利用する人から考える</h4><div class="guidance-copy"><p>「システムの設計と開発」では、誰が、どの場面で、何を済ませたい仕組みかを先に決めます。</p><p>「システムの設計と開発」では、必要な機能を思いつくまま並べず、入力、処理、保存、出力へ分けます。</p></div></section><section class="guidance-unit unit-1"><h4>画面とデータをつなぐ</h4><div class="guidance-copy"><p>「システムの設計と開発」では、画面ごとの操作と、そのとき読み書きするデータを対応させます。</p><p>「システムの設計と開発」では、一つの変更が別の機能へ与える影響も図で追い、作り直しを減らします。</p></div></section></article><article class="is-detail layout-1"><section class="guidance-unit unit-0"><h4>小さな機能から動かす</h4><div class="guidance-copy"><p>「システムの設計と開発」では、全体を一度に完成させず、入力から結果まで確認できる最小の単位を作ります。</p><p>「システムの設計と開発」では、正常に動いた範囲を残しながら、機能を一つずつ追加します。</p></div></section><section class="guidance-unit unit-1"><h4>例外も設計へ入れる</h4><div class="guidance-copy"><p>「システムの設計と開発」では、未入力、同じ値、範囲外の値など、通常とは違う操作も試します。</p><p>「システムの設計と開発」では、止まった場所だけを直さず、利用者へ何を伝えるかまで考えます。</p></div></section></article><article class="is-detail layout-2"><section class="guidance-unit unit-0"><h4>実装する科目へ</h4><div class="guidance-copy"><p>「システムの設計と開発」で整理した機能とデータを、「データベース」やプログラミングの課題へ渡します。</p><p>「システムの設計と開発」では、完成後は、最初の条件を満たしたかを動作と資料の両方から確認します。</p></div></section><section class="guidance-unit unit-1"><h4>体験入学で見るところ</h4><div class="guidance-copy"><p>「システムの設計と開発」では、コードの完成例だけでなく、作る前の画面図や機能一覧も見てください。</p><p>「システムの設計と開発」では、個人とグループでどこまで設計し、どの段階で教員へ相談するかを確かめられます。</p></div></section></article></div></section><div class="photo-grid photo-grid-wide topic-gallery"><figure><img src="../assets/photos/archive/system-track.jpg" alt="プログラミングを学ぶ情報システム系の授業" loading="lazy" decoding="async"><figcaption>プログラミングを学ぶ情報システム系の授業</figcaption></figure><figure><img src="../assets/photos/activities/game-class-2018-1.jpg" alt="コードと画面の動きを結びつける実習" loading="lazy" decoding="async"><figcaption>コードと画面の動きを結びつける実習</figcaption></figure><figure><img src="../assets/photos/activities/game-class-2018-2.jpg" alt="ゲームプログラミングの体験授業" loading="lazy" decoding="async"><figcaption>ゲームプログラミングの体験授業</figcaption></figure></div><nav class="pager" aria-label="前後のページ"><span><a href="system-programming.html">← 情報システムのプログラミング</a></span><span><a href="database.html">データベース →</a></span></nav>
     </main>
   </div>
-  <footer class="site-footer"><div class="footer-inner"><p><strong>英明高等学校 情報コース案内</strong></p><p><a href="#home">ページトップへ</a></p></div></footer>
-<script defer src="../../game/map-runtime.js?v=c95c7bc39ea0" data-eimei-game="map"></script>
-<script defer src="../../game/race-config.js?v=c95c7bc39ea0" data-eimei-game="race-config"></script>
-<script defer src="../../game/race-client.js?v=c95c7bc39ea0" data-eimei-game="race-client"></script>
+  <footer class="site-footer"><div class="footer-inner"><p class="footer-title"><strong>英明高等学校 情報コース案内</strong></p><p class="footer-page-top"><a href="#home" data-eimei-page-top data-eimei-manual-portal>ページトップへ</a></p></div></footer>
+
+
+<script defer src="../../game/map-runtime.js?v=fe6b7107e088" data-eimei-game="map"></script>
+<script defer src="../../game/race-config.js?v=fe6b7107e088" data-eimei-game="race-config"></script>
+<script defer src="../../game/race-client.js?v=fe6b7107e088" data-eimei-game="race-client"></script>
 </body>
 </html>
