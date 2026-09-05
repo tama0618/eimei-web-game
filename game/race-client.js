@@ -1063,7 +1063,9 @@
 
   function goalPageTitle(goal) {
     const { page, target } = catalogGoalGeometry(goal);
-    return String(page?.title || target?.title || "")
+    // The round snapshot is authoritative. Loading the catalog later must not
+    // rename an already displayed hint halfway through the same match.
+    return String(goal?.title || target?.title || page?.title || "")
       .replace(/\s*[-｜|]\s*英明高等学校(?:\s+情報コース)?\s*$/u, "")
       .trim();
   }
