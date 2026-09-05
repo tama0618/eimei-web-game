@@ -2196,10 +2196,11 @@
   }
 
   function activeLadders() {
-    // An expanded navigation menu gets one purpose-built full-height ladder.
-    // Hiding unrelated route ladders during that short state prevents a
-    // second, apparently ownerless ladder from appearing beside every menu.
-    return state.menuLadders.length > 0 ? state.menuLadders : state.ladders;
+    // Dropdown ladders are temporary additions to the map, not a replacement
+    // for its permanent routes.  Replacing the list here made every ordinary
+    // ladder disappear (and become impossible to grab) while a menu was open.
+    if (state.menuLadders.length === 0) return state.ladders;
+    return [...state.ladders, ...state.menuLadders];
   }
 
   function isContentGoalBody(body) {
@@ -11042,6 +11043,7 @@
     activeIncomingRaceGrapple,
     recordLandingCheckpoint,
     resolveLandingCheckpoint,
+    activeLadders: () => activeLadders().slice(),
     startPageCandidateKeys: () => startPageCandidates().map((candidate) => candidate.key),
     spawnCandidateCount: () => navigationBodies().filter((body) =>
       body.width >= Math.max(70, player.width * 3)
