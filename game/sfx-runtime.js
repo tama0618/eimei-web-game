@@ -139,24 +139,42 @@
     oscillator.stop(stop + 0.015);
   }
 
-  function noise({ duration = 0.08, delay = 0, gain = 0.055, frequency = 900, type = "bandpass", pan = 0 }) {
+  function noise({
+    duration = 0.08,
+    delay = 0,
+    gain = 0.055,
+    frequency = 900,
+    endFrequency = frequency,
+    type = "bandpass",
+    q = type === "bandpass" ? 1.3 : 0.7,
+    attack = 0.002,
+    playbackRate = 1,
+    pan = 0
+  }) {
     if (!context) return;
     if (!noiseBuffer || noiseBuffer.sampleRate !== context.sampleRate) {
-      const length = Math.ceil(context.sampleRate * 0.22);
+      const length = Math.ceil(context.sampleRate * 0.5);
       noiseBuffer = context.createBuffer(1, length, context.sampleRate);
       const samples = noiseBuffer.getChannelData(0);
       for (let index = 0; index < length; index += 1) samples[index] = Math.random() * 2 - 1;
     }
     const start = context.currentTime + Math.max(0, delay) + 0.002;
-    const stop = start + Math.min(0.2, Math.max(0.025, duration));
+    const safeDuration = Math.min(0.45, Math.max(0.015, duration));
+    const stop = start + safeDuration;
     const source = context.createBufferSource();
     const filter = context.createBiquadFilter();
     const envelope = context.createGain();
     source.buffer = noiseBuffer;
+    source.playbackRate.value = Math.max(0.35, Math.min(2.5, playbackRate));
     filter.type = type;
-    filter.frequency.value = Math.max(60, frequency);
-    filter.Q.value = type === "bandpass" ? 1.3 : 0.7;
-    envelope.gain.setValueAtTime(Math.max(0.0001, gain), start);
+    filter.frequency.setValueAtTime(Math.max(60, frequency), start);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(60, endFrequency), stop);
+    filter.Q.value = Math.max(0.1, q);
+    envelope.gain.setValueAtTime(0.0001, start);
+    envelope.gain.linearRampToValueAtTime(
+      Math.max(0.0001, gain),
+      start + Math.min(Math.max(0.001, attack), safeDuration * 0.65)
+    );
     envelope.gain.exponentialRampToValueAtTime(0.0001, stop);
     source.connect(filter);
     filter.connect(envelope);
@@ -165,110 +183,227 @@
     source.stop(stop + 0.015);
   }
 
+  // Short procedural foley layers keep the download tiny while giving every
+  // action its own material: air, cable, metal, paper, impact or electricity.
+  function whoosh({ delay = 0, duration = 0.16, gain = 0.045, from = 420, to = 2200, pan = 0 }) {
+    noise({ duration, delay, gain, frequency: from, endFrequency: to, type: "bandpass", q: 0.72, attack: duration * 0.34, pan });
+    noise({ duration: duration * 0.72, delay: delay + duration * 0.08, gain: gain * 0.34, frequency: 1700, endFrequency: 5200, type: "highpass", q: 0.45, attack: duration * 0.22, pan });
+  }
+
+  function impact({ delay = 0, gain = 0.07, frequency = 145, pan = 0 }) {
+    noise({ duration: 0.055, delay, gain: gain * 0.7, frequency: frequency * 2.1, endFrequency: 80, type: "lowpass", q: 0.65, attack: 0.001, pan });
+    tone({ frequency, endFrequency: 48, duration: 0.105, delay, gain, attack: 0.001, type: "sine", pan });
+  }
+
+  function metalClack({ delay = 0, gain = 0.055, pan = 0, heavy = false }) {
+    const weight = heavy ? 1.18 : 1;
+    noise({ duration: heavy ? 0.095 : 0.055, delay, gain: gain * weight, frequency: heavy ? 620 : 1450, endFrequency: 360, type: "bandpass", q: 1.8, attack: 0.001, pan });
+    [713, 1097, 1783].forEach((frequency, index) => tone({
+      frequency: frequency * (heavy ? 0.72 : 1),
+      endFrequency: frequency * (heavy ? 0.64 : 0.92),
+      duration: (heavy ? 0.13 : 0.075) + index * 0.014,
+      delay: delay + index * 0.003,
+      gain: gain * (0.42 - index * 0.085),
+      attack: 0.001,
+      type: "sine",
+      pan
+    }));
+  }
+
+  function ropeTwang({ delay = 0, gain = 0.055, pan = 0, slack = false }) {
+    noise({ duration: 0.035, delay, gain: gain * 0.72, frequency: 2600, endFrequency: 900, type: "highpass", q: 0.5, attack: 0.001, pan });
+    tone({ frequency: slack ? 165 : 245, endFrequency: slack ? 82 : 118, duration: slack ? 0.18 : 0.145, delay: delay + 0.012, gain, attack: 0.001, type: "sawtooth", pan });
+    tone({ frequency: slack ? 390 : 575, endFrequency: slack ? 205 : 315, duration: 0.105, delay: delay + 0.016, gain: gain * 0.3, attack: 0.001, type: "triangle", pan });
+  }
+
+  function rustle({ delay = 0, gain = 0.035, pan = 0, broad = false }) {
+    const frequencies = broad ? [430, 920, 1650] : [850, 1450, 2350];
+    frequencies.forEach((frequency, index) => noise({
+      duration: 0.04 + index * 0.012,
+      delay: delay + index * 0.026,
+      gain: gain * (1 - index * 0.14),
+      frequency,
+      endFrequency: frequency * (index % 2 ? 0.7 : 1.25),
+      type: "bandpass",
+      q: broad ? 0.65 : 1.1,
+      attack: 0.006,
+      pan: Math.max(-1, Math.min(1, pan + (index - 1) * 0.08))
+    }));
+  }
+
+  function electric({ delay = 0, gain = 0.055, pan = 0, long = false }) {
+    const bursts = long ? 6 : 4;
+    for (let index = 0; index < bursts; index += 1) {
+      noise({
+        duration: 0.018 + (index % 2) * 0.012,
+        delay: delay + index * 0.024,
+        gain: gain * (1 - index / (bursts * 1.5)),
+        frequency: 2300 + (index % 3) * 1200,
+        endFrequency: 900 + (index % 2) * 700,
+        type: "highpass",
+        q: 0.55,
+        attack: 0.001,
+        pan
+      });
+    }
+    tone({ frequency: long ? 118 : 154, endFrequency: 58, duration: long ? 0.22 : 0.12, delay, gain: gain * 0.62, attack: 0.001, type: "sawtooth", pan });
+  }
+
+  function creak({ delay = 0, gain = 0.05, pan = 0, closing = false }) {
+    noise({
+      duration: 0.3,
+      delay,
+      gain,
+      frequency: closing ? 680 : 230,
+      endFrequency: closing ? 210 : 760,
+      type: "bandpass",
+      q: 3.1,
+      attack: 0.07,
+      playbackRate: 0.7,
+      pan
+    });
+    tone({ frequency: closing ? 112 : 76, endFrequency: closing ? 69 : 121, duration: 0.27, delay: delay + 0.018, gain: gain * 0.38, attack: 0.045, type: "sawtooth", pan });
+  }
+
   function synthesize(name, options = {}) {
     const pan = Math.max(-1, Math.min(1, Number(options.pan) || 0));
     switch (name) {
       case "ui":
-        tone({ frequency: 520, endFrequency: 610, duration: 0.045, gain: 0.045, type: "triangle", pan });
+        noise({ duration: 0.018, gain: 0.028, frequency: 3200, endFrequency: 1250, type: "highpass", q: 0.55, attack: 0.001, pan });
+        tone({ frequency: 128, endFrequency: 68, duration: 0.032, gain: 0.022, attack: 0.001, type: "sine", pan });
         break;
       case "jump":
-        tone({ frequency: 245, endFrequency: 410, duration: 0.09, gain: 0.09, type: "triangle", pan });
+        impact({ gain: 0.038, frequency: 108, pan });
+        whoosh({ delay: 0.012, duration: 0.105, gain: 0.045, from: 340, to: 1850, pan });
+        rustle({ delay: 0.008, gain: 0.018, pan });
         break;
       case "double-jump":
-        tone({ frequency: 330, endFrequency: 690, duration: 0.14, gain: 0.09, type: "triangle", pan });
-        noise({ duration: 0.07, gain: 0.022, frequency: 1800, pan });
+        impact({ gain: 0.048, frequency: 126, pan });
+        whoosh({ duration: 0.16, gain: 0.057, from: 270, to: 3400, pan: Math.max(-1, pan - 0.08) });
+        whoosh({ delay: 0.045, duration: 0.12, gain: 0.032, from: 520, to: 4700, pan: Math.min(1, pan + 0.11) });
         break;
       case "grapple-attach":
-        noise({ duration: 0.045, gain: 0.055, frequency: 2200, pan });
-        tone({ frequency: 720, endFrequency: 285, duration: 0.12, gain: 0.07, type: "triangle", pan });
+        whoosh({ duration: 0.085, gain: 0.055, from: 760, to: 3900, pan });
+        ropeTwang({ delay: 0.052, gain: 0.066, pan });
+        metalClack({ delay: 0.125, gain: 0.047, pan });
         break;
       case "grapple-release":
-        tone({ frequency: 310, endFrequency: 185, duration: 0.09, gain: 0.055, type: "sine", pan });
+        whoosh({ duration: 0.13, gain: 0.04, from: 2600, to: 330, pan });
+        ropeTwang({ delay: 0.025, gain: 0.045, pan, slack: true });
         break;
       case "grapple-fail":
-        noise({ duration: 0.12, gain: 0.06, frequency: 260, type: "lowpass", pan });
-        tone({ frequency: 175, endFrequency: 72, duration: 0.2, gain: 0.095, type: "sawtooth", pan });
+        impact({ gain: 0.095, frequency: 152, pan });
+        rustle({ delay: 0.018, gain: 0.045, pan, broad: true });
+        ropeTwang({ delay: 0.06, gain: 0.036, pan, slack: true });
         break;
       case "ladder-start":
-        tone({ frequency: 260, endFrequency: 310, duration: 0.055, gain: 0.055, type: "square", pan });
-        tone({ frequency: 390, duration: 0.05, delay: 0.055, gain: 0.045, type: "square", pan });
+        metalClack({ gain: 0.05, pan });
+        metalClack({ delay: 0.075, gain: 0.036, pan: Math.min(1, pan + 0.08) });
         break;
       case "ladder-end":
-        tone({ frequency: 390, endFrequency: 520, duration: 0.11, gain: 0.065, type: "triangle", pan });
+        metalClack({ gain: 0.064, pan, heavy: true });
+        rustle({ delay: 0.035, gain: 0.022, pan });
         break;
       case "hatch-up":
-        noise({ duration: 0.12, gain: 0.06, frequency: 430, type: "lowpass", pan });
-        tone({ frequency: 125, endFrequency: 225, duration: 0.24, gain: 0.085, type: "triangle", pan });
+        metalClack({ gain: 0.052, pan });
+        creak({ delay: 0.055, gain: 0.058, pan });
+        whoosh({ delay: 0.12, duration: 0.19, gain: 0.036, from: 360, to: 2200, pan });
         break;
       case "hatch-down":
-        noise({ duration: 0.1, gain: 0.065, frequency: 360, type: "lowpass", pan });
-        tone({ frequency: 190, endFrequency: 82, duration: 0.2, gain: 0.08, type: "triangle", pan });
+        impact({ gain: 0.074, frequency: 172, pan });
+        metalClack({ delay: 0.035, gain: 0.058, pan, heavy: true });
+        creak({ delay: 0.075, gain: 0.046, pan, closing: true });
         break;
       case "hatch-exit":
-        noise({ duration: 0.07, gain: 0.04, frequency: 1200, pan });
-        tone({ frequency: 215, endFrequency: 410, duration: 0.13, gain: 0.065, type: "triangle", pan });
+        rustle({ gain: 0.044, pan, broad: true });
+        whoosh({ delay: 0.018, duration: 0.12, gain: 0.03, from: 480, to: 1700, pan });
+        metalClack({ delay: 0.115, gain: 0.032, pan });
         break;
       case "portal":
-        tone({ frequency: 220, endFrequency: 330, duration: 0.28, gain: 0.075, type: "sine", pan });
-        tone({ frequency: 440, endFrequency: 660, duration: 0.3, delay: 0.06, gain: 0.055, type: "sine", pan });
+        metalClack({ gain: 0.042, pan });
+        creak({ delay: 0.035, gain: 0.045, pan });
+        whoosh({ delay: 0.09, duration: 0.34, gain: 0.064, from: 3600, to: 190, pan });
+        impact({ delay: 0.34, gain: 0.048, frequency: 104, pan });
         break;
       case "flag":
-      case "tutorial-complete":
+        rustle({ gain: 0.04, pan });
+        impact({ delay: 0.035, gain: 0.045, frequency: 132, pan });
         [523, 659, 784, 1047].forEach((frequency, index) => tone({
           frequency,
           duration: 0.13,
-          delay: index * 0.065,
-          gain: name === "flag" ? 0.07 : 0.055,
+          delay: 0.045 + index * 0.065,
+          gain: 0.066,
           type: "triangle",
           pan
         }));
         break;
+      case "tutorial-complete":
+        rustle({ gain: 0.036, pan });
+        impact({ delay: 0.055, gain: 0.055, frequency: 118, pan });
+        tone({ frequency: 392, duration: 0.16, delay: 0.085, gain: 0.04, type: "triangle", pan });
+        tone({ frequency: 587, duration: 0.24, delay: 0.18, gain: 0.045, type: "triangle", pan });
+        break;
       case "hint":
-        tone({ frequency: 587, duration: 0.15, gain: 0.055, type: "sine", pan });
-        tone({ frequency: 880, duration: 0.18, delay: 0.09, gain: 0.05, type: "sine", pan });
+        rustle({ gain: 0.052, pan });
+        noise({ duration: 0.022, delay: 0.09, gain: 0.025, frequency: 2900, endFrequency: 1800, type: "highpass", attack: 0.001, pan });
+        impact({ delay: 0.105, gain: 0.024, frequency: 94, pan });
         break;
       case "private-hint":
+        whoosh({ duration: 0.24, gain: 0.035, from: 1100, to: 4300, pan });
+        rustle({ delay: 0.06, gain: 0.021, pan });
+        tone({ frequency: 690, endFrequency: 1240, duration: 0.24, delay: 0.035, gain: 0.034, type: "sine", pan });
+        break;
       case "wisp":
-        tone({ frequency: 740, endFrequency: 1180, duration: 0.22, gain: 0.055, type: "sine", pan });
-        tone({ frequency: 1110, endFrequency: 1480, duration: 0.18, delay: 0.055, gain: 0.035, type: "sine", pan });
+        whoosh({ duration: 0.32, gain: 0.045, from: 380, to: 4800, pan });
+        tone({ frequency: 540, endFrequency: 1760, duration: 0.3, gain: 0.04, type: "sine", pan });
+        tone({ frequency: 1210, endFrequency: 730, duration: 0.22, delay: 0.08, gain: 0.025, type: "sine", pan: Math.min(1, pan + 0.12) });
         break;
       case "debuff-pickup":
+        electric({ gain: 0.063, pan });
+        impact({ delay: 0.075, gain: 0.045, frequency: 126, pan });
+        break;
       case "debuff-cast":
-        tone({ frequency: 180, endFrequency: 360, duration: 0.18, gain: 0.07, type: "square", pan });
-        noise({ duration: 0.1, delay: 0.04, gain: 0.035, frequency: 650, pan });
+        electric({ gain: 0.072, pan, long: true });
+        whoosh({ delay: 0.035, duration: 0.18, gain: 0.045, from: 2100, to: 430, pan });
         break;
       case "debuff-hit":
-        tone({ frequency: 150, endFrequency: 65, duration: 0.32, gain: 0.105, type: "sawtooth", pan });
-        noise({ duration: 0.15, gain: 0.055, frequency: 240, type: "lowpass", pan });
+        impact({ gain: 0.11, frequency: 168, pan });
+        electric({ delay: 0.025, gain: 0.07, pan, long: true });
+        rustle({ delay: 0.04, gain: 0.038, pan, broad: true });
         break;
       case "round-start":
-        [440, 440, 880].forEach((frequency, index) => tone({
-          frequency,
-          duration: index === 2 ? 0.24 : 0.1,
-          delay: index * 0.15,
-          gain: index === 2 ? 0.08 : 0.06,
-          type: "square"
-        }));
+        [0, 0.16, 0.32].forEach((delay, index) => {
+          impact({ delay, gain: index === 2 ? 0.095 : 0.061, frequency: index === 2 ? 126 : 92, pan });
+          noise({ duration: 0.035, delay, gain: index === 2 ? 0.06 : 0.038, frequency: 980, endFrequency: 330, type: "bandpass", q: 1.2, attack: 0.001, pan });
+        });
         break;
       case "win":
+        impact({ gain: 0.07, frequency: 122, pan });
         [392, 523, 659, 784].forEach((frequency, index) => tone({
           frequency,
           duration: index === 3 ? 0.42 : 0.18,
-          delay: index * 0.11,
+          delay: 0.035 + index * 0.11,
           gain: 0.075,
           type: "triangle"
         }));
+        rustle({ delay: 0.34, gain: 0.034, pan, broad: true });
         break;
       case "lose":
+        impact({ gain: 0.06, frequency: 102, pan });
         tone({ frequency: 294, endFrequency: 220, duration: 0.23, gain: 0.07, type: "triangle" });
         tone({ frequency: 220, endFrequency: 147, duration: 0.32, delay: 0.18, gain: 0.075, type: "triangle" });
+        creak({ delay: 0.15, gain: 0.025, pan, closing: true });
         break;
       case "result":
-        tone({ frequency: 330, duration: 0.13, gain: 0.06, type: "triangle" });
-        tone({ frequency: 494, duration: 0.25, delay: 0.1, gain: 0.065, type: "triangle" });
+        rustle({ gain: 0.045, pan, broad: true });
+        impact({ delay: 0.065, gain: 0.072, frequency: 112, pan });
+        tone({ frequency: 330, duration: 0.13, delay: 0.07, gain: 0.045, type: "triangle" });
+        tone({ frequency: 494, duration: 0.25, delay: 0.15, gain: 0.052, type: "triangle" });
         break;
       case "respawn":
-        tone({ frequency: 180, endFrequency: 520, duration: 0.28, gain: 0.07, type: "sine", pan });
+        whoosh({ duration: 0.28, gain: 0.064, from: 170, to: 3900, pan });
+        rustle({ delay: 0.16, gain: 0.03, pan });
+        impact({ delay: 0.24, gain: 0.055, frequency: 116, pan });
         break;
       default:
         return false;
