@@ -1029,14 +1029,14 @@
   function buildCollisionMap({ preservePlayer = true } = {}) {
     const rebuildStartedAt = performance.now();
     const previous = { x: player.x, y: player.y };
-    const previousSurfaceElement = preservePlayer && player.standingBody
-      ? sourceElementAt(player.standingBody, player.x + player.width * 0.5)
+    const previousSupport = preservePlayer && player.grounded
+      ? [player.navigationBody, player.standingBody, supportingMapBody()]
+        .find((body) => body && state.bodies.includes(body) && !body.menuLedge) || null
       : null;
-    const previousSurface = previousSurfaceElement ? {
-      element: previousSurfaceElement,
-      x: player.standingBody.x,
-      y: player.standingBody.y,
-      height: player.standingBody.height
+    const previousSurface = previousSupport ? {
+      ...bodyDescriptor(previousSupport),
+      preferredX: player.x,
+      height: previousSupport.height
     } : null;
     const previousGoal = mission.goalBody ? {
       element: mission.goalElement,
@@ -1095,29 +1095,24 @@
       } else if (previousSurface) {
         // Hover UIs can reveal menus and change the collision map. Keep the
         // player attached to the same DOM surface instead of letting the new
-        // geometry drop them onto an unrelated label underneath.
-        const matchingBody = state.textBodies
-          .filter((body) =>
-            body.sourceRegions?.some((region) => region.element === previousSurface.element) &&
-            Math.abs(body.y - previousSurface.y) <= Math.max(8, previousSurface.height * 0.55)
-          )
-          .toSorted((a, b) =>
-            Math.abs(a.y - previousSurface.y) * 100 + Math.abs(a.x - previousSurface.x) -
-            (Math.abs(b.y - previousSurface.y) * 100 + Math.abs(b.x - previousSurface.x))
-          )[0];
+        // geometry drop them onto an unrelated label underneath. This also
+        // covers separator rules and other line floors; standingBody only
+        // records text, so relying on it made line landings disappear here.
+        const matchingBody = remappedSurfaceBody(previousSurface);
         if (matchingBody) {
-          const region = matchingBody.sourceRegions.find((item) => item.element === previousSurface.element);
-          const desiredCenter = previous.x + player.width * 0.5;
-          player.x = Math.max(
-            region.left - player.width * 0.35,
-            Math.min(desiredCenter - player.width * 0.5, region.right - player.width * 0.65)
-          );
+          player.x = checkpointXForBody(matchingBody, previousSurface.preferredX);
           player.y = matchingBody.y - player.height - 1;
           player.velocityY = 0;
           player.grounded = true;
           player.airJumpsRemaining = 1;
           player.airJumpAt = -Infinity;
-          player.standingBody = matchingBody;
+          player.standingBody = matchingBody.kind === "text" ? matchingBody : null;
+          player.navigationBody = matchingBody;
+          recordLandingCheckpoint(matchingBody);
+        } else {
+          player.grounded = false;
+          player.standingBody = null;
+          player.navigationBody = null;
         }
       }
       remapMission(previousGoal, previousRoute, previousGuide);
@@ -1207,9 +1202,15 @@
       return;
     }
     const rebuildStartedAt = performance.now();
-    const previousSurfaceElement = player.standingBody
-      ? sourceElementAt(player.standingBody, player.x + player.width * 0.5)
+    const previousSupport = player.grounded
+      ? [player.navigationBody, player.standingBody, supportingMapBody()]
+        .find((body) => body && state.bodies.includes(body) && !body.menuLedge) || null
       : null;
+    const previousSurface = previousSupport ? {
+      ...bodyDescriptor(previousSupport),
+      preferredX: player.x,
+      height: previousSupport.height
+    } : null;
     const previousGoal = mission.goalBody ? {
       element: mission.goalElement,
       x: mission.goalPoint?.x ?? mission.goalBody.x + mission.goalBody.width * 0.5,
@@ -1244,18 +1245,21 @@
     state.webPoints = collectWebPoints(characters, state.lineBodies);
     state.menuLadders = collectMenuLadders(overlays);
 
-    const matchingSurface = previousSurfaceElement
-      ? state.textBodies
-        .filter((body) => body.sourceRegions?.some((region) => region.element === previousSurfaceElement))
-        .toSorted((a, b) => Math.abs(a.y - (player.y + player.height)) - Math.abs(b.y - (player.y + player.height)))[0]
-      : null;
+    const matchingSurface = previousSurface ? remappedSurfaceBody(previousSurface) : null;
     if (matchingSurface) {
+      player.x = checkpointXForBody(matchingSurface, previousSurface.preferredX);
       player.y = matchingSurface.y - player.height - 1;
       player.velocityY = 0;
       player.grounded = true;
       player.airJumpsRemaining = 1;
       player.airJumpAt = -Infinity;
-      player.standingBody = matchingSurface;
+      player.standingBody = matchingSurface.kind === "text" ? matchingSurface : null;
+      player.navigationBody = matchingSurface;
+      recordLandingCheckpoint(matchingSurface);
+    } else if (previousSurface) {
+      player.grounded = false;
+      player.standingBody = null;
+      player.navigationBody = null;
     }
     player.navigationBody = supportingMapBody();
     if (mission.initialized) remapMission(previousGoal, previousRoute, previousGuide, { preservePlannedRoute: true });
@@ -5604,8 +5608,39 @@
       x: body.x,
       y: body.y,
       reference: body,
-      element: body.kind === "text" ? sourceElementAt(body, bodyCenterX(body)) : null
+      element: sourceElementAt(body, bodyCenterX(body)) || body.sourceElement || body.overlayElement || null
     };
+  }
+
+  function bodyUsesElement(body, element) {
+    if (!body || !element) return false;
+    return body.sourceElement === element ||
+      body.overlayElement === element ||
+      body.sourceRegions?.some((region) =>
+        region.element === element || element.contains?.(region.element) || region.element.contains?.(element)
+      );
+  }
+
+  function remappedSurfaceBody(descriptor) {
+    if (!descriptor) return null;
+    const exact = descriptor.element
+      ? state.bodies.filter((body) =>
+        body.kind === descriptor.kind &&
+        body.navigationXs?.length &&
+        bodyUsesElement(body, descriptor.element)
+      )
+      : [];
+    const nearby = exact.length > 0 ? exact : state.bodies.filter((body) =>
+      body.kind === descriptor.kind &&
+      body.navigationXs?.length &&
+      Math.abs(body.y - descriptor.y) <= Math.max(10, Number(descriptor.height) || 0) &&
+      descriptor.preferredX + player.width > body.x - 8 &&
+      descriptor.preferredX < body.x + body.width + 8
+    );
+    return nearby.toSorted((first, second) =>
+      Math.abs(first.y - descriptor.y) * 100 + Math.abs(checkpointXForBody(first, descriptor.preferredX) - descriptor.preferredX) -
+      (Math.abs(second.y - descriptor.y) * 100 + Math.abs(checkpointXForBody(second, descriptor.preferredX) - descriptor.preferredX))
+    )[0] || null;
   }
 
   function remappedRouteBody(descriptor) {
@@ -5613,7 +5648,7 @@
     const candidates = state.bodies.filter((body) =>
       body.kind === descriptor.kind &&
       body.navigationXs?.length &&
-      (!descriptor.element || body.sourceRegions?.some((region) => region.element === descriptor.element))
+      (!descriptor.element || bodyUsesElement(body, descriptor.element))
     );
     const pool = candidates.length > 0
       ? candidates
@@ -10952,7 +10987,13 @@
     if (!hoverOnly) state.rebuildFull = true;
     window.clearTimeout(state.rebuildTimer);
     state.rebuildTimer = window.setTimeout(() => {
-      if (interaction.portal?.entering) return;
+      if (interaction.portal?.entering) {
+        // A successful portal unloads this document. If navigation is blocked
+        // or cancelled, however, abandoning this timer leaves needsRebuild set
+        // forever and all geometry stale. Keep one debounced retry alive.
+        scheduleRebuild({ hoverOnly: !state.rebuildFull });
+        return;
+      }
       if (
         web.hatchPhase !== "none" ||
         web.mantlePhase !== "none" ||
@@ -10987,6 +11028,13 @@
     scheduleRebuild({ hoverOnly: performance.now() < state.hoverLayoutChangingUntil });
   });
   resizeObserver.observe(document.body);
+
+  // Race pages begin after DOMContentLoaded so large/lazy images do not delay
+  // the whole game. Rebuild once those assets settle even when the document's
+  // total height happens to stay unchanged; internal floors can still move.
+  document.addEventListener("load", (event) => {
+    if (event.target instanceof HTMLImageElement && !isGameNode(event.target)) scheduleRebuild();
+  }, true);
 
   window.EimeiMap = {
     active: true,

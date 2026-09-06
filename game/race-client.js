@@ -15,11 +15,14 @@
   const roomParameter = isArena ? "room" : "eimei-room";
   const nicknameStorageKey = "eimei-race-nickname-v1";
   const playerStorageKey = "eimei-race-player-v1";
+  const playerLeaseChannelName = "eimei-race-player-lease-v1";
   const roundStorageKey = "eimei-race-round-v1";
   const startPlacementStorageKey = "eimei-race-place-start-v1";
   const privateHintStorageKey = "eimei-race-private-hints-v1";
   const roomAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const photoIntroMilliseconds = 3200;
+  const playerInstanceId = crypto.randomUUID();
+  const playerInstanceStartedAt = performance.timeOrigin;
   const playerPalettes = [
     { primary: "#164c7e", dark: "#092643", accent: "#f05b32", visor: "#6ee8ff", glow: "rgba(31,151,211,.24)" },
     { primary: "#a53e32", dark: "#4f1714", accent: "#f0a52f", visor: "#ffd38a", glow: "rgba(197,73,57,.24)" },
@@ -79,8 +82,15 @@
     warmedRoundId: null,
     lastGrappleMessage: null,
     courseRetryCount: 0,
-    lastError: null
+    lastError: null,
+    playerLeasePromise: null,
+    playerLeaseReady: false,
+    playerLeaseConnectPending: false
   };
+
+  function createPlayerId() {
+    return `p_${crypto.randomUUID().replaceAll("-", "")}`;
+  }
 
   function paletteFor(player) {
     const index = Number.isInteger(player?.colorIndex) ? player.colorIndex : 0;
@@ -125,10 +135,53 @@
   function ensurePlayerId() {
     let playerId = sessionStorage.getItem(playerStorageKey) || "";
     if (!/^[a-zA-Z0-9_-]{12,80}$/.test(playerId)) {
-      playerId = `p_${crypto.randomUUID().replaceAll("-", "")}`;
+      playerId = createPlayerId();
       sessionStorage.setItem(playerStorageKey, playerId);
     }
     race.playerId = playerId;
+  }
+
+  async function claimUniquePlayerId() {
+    // Preview frames render the destination screenshot on the same origin and
+    // share this tab's sessionStorage. They are not players. Letting a preview
+    // compete for the lease rotates the real player's ID during every page
+    // transition and corrupts the round roster/result cards.
+    if (window !== window.top || typeof BroadcastChannel !== "function" || !race.playerId) return false;
+    const channel = new BroadcastChannel(playerLeaseChannelName);
+    race.playerLeaseChannel = channel;
+    let collision = false;
+    const localPriority = `${String(Math.floor(playerInstanceStartedAt)).padStart(16, "0")}:${playerInstanceId}`;
+    channel.addEventListener("message", (event) => {
+      const message = event.data;
+      if (!message || message.instanceId === playerInstanceId || message.playerId !== race.playerId) return;
+      const remotePriority = `${String(Math.floor(Number(message.startedAt) || 0)).padStart(16, "0")}:${String(message.instanceId || "")}`;
+      if (remotePriority < localPriority) collision = true;
+      if (message.type === "probe") {
+        channel.postMessage({
+          type: "owner",
+          playerId: race.playerId,
+          instanceId: playerInstanceId,
+          startedAt: playerInstanceStartedAt
+        });
+      }
+    });
+    channel.postMessage({
+      type: "probe",
+      playerId: race.playerId,
+      instanceId: playerInstanceId,
+      startedAt: playerInstanceStartedAt
+    });
+    await new Promise((resolve) => window.setTimeout(resolve, 120));
+    if (!collision) return false;
+    race.playerId = createPlayerId();
+    sessionStorage.setItem(playerStorageKey, race.playerId);
+    channel.postMessage({
+      type: "owner",
+      playerId: race.playerId,
+      instanceId: playerInstanceId,
+      startedAt: playerInstanceStartedAt
+    });
+    return true;
   }
 
   function pageIdentity(urlLike = location.href) {
@@ -272,6 +325,16 @@
   }
 
   function connect() {
+    if (!race.playerLeaseReady) {
+      if (!race.playerLeaseConnectPending && race.playerLeasePromise) {
+        race.playerLeaseConnectPending = true;
+        race.playerLeasePromise.finally(() => {
+          race.playerLeaseConnectPending = false;
+          connect();
+        });
+      }
+      return;
+    }
     if (!ensureRoomCode() || !race.nickname || race.socket?.readyState === WebSocket.OPEN || race.socket?.readyState === WebSocket.CONNECTING) return;
     const url = workerWebSocketUrl();
     if (!url) {
@@ -982,19 +1045,34 @@
     if (race.navigationCoursePromise || now < race.navigationRetryAt) return;
     race.navigationRetryAt = now + 800;
     race.navigationCourseKey = null;
+    const requestedRoundId = room.roundId;
+    const requestedRoomCode = room.code;
+    const requestedPage = pageIdentity();
+    const requestStillCurrent = () => Boolean(
+      race.room?.roundId === requestedRoundId &&
+      race.room?.code === requestedRoomCode &&
+      pageIdentity() === requestedPage &&
+      hintStage(race.room) >= 4
+    );
     race.navigationCoursePromise = navigationCourseForCurrentPage(room.course)
-      .then((course) => waitForMap().then((map) => map?.configureRaceRound({
-        roomCode: room.code,
-        roundId: room.roundId,
-        startAt: room.startAt,
-        course,
-        placeAtStart: false,
-        navigationEnabled: true,
-        frozen: room.phase === "countdown" && serverNow() < room.startAt,
-        finished: room.phase === "finished"
-      })))
+      .then((course) => {
+        if (!requestStillCurrent()) return null;
+        return waitForMap().then((map) => {
+          if (!map || !requestStillCurrent()) return null;
+          return map.configureRaceRound({
+            roomCode: race.room.code,
+            roundId: race.room.roundId,
+            startAt: race.room.startAt,
+            course,
+            placeAtStart: false,
+            navigationEnabled: true,
+            frozen: race.room.phase === "countdown" && serverNow() < race.room.startAt,
+            finished: race.room.phase === "finished"
+          });
+        });
+      })
       .then(() => {
-        race.navigationCourseKey = finalGuideReady() ? key : null;
+        race.navigationCourseKey = requestStillCurrent() && finalGuideReady() ? key : null;
         if (race.navigationCourseKey) race.navigationRetryAt = 0;
       })
       .finally(() => { race.navigationCoursePromise = null; });
@@ -1473,10 +1551,26 @@
           .map((value) => Math.round(value))
           .join(":")
         : "";
-      stablePasses = signature && signature === previousSignature ? stablePasses + 1 : 0;
+      const previewDocument = photo.iframe.contentDocument;
+      const relevantImages = position && previewDocument
+        ? [...previewDocument.images].filter((image) => {
+          const rect = image.getBoundingClientRect();
+          const documentTop = rect.top + (photo.iframe.contentWindow?.scrollY || 0);
+          return documentTop <= position.goalY + photo.viewHeight;
+        })
+        : [];
+      // A lazy image above the flag can load after the preview is visible and
+      // visibly scroll the frame, revealing whether the goal is high or low.
+      // Wake only images capable of moving the photographed area, then wait
+      // for both them and web fonts before declaring the frame stable.
+      for (const image of relevantImages) image.loading = "eager";
+      const pendingImages = relevantImages.filter((image) => !image.complete).length;
+      const fontsPending = previewDocument?.fonts?.status === "loading";
+      const layoutReady = pendingImages === 0 && !fontsPending;
+      stablePasses = layoutReady && signature && signature === previousSignature ? stablePasses + 1 : 0;
       previousSignature = signature;
       const elapsed = performance.now() - startedAt;
-      if ((stablePasses >= 2 && elapsed >= 360) || elapsed >= 1200) {
+      if ((stablePasses >= 2 && elapsed >= 360) || elapsed >= 5000) {
         positionPhotoMarker(photo);
         requestAnimationFrame(() => requestAnimationFrame(() => {
           if (race.photo !== photo) return;
@@ -1534,6 +1628,17 @@
     const url = new URL(goal.page.replace(/^\//, ""), staticRoot);
     url.searchParams.set("eimei-preview", "1");
     iframe.addEventListener("load", () => {
+      try {
+        iframe.contentDocument?.addEventListener("load", (event) => {
+          if (event.target?.localName !== "img" || race.photo !== currentPhoto) return;
+          currentPhoto.prepared = false;
+          currentPhoto.root.classList.add("is-preparing");
+          prepareRacePhoto(currentPhoto);
+        }, true);
+      } catch {
+        // The frame can be replaced during a page transition before this task
+        // runs. Its successor installs its own listener.
+      }
       prepareRacePhoto(currentPhoto);
     });
     iframe.src = url.href;
@@ -1849,9 +1954,9 @@
     const winner = race.room.players.find((player) => player.id === race.room.winnerId);
     const roundPlayerIds = new Set(race.room.roundPlayerIds || []);
     const participants = race.room.players
-      .filter((player) => roundPlayerIds.size === 0
+      .filter((player) => player.id === race.room.winnerId || (roundPlayerIds.size === 0
         ? player.connected || player.currentPage || player.id === race.room.winnerId
-        : roundPlayerIds.has(player.id))
+        : roundPlayerIds.has(player.id)))
       .toSorted((first, second) =>
         Number(second.id === race.room.winnerId) - Number(first.id === race.room.winnerId) ||
         (Number(second.points) || 0) - (Number(first.points) || 0) ||
@@ -1981,10 +2086,17 @@
     document.querySelector("[data-race-change-name]")?.addEventListener("click", () => showProfileEditor({ force: true }));
   }
 
-  function boot() {
+  async function boot() {
     ensurePlayerId();
+    // The room-code form must be usable as soon as the arena script exists.
+    // Identity arbitration takes a brief probe window, so install the local UI
+    // first and make network connection wait on that probe instead.
+    if (isArena) installArenaActions();
+    race.playerLeasePromise = claimUniquePlayerId().catch(() => false).finally(() => {
+      race.playerLeaseReady = true;
+    });
+    await race.playerLeasePromise;
     if (isArena) {
-      installArenaActions();
       const entry = document.querySelector("[data-race-entry]");
       const lobby = document.querySelector("[data-race-lobby]");
       if (!ensureRoomCode()) {
