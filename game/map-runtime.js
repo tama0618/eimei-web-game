@@ -3,6 +3,14 @@
 
   if (window.EimeiMap?.active) return;
 
+  function playSfx(name, options = {}) {
+    try {
+      return Boolean(window.EimeiSfx?.play?.(name, options));
+    } catch {
+      return false;
+    }
+  }
+
   const CONFIG = Object.freeze({
     worldScale: 1.4,
     gapEm: 0.72,
@@ -3840,6 +3848,7 @@
 
   function collectScoreFlag(nowSeconds) {
     if (!mission.scoreAttack || mission.scoreFinished || mission.completed) return;
+    playSfx("flag");
     mission.score += 1;
     mission.scoreRound += 1;
     mission.scoreRoundsOnPage += 1;
@@ -3880,6 +3889,7 @@
     clearScorePickupFeedback();
     clearMissionPreviewPhoto();
     showScoreResult();
+    playSfx("result");
   }
 
   function updateScoreAttackState(frameSeconds, nowSeconds) {
@@ -4080,6 +4090,7 @@
   function completeTutorialStep(nowSeconds = performance.now() / 1000) {
     const checkpoint = tutorialCurrentCheckpoint();
     if (!checkpoint || tutorial.transitioning || !tutorialRequirementMet(checkpoint)) return false;
+    playSfx("tutorial-complete");
     const completedIndex = tutorial.step;
     tutorial.transitioning = true;
     tutorial.completedSteps.push(checkpoint.dataset.require || "reach");
@@ -4624,6 +4635,7 @@
       detail: { roundId: race.roundId, page: wisp.page, wispId: wisp.id, index: wisp.index }
     }));
     if (!accepted) race.pendingWispClaims.delete(wisp.id);
+    else playSfx("wisp");
     return accepted;
   }
 
@@ -4646,6 +4658,7 @@
       detail: { roundId: race.roundId, page: wisp.page, debuffId: wisp.id, index: wisp.index }
     }));
     if (!accepted) race.pendingDebuffClaims.delete(wisp.id);
+    else playSfx("debuff-pickup");
     return accepted;
   }
 
@@ -4749,6 +4762,7 @@
 
   function triggerGrappleInterruption(kind, grapple = activeIncomingRaceGrapple()) {
     if (!grapple) return false;
+    playSfx("grapple-fail");
     const centerX = player.x + player.width * 0.5;
     const centerY = player.y + player.height * 0.45;
     const dx = grapple.x - centerX;
@@ -6002,6 +6016,7 @@
       top: Math.max(0, player.y - window.innerHeight * 0.42),
       behavior: "instant"
     });
+    if (fromFall) playSfx("respawn");
   }
 
   function intersects(a, b) {
@@ -6100,6 +6115,7 @@
     if (tutorial.active) tutorial.actions.drop = true;
     player.velocityX = 0;
     player.velocityY = 0;
+    playSfx("hatch-down");
     return true;
   }
 
@@ -6206,6 +6222,7 @@
       dropHatch.body = null;
       dropHatch.visualY = null;
       dropHatch.completed += 1;
+      playSfx("hatch-exit");
     }
     return true;
   }
@@ -6315,6 +6332,7 @@
     player.groundedAt = -Infinity;
     player.standingBody = null;
     player.navigationBody = null;
+    playSfx("ladder-start");
     return true;
   }
 
@@ -6331,6 +6349,7 @@
     player.navigationBody = ladder.lowerBody || null;
     ladderTraversal.graceUntil = nowSeconds + 0.2;
     cancelLadderTraversal();
+    playSfx("ladder-end");
   }
 
   function updateLadderTraversal(dt, nowSeconds) {
@@ -6495,6 +6514,7 @@
       ladderTraversal.graceUntil = nowSeconds + 0.35;
       ladderTraversal.completed += 1;
       cancelLadderTraversal();
+      playSfx("ladder-end");
     }
     return true;
   }
@@ -6870,6 +6890,7 @@
 
   function beginPortalEntry(portal, nowSeconds = performance.now() / 1000) {
     if (!portal || portal.entering || portal.progress < 0.82 || !playerIsNearPortal(portal)) return false;
+    playSfx("portal");
     input.downPressedAt = -Infinity;
     if (!portal.pageTop) syncScoreAttackPortalTarget(portal);
     portal.entering = true;
@@ -7219,11 +7240,16 @@
       tutorial.lastWebLength = web.length;
       tutorial.reelDistance = 0;
     }
+    const viewportCenter = window.scrollX + window.innerWidth * 0.5;
+    playSfx("grapple-attach", {
+      pan: Math.max(-1, Math.min(1, (web.anchorX - viewportCenter) / Math.max(1, window.innerWidth * 0.5)))
+    });
     return true;
   }
 
   function detachWeb({ releaseBoost = false, force = false } = {}) {
     if ((web.hatchPhase !== "none" || web.mantlePhase !== "none") && !force) return;
+    const releasedByPlayer = releaseBoost && web.active;
     if (releaseBoost && web.active && !player.grounded) {
       player.velocityY = Math.min(player.velocityY, -CONFIG.webReleaseSpeed);
     }
@@ -7237,6 +7263,7 @@
     web.mantlePhase = "none";
     web.mantleTime = 0;
     web.mantleBody = null;
+    if (releasedByPlayer) playSfx("grapple-release");
   }
 
   function hatchExitPlayerX(body, preferredCenterX) {
@@ -7434,6 +7461,7 @@
     web.hatchesStarted += 1;
     player.velocityX = 0;
     player.velocityY = 0;
+    playSfx("hatch-up");
   }
 
   function updateWebHatch(dt) {
@@ -7527,6 +7555,7 @@
       player.standingBody = body.kind === "text" ? body : null;
       player.navigationBody = body;
       refreshHatchCandidate({ force: true });
+      playSfx("hatch-exit");
     }
     return true;
   }
@@ -7670,6 +7699,7 @@
 
   function completeRaceFlag(nowSeconds) {
     if (!race.active || race.finished || race.finishPending || !race.course?.goal) return false;
+    playSfx("flag");
     race.finishPending = true;
     race.finishReportedAt = nowSeconds;
     mission.completed = true;
@@ -8431,6 +8461,7 @@
       player.groundedAt = -Infinity;
       input.jumpPressedAt = -Infinity;
       if (tutorial.active) tutorial.actions.jump = true;
+      playSfx("jump");
     } else if (
       bufferedJump &&
       !player.grounded &&
@@ -8443,6 +8474,7 @@
       player.airJumpAt = nowSeconds;
       input.jumpPressedAt = -Infinity;
       if (tutorial.active) tutorial.actions.doubleJump = true;
+      playSfx("double-jump");
     }
 
     if (!input.jump && player.velocityY < -CONFIG.jumpSpeed * 0.42) {

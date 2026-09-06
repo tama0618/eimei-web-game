@@ -3,6 +3,14 @@
 
   if (window.EimeiRace?.active) return;
 
+  function playSfx(name, options = {}) {
+    try {
+      return Boolean(window.EimeiSfx?.play?.(name, options));
+    } catch {
+      return false;
+    }
+  }
+
   const config = window.EIMEI_RACE_CONFIG || {};
   const script = document.currentScript || document.querySelector('script[src*="race-client.js"]');
   const scriptUrl = new URL(script?.src || "./game/race-client.js", location.href);
@@ -85,7 +93,9 @@
     lastError: null,
     playerLeasePromise: null,
     playerLeaseReady: false,
-    playerLeaseConnectPending: false
+    playerLeaseConnectPending: false,
+    lastArenaPhase: "",
+    lastArenaRoundId: ""
   };
 
   function createPlayerId() {
@@ -469,6 +479,14 @@
   function updateArena() {
     const room = race.room;
     if (!room) return;
+    const previousPhase = race.lastArenaPhase;
+    const previousRoundId = race.lastArenaRoundId;
+    race.lastArenaPhase = String(room.phase || "");
+    race.lastArenaRoundId = String(room.roundId || "");
+    if (
+      new Set(["countdown", "running"]).has(room.phase) &&
+      (previousRoundId !== race.lastArenaRoundId || !new Set(["countdown", "running"]).has(previousPhase))
+    ) playSfx("round-start");
     const roomCode = document.querySelector("[data-race-room-code]");
     if (roomCode) roomCode.textContent = room.code;
     const count = document.querySelector("[data-race-player-count]");
@@ -1120,6 +1138,7 @@
 
   function updateHints() {
     if (!race.hints || !race.room?.course) return;
+    const hadVisibleHint = race.hintKey !== null;
     const stage = hintStage();
     const goal = race.room.course.goal;
     if (stage >= 1 && !race.catalogData) {
@@ -1161,6 +1180,7 @@
     card.dataset.hintStage = String(stage);
     void card.offsetWidth;
     card.classList.add("is-updated");
+    if (hadVisibleHint) playSfx("hint");
     if (stage >= 4) ensureFinalNavigation();
     else window.EimeiMap?.setRaceNavigationEnabled?.(false);
   }
@@ -1361,6 +1381,7 @@
     race.privateHints = race.privateHints.slice(-8);
     savePrivateHints();
     renderPrivateHints(true);
+    playSfx("private-hint");
   }
 
   const debuffLabels = Object.freeze({
@@ -1460,8 +1481,10 @@
       showDebuffToast("赤い光を取得　対戦相手がいないため不発", "miss");
     } else if (message.targetId === race.playerId) {
       showDebuffToast(`妨害を受けた：${label}`, "target");
+      playSfx("debuff-hit");
     } else if (message.sourceId === race.playerId) {
       showDebuffToast(`赤い光 → ${target.nickname} に ${label}`, "source");
+      playSfx("debuff-cast");
     } else {
       showDebuffToast(`${source?.nickname || "PLAYER"} → ${target.nickname}：${label}`, "other");
     }
@@ -1995,6 +2018,7 @@
     root.querySelector("button").addEventListener("click", () => location.assign(arenaRoomUrl().href));
     document.documentElement.append(root);
     race.result = root;
+    playSfx(race.room.winnerId === race.playerId ? "win" : "lose");
     window.setTimeout(() => root.querySelector("button")?.focus(), 100);
   }
 
