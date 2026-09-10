@@ -1466,7 +1466,9 @@
     // over from the previous game.
     if (parameters.get("eimei-tutorial") === "done") return false;
     if (parameters.has("eimei-route")) return false;
-    location.replace(new URL("tutorial/index.html", staticSiteRoot).href);
+    const target = new URL("arena/index.html", staticSiteRoot);
+    target.searchParams.set("room", "AAAAAA");
+    location.replace(target.href);
     return true;
   }
 
@@ -1489,7 +1491,9 @@
       // Query parameters still start a clean run when storage is unavailable.
     }
     if (tutorial.active) {
-      location.replace(new URL("tutorial/index.html", staticSiteRoot).href);
+      const target = new URL("arena/index.html", staticSiteRoot);
+      target.searchParams.set("room", "AAAAAA");
+      location.replace(target.href);
       return;
     }
     if (redirectToRandomStartPage({ force: true })) return;

@@ -20,6 +20,9 @@
   if (scriptUrl.searchParams.get("v")) catalogUrl.searchParams.set("v", scriptUrl.searchParams.get("v"));
   const isArena = document.documentElement.hasAttribute("data-eimei-arena");
   const parameters = new URLSearchParams(location.search);
+  const exhibitionRoomCode = "AAAAAA";
+  const raceRouteStages = new Set(["race", "continue", "arrival"]);
+  const usesExhibitionRoom = isArena || raceRouteStages.has(parameters.get("eimei-route"));
   const roomParameter = isArena ? "room" : "eimei-room";
   const nicknameStorageKey = "eimei-race-nickname-v1";
   const playerStorageKey = "eimei-race-player-v1";
@@ -27,7 +30,6 @@
   const roundStorageKey = "eimei-race-round-v1";
   const startPlacementStorageKey = "eimei-race-place-start-v1";
   const privateHintStorageKey = "eimei-race-private-hints-v1";
-  const roomAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const photoIntroMilliseconds = 3200;
   const playerInstanceId = crypto.randomUUID();
   const playerInstanceStartedAt = performance.timeOrigin;
@@ -47,7 +49,7 @@
   ];
   const race = {
     active: true,
-    roomCode: (parameters.get(roomParameter) || "").toUpperCase(),
+    roomCode: usesExhibitionRoom ? exhibitionRoomCode : (parameters.get(roomParameter) || "").toUpperCase(),
     playerId: "",
     nickname: "",
     socket: null,
@@ -107,21 +109,8 @@
     return playerPalettes[((index % playerPalettes.length) + playerPalettes.length) % playerPalettes.length];
   }
 
-  function generateRoomCode() {
-    const bytes = crypto.getRandomValues(new Uint8Array(6));
-    return [...bytes].map((value) => roomAlphabet[value % roomAlphabet.length]).join("");
-  }
-
   function ensureRoomCode() {
     return /^[A-Z2-9]{6}$/.test(race.roomCode);
-  }
-
-  function normalizeRoomCode(value) {
-    const normalized = String(value ?? "")
-      .normalize("NFKC")
-      .toUpperCase()
-      .replace(/[\s-]+/gu, "");
-    return /^[A-Z2-9]{6}$/.test(normalized) ? normalized : null;
   }
 
   function graphemes(value) {
@@ -2040,97 +2029,36 @@
     }
   }
 
+  function enforceExhibitionRoom() {
+    if (!usesExhibitionRoom) return;
+    race.roomCode = exhibitionRoomCode;
+    const url = new URL(location.href);
+    if (url.searchParams.get(roomParameter) === exhibitionRoomCode) return;
+    url.searchParams.set(roomParameter, exhibitionRoomCode);
+    history.replaceState(history.state, "", url.href);
+  }
+
   function installArenaActions() {
-    const entry = document.querySelector("[data-race-entry]");
     const lobby = document.querySelector("[data-race-lobby]");
-    const roomInput = document.querySelector("[data-race-join-form] input[name='room']");
-    const entryError = document.querySelector("[data-race-entry-error]");
-
-    const showEntry = () => {
-      disconnect(false);
-      race.roomCode = "";
-      race.room = null;
-      race.lastError = null;
-      const url = new URL(location.href);
-      url.searchParams.delete("room");
-      history.replaceState(history.state, "", url.href);
-      if (entry) entry.hidden = false;
-      if (lobby) lobby.hidden = true;
-      document.querySelector("[data-race-player-list]")?.replaceChildren();
-      const count = document.querySelector("[data-race-player-count]");
-      if (count) count.textContent = "0 / 4";
-      if (entryError) entryError.textContent = "";
-      if (roomInput) {
-        roomInput.value = "";
-        requestAnimationFrame(() => roomInput.focus());
-      }
-    };
-
-    const enterRoom = (code) => {
-      const normalized = normalizeRoomCode(code);
-      if (!normalized) {
-        if (entryError) entryError.textContent = "英字と数字の6文字で入力してください";
-        roomInput?.focus();
-        return false;
-      }
-      disconnect(false);
-      race.roomCode = normalized;
-      race.room = null;
-      race.lastError = null;
-      const url = new URL(location.href);
-      url.searchParams.set("room", normalized);
-      history.replaceState(history.state, "", url.href);
-      const roomCode = document.querySelector("[data-race-room-code]");
-      if (roomCode) roomCode.textContent = normalized;
-      if (entry) entry.hidden = true;
-      if (lobby) lobby.hidden = false;
-      if (entryError) entryError.textContent = "";
-      const stored = normalizeNickname(localStorage.getItem(nicknameStorageKey));
-      if (stored) {
-        race.nickname = stored;
-        connect();
-      } else {
-        showProfileEditor();
-      }
-      return true;
-    };
-
-    document.querySelector("[data-race-create]")?.addEventListener("click", () => enterRoom(generateRoomCode()));
-    document.querySelector("[data-race-join-form]")?.addEventListener("submit", (event) => {
-      event.preventDefault();
-      enterRoom(roomInput?.value);
-    });
-    roomInput?.addEventListener("input", () => {
-      roomInput.value = roomInput.value.toUpperCase().replace(/[^A-Z2-9]/gu, "").slice(0, 6);
-      if (entryError) entryError.textContent = "";
-    });
-    document.querySelector("[data-race-change-room]")?.addEventListener("click", showEntry);
+    const roomCode = document.querySelector("[data-race-room-code]");
+    if (roomCode) roomCode.textContent = exhibitionRoomCode;
+    if (lobby) lobby.hidden = false;
     document.querySelector("[data-race-ready]")?.addEventListener("click", () => send({ type: "ready", ready: !currentPlayer()?.ready }));
     document.querySelector("[data-race-start]")?.addEventListener("click", () => send({ type: "start" }));
     document.querySelector("[data-race-change-name]")?.addEventListener("click", () => showProfileEditor({ force: true }));
   }
 
   async function boot() {
+    enforceExhibitionRoom();
     ensurePlayerId();
-    // The room-code form must be usable as soon as the arena script exists.
-    // Identity arbitration takes a brief probe window, so install the local UI
-    // first and make network connection wait on that probe instead.
     if (isArena) installArenaActions();
     race.playerLeasePromise = claimUniquePlayerId().catch(() => false).finally(() => {
       race.playerLeaseReady = true;
     });
     await race.playerLeasePromise;
     if (isArena) {
-      const entry = document.querySelector("[data-race-entry]");
       const lobby = document.querySelector("[data-race-lobby]");
-      if (!ensureRoomCode()) {
-        if (entry) entry.hidden = false;
-        if (lobby) lobby.hidden = true;
-        requestAnimationFrame(() => document.querySelector("[data-race-join-form] input")?.focus());
-        return;
-      }
       document.querySelector("[data-race-room-code]").textContent = race.roomCode;
-      if (entry) entry.hidden = true;
       if (lobby) lobby.hidden = false;
     } else if (!ensureRoomCode()) {
       return;
