@@ -55,6 +55,7 @@
     socket: null,
     connected: false,
     joined: false,
+    kicked: false,
     room: null,
     serverOffset: 0,
     reconnectTimer: 0,
@@ -334,7 +335,7 @@
       }
       return;
     }
-    if (!ensureRoomCode() || !race.nickname || race.socket?.readyState === WebSocket.OPEN || race.socket?.readyState === WebSocket.CONNECTING) return;
+    if (race.kicked || !ensureRoomCode() || !race.nickname || race.socket?.readyState === WebSocket.OPEN || race.socket?.readyState === WebSocket.CONNECTING) return;
     const url = workerWebSocketUrl();
     if (!url) {
       setArenaStatus("対戦サーバーの公開設定待ちです", "error");
@@ -355,6 +356,10 @@
       if (race.socket !== socket) return;
       race.connected = false;
       race.joined = false;
+      if (race.kicked) {
+        setArenaStatus("この接続は管理者によって退出されました", "error");
+        return;
+      }
       if (race.room?.phase !== "finished") race.finishSentRoundId = null;
       setArenaStatus("再接続しています");
       const delay = Math.min(8000, 500 * 2 ** race.reconnectAttempt++);
@@ -420,6 +425,23 @@
       const receivedAt = Date.now();
       const sentAt = Number(message.clientNow) || receivedAt;
       race.serverOffset = Number(message.serverNow) - (sentAt + receivedAt) * 0.5;
+      return;
+    }
+    if (message.type === "kicked") {
+      race.kicked = true;
+      race.connected = false;
+      race.joined = false;
+      window.clearTimeout(race.reconnectTimer);
+      window.clearInterval(race.pingTimer);
+      window.clearInterval(race.tickTimer);
+      window.clearInterval(race.positionTimer);
+      race.pingTimer = 0;
+      race.tickTimer = 0;
+      race.positionTimer = 0;
+      const socket = race.socket;
+      race.socket = null;
+      socket?.close(4003, "removed_by_admin");
+      setArenaStatus("この接続は管理者によって退出されました", "error");
       return;
     }
     if (message.type === "error") {
