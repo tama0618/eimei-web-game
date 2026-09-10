@@ -539,9 +539,8 @@
     const start = document.querySelector("[data-race-start]");
     if (start) {
       const isHost = room.hostId === race.playerId;
-      const everyoneReady = connectedPlayers.length >= 1 && connectedPlayers.every((player) => player.ready);
       start.hidden = !isHost;
-      start.disabled = !isHost || !everyoneReady || !new Set(["lobby", "finished"]).has(room.phase);
+      start.disabled = !isHost || connectedPlayers.length < 1 || !new Set(["lobby", "finished"]).has(room.phase);
       start.textContent = room.phase === "finished" ? "再戦開始" : "対戦開始";
     }
 
